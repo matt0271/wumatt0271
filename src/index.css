@@ -2,34 +2,3 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 徹底移除 Vite 預設的所有佈局干擾 */
-* {
-  box-sizing: border-box;
-}
-
-:root {
-  font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
-  background-color: #f8fafc; /* 淺灰色背景 */
-  color: #1e293b; /* 深色文字 */
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  display: block !important; /* 強制取消 Vite 的 flex 置中 */
-  min-height: 100vh;
-  width: 100%;
-}
-
-#root {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  display: block;
-}
-
-/* 確保輸入框和選擇框的文字顏色正確 */
-input, select, textarea {
-  color: #1e293b !important;
-  background-color: #ffffff !important;
-}
