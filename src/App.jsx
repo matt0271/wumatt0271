@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-// 注意：在本地 Vite 環境中，請確保已執行 npm install lucide-react
+// 必須確保已安裝：npm install lucide-react
 import { 
   Clock, User, Hash, FileText, Calendar, CheckCircle2, 
   AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, Loader2 
@@ -31,7 +31,6 @@ const App = () => {
 
   // 模擬載入紀錄
   useEffect(() => {
-    // 這裡未來可以對接資料庫，目前先顯示本地儲存或範例
     const saved = localStorage.getItem('overtime_records');
     if (saved) {
       setRecords(JSON.parse(saved));
@@ -79,7 +78,7 @@ const App = () => {
     
     setSubmitting(true);
     
-    // 模擬網路延遲
+    // 模擬網絡延遲
     setTimeout(() => {
       const newRecord = {
         ...formData,
@@ -106,12 +105,13 @@ const App = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
           <div className="bg-indigo-600 px-6 py-8 text-white text-center">
             <h1 className="text-2xl font-bold tracking-tight">加班申請系統</h1>
-            <p className="mt-2 text-indigo-100 opacity-90 text-sm">請填寫下方資訊以完成申請程序</p>
+            <p className="mt-2 text-indigo-100 opacity-90 text-sm">企業正式版</p>
           </div>
 
           <div className="px-6 pt-6 pb-2">
             <div className="flex p-1 bg-slate-100 rounded-xl">
               <button
+                type="button"
                 onClick={() => setAppType('pre')}
                 className={`flex-1 flex items-center justify-center py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
                   appType === 'pre' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -120,6 +120,7 @@ const App = () => {
                 事前加班申請
               </button>
               <button
+                type="button"
                 onClick={() => setAppType('post')}
                 className={`flex-1 flex items-center justify-center py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
                   appType === 'post' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -272,7 +273,7 @@ const App = () => {
               type="submit"
               disabled={submitting || submitted || totalHours <= 0}
               className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transform transition-all active:scale-[0.98] flex items-center justify-center space-x-2 ${
-                submitted ? 'bg-emerald-500' : submitting ? 'bg-indigo-400' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'
+                submitted ? 'bg-emerald-500 shadow-emerald-100' : submitting ? 'bg-indigo-400' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'
               }`}
             >
               {submitted ? (
