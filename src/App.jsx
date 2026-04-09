@@ -3,7 +3,8 @@ import {
   Clock, User, Hash, FileText, Calendar, CheckCircle2, 
   AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, 
   Loader2, Trash2, History, ClipboardCheck, Fingerprint,
-  CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X
+  CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X,
+  ShieldCheck, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 
 // --- 加班申請視圖 ---
@@ -85,6 +86,15 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
     }
   };
 
+  // 處理主管簽核動作
+  const handleApproval = (id, newStatus) => {
+    const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
+    setRecords(updated);
+    localStorage.setItem('portal_records', JSON.stringify(updated));
+  };
+
+  const pendingOvertime = records.filter(r => r.formType === '加班' && r.status === 'pending');
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
@@ -105,77 +115,143 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
           <div className="flex p-1.5 bg-slate-100 rounded-2xl">
             <button onClick={() => setAppType('pre')} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-bold transition-all ${appType === 'pre' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>事前申請</button>
             <button onClick={() => setAppType('post')} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-bold transition-all ${appType === 'post' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>事後補報</button>
+            <button onClick={() => setAppType('approve')} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-bold transition-all ${appType === 'approve' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
+              主管簽核
+              {pendingOvertime.length > 0 && <span className="ml-2 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+            </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><User className="w-3.5 h-3.5 mr-2 text-indigo-500" /> 姓名</label>
-              <input type="text" name="name" required placeholder="請輸入姓名" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-medium" value={formData.name} onChange={handleInputChange} />
+        {appType === 'approve' ? (
+          /* 主管簽核介面 */
+          <div className="px-8 py-10 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <ShieldCheck className="w-5 h-5 text-indigo-600" />
+              <h3 className="font-bold text-slate-800 tracking-tight">待簽核項目列表</h3>
             </div>
-            <div className="space-y-2">
-              <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><Hash className="w-3.5 h-3.5 mr-2 text-indigo-500" /> 員工編號</label>
-              <input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-medium" value={formData.empId} onChange={handleInputChange} />
-            </div>
+            {pendingOvertime.length > 0 ? (
+              <div className="space-y-4">
+                {pendingOvertime.map((record) => (
+                  <div key={record.id} className="group relative bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black font-mono text-indigo-600">{record.serialId}</span>
+                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {record.appType === 'pre' ? '事前' : '補報'}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">{record.name} ({record.empId})</h4>
+                        <p className="text-xs text-slate-500 font-medium">{record.startDate} {record.startHour}:{record.startMin} ～ {record.endHour}:{record.endMin}</p>
+                        <div className="mt-2 text-xs bg-white border border-slate-100 p-2 rounded-lg text-slate-600 italic">
+                          "{record.reason}"
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-between items-end">
+                        <div className="text-right">
+                          <span className="text-sm font-black text-indigo-600">{record.totalHours} HR</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleApproval(record.id, 'approved')}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all"
+                          >
+                            <ThumbsUp size={14} /> 核准
+                          </button>
+                          <button 
+                            onClick={() => handleApproval(record.id, 'rejected')}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-500 hover:text-white transition-all"
+                          >
+                            <ThumbsDown size={14} /> 駁回
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                <CheckCircle2 size={40} className="mb-3 opacity-20" />
+                <p className="text-sm font-bold opacity-60">目前沒有待簽核的加班申請</p>
+              </div>
+            )}
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="space-y-3">
-              <label className="flex items-center text-xs font-bold text-emerald-600 uppercase tracking-widest"><Clock className="w-3.5 h-3.5 mr-2" /> 開始</label>
-              <div className="flex gap-2">
-                <input type="date" name="startDate" className="flex-grow px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.startDate} onChange={handleInputChange} />
-                <select name="startHour" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.startHour} onChange={handleInputChange}>{hours.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
-                <select name="startMin" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.startMin} onChange={handleInputChange}>{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
+        ) : (
+          /* 加班申請表單 */
+          <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><User className="w-3.5 h-3.5 mr-2 text-indigo-500" /> 姓名</label>
+                <input type="text" name="name" required placeholder="請輸入姓名" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-medium" value={formData.name} onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><Hash className="w-3.5 h-3.5 mr-2 text-indigo-500" /> 員工編號</label>
+                <input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-sm font-medium" value={formData.empId} onChange={handleInputChange} />
               </div>
             </div>
-            <div className="space-y-3">
-              <label className="flex items-center text-xs font-bold text-rose-600 uppercase tracking-widest"><Clock className="w-3.5 h-3.5 mr-2" /> 結束</label>
-              <div className="flex gap-2">
-                <input type="date" name="endDate" className="flex-grow px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.endDate} onChange={handleInputChange} />
-                <select name="endHour" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.endHour} onChange={handleInputChange}>{hours.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
-                <select name="endMin" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.endMin} onChange={handleInputChange}>{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="space-y-3">
+                <label className="flex items-center text-xs font-bold text-emerald-600 uppercase tracking-widest"><Clock className="w-3.5 h-3.5 mr-2" /> 開始</label>
+                <div className="flex gap-2">
+                  <input type="date" name="startDate" className="flex-grow px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.startDate} onChange={handleInputChange} />
+                  <div className="flex gap-1 shrink-0">
+                    <select name="startHour" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.startHour} onChange={handleInputChange}>{hours.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+                    <select name="startMin" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.startMin} onChange={handleInputChange}>{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center text-xs font-bold text-rose-600 uppercase tracking-widest"><Clock className="w-3.5 h-3.5 mr-2" /> 結束</label>
+                <div className="flex gap-2">
+                  <input type="date" name="endDate" className="flex-grow px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.endDate} onChange={handleInputChange} />
+                  <div className="flex gap-1 shrink-0">
+                    <select name="endHour" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.endHour} onChange={handleInputChange}>{hours.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+                    <select name="endMin" className="w-18 border border-slate-200 rounded-lg text-sm px-1 bg-white" value={formData.endMin} onChange={handleInputChange}>{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-            <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班類別</label>
-              <select name="category" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.category} onChange={handleInputChange}>{categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+              <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班類別</label>
+                <select name="category" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.category} onChange={handleInputChange}>{categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              </div>
+              <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">補償方式</label>
+                <select name="compensationType" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.compensationType} onChange={handleInputChange}>{compensationTypes.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
+              </div>
+              <div className="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-200 text-center flex items-center justify-between px-5">
+                <span className="text-[10px] font-black text-indigo-100 uppercase tracking-tighter">總計時數</span>
+                <span className="text-xl font-black text-white">{totalHours} <small className="text-[10px] opacity-80">HR</small></span>
+              </div>
             </div>
-            <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">補償方式</label>
-              <select name="compensationType" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.compensationType} onChange={handleInputChange}>{compensationTypes.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-            </div>
-            <div className="bg-indigo-600 p-3 rounded-xl shadow-lg shadow-indigo-200 text-center flex items-center justify-between px-5">
-              <span className="text-[10px] font-black text-indigo-100 uppercase tracking-tighter">總計時數</span>
-              <span className="text-xl font-black text-white">{totalHours} <small className="text-[10px] opacity-80">HR</small></span>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班事由</label>
-            <textarea name="reason" rows="3" required placeholder="描述加班細節..." className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
-          </div>
-
-          {/* 備註提醒區塊 (已移除原 C 選項並重編序號) */}
-          <div className="bg-slate-100 rounded-2xl p-5 border border-slate-200 space-y-3">
-            <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
-              <AlertCircle className="w-4 h-4 text-indigo-600" />
-              備註：
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班事由</label>
+              <textarea name="reason" rows="3" required placeholder="描述加班細節..." className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
             </div>
-            <div className="space-y-2 text-[11px] leading-relaxed text-slate-600 font-medium">
-              <p>A. 加班申請須事前由直屬主管核准，始得進行加班，並於事後呈主管審核確認。</p>
-              <p>B. 此單由各部門編序號並於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
-              <p>C. 此加班工時將依比率換算為補休時數或薪資。</p>
-              <p>D. 每月加班時數上限不得超過46小時。</p>
-            </div>
-          </div>
 
-          <button type="submit" disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : submitted ? <CheckCircle2 className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
-            {submitted ? '提交成功' : '提交加班申請'}
-          </button>
-        </form>
+            {/* 備註提醒區塊 */}
+            <div className="bg-slate-100 rounded-2xl p-5 border border-slate-200 space-y-3">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wider">
+                <AlertCircle className="w-4 h-4 text-indigo-600" />
+                備註：
+              </div>
+              <div className="space-y-2 text-[11px] leading-relaxed text-slate-600 font-medium">
+                <p>A. 加班申請須事前由直屬主管核准，始得進行加班，並於事後呈主管審核確認。</p>
+                <p>B. 此單由各部門編序號並於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
+                <p>C. 此加班工時將依比率換算為補休時數或薪資。</p>
+                <p>D. 每月加班時數上限不得超過46小時。</p>
+              </div>
+            </div>
+
+            <button type="submit" disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : submitted ? <CheckCircle2 className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
+              {submitted ? '提交成功' : '提交加班申請'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -183,6 +259,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
 
 // --- 請假申請視圖 ---
 const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
+  const [appType, setAppType] = useState('form'); 
   const [formData, setFormData] = useState({
     name: '',
     empId: '',
@@ -241,6 +318,14 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleApproval = (id, newStatus) => {
+    const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
+    setRecords(updated);
+    localStorage.setItem('portal_records', JSON.stringify(updated));
+  };
+
+  const pendingLeaves = records.filter(r => r.formType === '請假' && r.status === 'pending');
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
@@ -257,48 +342,99 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
           <p className="mt-1 text-rose-100 opacity-90 text-xs font-medium uppercase tracking-wider">Leave Application</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-8 py-10 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="px-8 pt-8 pb-2">
+          <div className="flex p-1.5 bg-slate-100 rounded-2xl">
+            <button onClick={() => setAppType('form')} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-bold transition-all ${appType === 'form' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>申請表單</button>
+            <button onClick={() => setAppType('approve')} className={`flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-bold transition-all ${appType === 'approve' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
+              主管簽核
+              {pendingLeaves.length > 0 && <span className="ml-2 w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+            </button>
+          </div>
+        </div>
+
+        {appType === 'approve' ? (
+          <div className="px-8 py-10 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <ShieldCheck className="w-5 h-5 text-rose-600" />
+              <h3 className="font-bold text-slate-800 tracking-tight">待簽核項目列表</h3>
+            </div>
+            {pendingLeaves.length > 0 ? (
+              <div className="space-y-4">
+                {pendingLeaves.map((record) => (
+                  <div key={record.id} className="group relative bg-slate-50 hover:bg-white p-5 rounded-2xl border border-slate-200 hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300">
+                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black font-mono text-rose-600">{record.serialId}</span>
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">{record.name} ({record.empId})</h4>
+                        <p className="text-xs text-slate-500 font-medium">代理人：{record.proxy}</p>
+                        <p className="text-xs text-slate-500 font-medium">{record.startDate} ～ {record.endDate}</p>
+                        <div className="mt-2 text-xs bg-white border border-slate-100 p-2 rounded-lg text-slate-600 italic">
+                          "{record.reason}"
+                        </div>
+                      </div>
+                      <div className="flex flex-col justify-end">
+                        <div className="flex gap-2">
+                          <button onClick={() => handleApproval(record.id, 'approved')} className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-500 hover:text-white transition-all"><ThumbsUp size={14} /> 核准</button>
+                          <button onClick={() => handleApproval(record.id, 'rejected')} className="flex items-center gap-1 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-500 hover:text-white transition-all"><ThumbsDown size={14} /> 駁回</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-16 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+                <CheckCircle2 size={40} className="mb-3 opacity-20" />
+                <p className="text-sm font-bold opacity-60">目前沒有待簽核的請假申請</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="px-8 py-10 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><User className="w-3.5 h-3.5 mr-2 text-rose-500" /> 姓名</label>
+                <input type="text" name="name" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.name} onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><Hash className="w-3.5 h-3.5 mr-2 text-rose-500" /> 員工編號</label>
+                <input type="text" name="empId" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.empId} onChange={handleInputChange} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假假別</label>
+                <select name="type" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.type} onChange={handleInputChange}>{leaveTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
+              </div>
+              <div className="space-y-2"><label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><UserCheck className="w-3.5 h-3.5 mr-2 text-rose-500" /> 職務代理人</label>
+                <input type="text" name="proxy" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.proxy} onChange={handleInputChange} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-emerald-600 uppercase tracking-widest">開始日期</label>
+                <input type="date" name="startDate" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.startDate} onChange={handleInputChange} />
+              </div>
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-rose-600 uppercase tracking-widest">結束日期</label>
+                <input type="date" name="endDate" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.endDate} onChange={handleInputChange} />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><User className="w-3.5 h-3.5 mr-2 text-rose-500" /> 姓名</label>
-              <input type="text" name="name" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.name} onChange={handleInputChange} />
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假事由</label>
+              <textarea name="reason" rows="3" required className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
             </div>
-            <div className="space-y-2">
-              <label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><Hash className="w-3.5 h-3.5 mr-2 text-rose-500" /> 員工編號</label>
-              <input type="text" name="empId" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.empId} onChange={handleInputChange} />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假假別</label>
-              <select name="type" className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-sm font-semibold outline-none" value={formData.type} onChange={handleInputChange}>{leaveTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select>
-            </div>
-            <div className="space-y-2"><label className="flex items-center text-xs font-bold text-slate-500 uppercase tracking-widest"><UserCheck className="w-3.5 h-3.5 mr-2 text-rose-500" /> 職務代理人</label>
-              <input type="text" name="proxy" required className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none text-sm font-medium" value={formData.proxy} onChange={handleInputChange} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-emerald-600 uppercase tracking-widest">開始日期</label>
-              <input type="date" name="startDate" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.startDate} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-3">
-              <label className="text-xs font-bold text-rose-600 uppercase tracking-widest">結束日期</label>
-              <input type="date" name="endDate" className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-semibold" value={formData.endDate} onChange={handleInputChange} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假事由</label>
-            <textarea name="reason" rows="3" required className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
-          </div>
-
-          <button type="submit" disabled={submitting} className={`w-full py-4 rounded-xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'}`}>
-            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : submitted ? <CheckCircle2 className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
-            {submitted ? '提交成功' : '提交請假申請'}
-          </button>
-        </form>
+            <button type="submit" disabled={submitting} className={`w-full py-4 rounded-xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'}`}>
+              {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : submitted ? <CheckCircle2 className="w-5 h-5" /> : <ClipboardCheck className="w-5 h-5" />}
+              {submitted ? '提交成功' : '提交請假申請'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -334,6 +470,14 @@ const App = () => {
     { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: 'leave', label: '請假申請單', icon: CalendarDays, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'approved': return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700 uppercase tracking-wider">已核准</span>;
+      case 'rejected': return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-100 text-rose-700 uppercase tracking-wider">已駁回</span>;
+      default: return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-yellow-100 text-yellow-700 uppercase tracking-wider">待核准</span>;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
@@ -415,7 +559,7 @@ const App = () => {
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">編號 / 類型</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請資訊</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">時間</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">時數</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">時數/天</th>
                         <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">狀態</th>
                         <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">操作</th>
                       </tr>
@@ -433,15 +577,15 @@ const App = () => {
                           </td>
                           <td className="px-6 py-5 text-xs text-slate-500 font-medium">
                             <div>{record.startDate}</div>
-                            <div className="opacity-50">至 {record.endDate}</div>
+                            <div className="opacity-50 text-[10px]">至 {record.endDate}</div>
                           </td>
                           <td className="px-6 py-5 text-center">
                             <div className="text-sm font-black text-slate-700 bg-slate-100 inline-block px-3 py-1 rounded-lg">
-                              {record.totalHours} <span className="text-[9px] opacity-70">HR</span>
+                              {record.formType === '加班' ? `${record.totalHours} HR` : `${record.totalHours/8} D`}
                             </div>
                           </td>
                           <td className="px-6 py-5 text-center">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-yellow-100 text-yellow-700 uppercase tracking-wider">待核准</span>
+                            {getStatusBadge(record.status)}
                           </td>
                           <td className="px-8 py-5 text-right">
                             <button onClick={() => deleteRecord(record.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button>
