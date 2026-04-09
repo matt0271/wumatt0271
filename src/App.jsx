@@ -12,7 +12,7 @@ import {
 // --- NGROK 設定區 ---
 // 請在此替換為您執行 ngrok http 5000 後產生的網址 (記得結尾不要斜線)
 // 例如: https://abcd-123-456.ngrok-free.app
-const NGROK_URL = 'https:// https://lindsy-unarbitrative-gannon.ngrok-free.dev'; 
+const NGROK_URL = 'https://lindsy-unarbitrative-gannon.ngrok-free.dev'; 
 const API_BASE_URL = `${NGROK_URL}/api`;
 
 // 使用 ngrok 時必須帶上的 Header，否則 API 會回傳 ngrok 的警告 HTML
