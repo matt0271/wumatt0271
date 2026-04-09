@@ -10,11 +10,9 @@ import {
 } from 'lucide-react';
 
 // --- NGROK 設定區 ---
-// 已根據您的要求套用特定的 ngrok 網址
 const NGROK_URL = 'https://lindsy-unarbitrative-gannon.ngrok-free.dev'; 
 const API_BASE_URL = `${NGROK_URL}/api`;
 
-// 使用 ngrok 時必須帶上的 Header，以跳過瀏覽器警告頁面
 const NGROK_HEADERS = {
   'Content-Type': 'application/json',
   'ngrok-skip-browser-warning': 'true'
@@ -22,6 +20,17 @@ const NGROK_HEADERS = {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = ['00', '30'];
+
+// 全域請假類別定義，供申請單與歷史紀錄共用
+const LEAVE_TYPES = [
+  { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
+  { id: 'personal', label: '事假' }, { id: 'sick', label: '病假' },
+  { id: 'hospitalized', label: '病假(連續住院)' }, { id: 'marriage', label: '婚假' },
+  { id: 'official', label: '公假' }, { id: 'maternity', label: '產假' },
+  { id: 'paternity', label: '陪產假' }, { id: 'prenatal', label: '產檢假' },
+  { id: 'bereavement', label: '喪假' }, { id: 'benefit', label: '福利假' },
+  { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停' },
+];
 
 // --- 加班申請視圖 ---
 const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
@@ -38,7 +47,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
     startHour: '09',
     startMin: '00',
     endDate: today,
-    endHour: '18',
+    endHour: '09', 
     endMin: '00',
     reason: '',
   };
@@ -65,8 +74,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
     if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
     const diffInMs = end - start;
     if (diffInMs <= 0) return 0;
-    const h = diffInMs / (1000 * 60 * 60);
-    return Math.round(h * 10) / 10;
+    return Math.round((diffInMs / (1000 * 60 * 60)) * 10) / 10;
   }, [formData]);
 
   const handleSubmit = (e) => {
@@ -122,7 +130,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
   const selectedRecord = records.find(r => r.id === selectedId);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
         <div className="bg-indigo-600 px-8 py-12 text-white text-center relative overflow-hidden">
           <div className="absolute top-6 right-8 z-20 flex items-center gap-3 bg-indigo-500/30 backdrop-blur-md px-5 py-2.5 rounded-full border border-indigo-400/30 shadow-inner">
@@ -192,7 +200,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
             </div>
 
             <div className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${selectedId ? 'bg-white border-indigo-100 shadow-2xl shadow-indigo-100/50 scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
-              <div className="flex flex-col md:flex-row gap-8 items-start">
+              <div className="flex flex-col md:flex-row gap-8 items-start text-left">
                 <div className="flex-grow space-y-5 w-full">
                   <div className="flex items-center justify-between"><div className="flex items-center gap-3"><MessageSquare className={`w-6 h-6 ${selectedId ? 'text-indigo-600' : 'text-slate-400'}`} /><h4 className="text-lg font-black text-slate-800 tracking-tight">案件處理與簽核意見</h4></div>{selectedRecord && <div className="text-xs font-black text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-full border border-indigo-100 animate-in fade-in">當前選取：{selectedRecord.serialId} ({selectedRecord.name})</div>}</div>
                   <div className="relative">
@@ -205,6 +213,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
                   <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
                 </div>
               </div>
+              {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /><span className="text-xs font-bold uppercase tracking-widest font-sans">Please Select a Record Above</span></div>}
             </div>
           </div>
         ) : (
@@ -222,7 +231,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
               <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">補償方式</label><select name="compensationType" className="w-full px-5 py-4 border border-slate-200 rounded-xl bg-white text-base font-semibold outline-none" value={formData.compensationType} onChange={handleInputChange}>{compensationTypes.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
               <div className="bg-indigo-600 p-5 rounded-2xl shadow-xl shadow-indigo-200 text-center flex items-center justify-between px-6"><span className="text-xs font-black text-indigo-100 uppercase tracking-tighter">總計時數</span><span className="text-2xl font-black text-white">{totalHours} <small className="text-xs opacity-80">HR</small></span></div>
             </div>
-            <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班事由</label><textarea name="reason" rows="4" required placeholder="描述加班具體工作細節..." className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-base font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea></div>
+            <div className="space-y-3 text-left"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班事由</label><textarea name="reason" rows="4" required placeholder="描述加班具體工作細節..." className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-base font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea></div>
             <button type="submit" disabled={totalHours <= 0 || submitting} className={`w-full py-5 rounded-2xl font-black text-lg text-white shadow-2xl flex items-center justify-center gap-4 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>{submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : submitted ? <CheckCircle2 className="w-6 h-6" /> : <ClipboardCheck className="w-6 h-6" />}{submitted ? '提交成功' : '提交加班申請'}</button>
           </form>
         )}
@@ -233,12 +242,14 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
 
 // --- 請假申請視圖 ---
 const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     name: '', empId: '', dept: '', jobTitle: '', type: 'annual',
     startDate: today, startHour: '09', startMin: '00',
-    endDate: today, endHour: '18', endMin: '00',
+    endDate: today, endHour: '09', endMin: '00',
     proxy: '', reason: '',
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
 
   const totalHours = useMemo(() => {
     const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
@@ -254,28 +265,26 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const leaveTypes = [
-    { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
-    { id: 'personal', label: '事假' }, { id: 'sick', label: '病假' },
-    { id: 'hospitalized', label: '病假(連續住院)' }, { id: 'marriage', label: '婚假' },
-    { id: 'official', label: '公假' }, { id: 'maternity', label: '產假' },
-    { id: 'paternity', label: '陪產假' }, { id: 'prenatal', label: '產檢假' },
-    { id: 'bereavement', label: '喪假' }, { id: 'benefit', label: '福利假' },
-    { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停' },
-  ];
-
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (totalHours <= 0) return;
     const newRecord = { ...formData, id: Date.now(), serialId: currentSerialId, formType: '請假', totalHours, status: 'pending', timestamp: new Date().toLocaleString() };
     const updated = [newRecord, ...records];
     setRecords(updated);
     localStorage.setItem('portal_records', JSON.stringify(updated));
-    setFormData({ ...formData, reason: '' });
+    setFormData(initialFormState);
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500 text-left">
       <div className="bg-teal-600 px-8 py-12 text-white relative overflow-hidden">
+        <div className="absolute top-6 right-8 z-20 flex items-center gap-3 bg-teal-500/30 backdrop-blur-md px-5 py-2.5 rounded-full border border-teal-400/30 shadow-inner">
+          <Fingerprint className="w-5 h-5 text-teal-200" />
+          <div className="flex flex-col items-end text-right">
+            <span className="text-xs font-bold text-teal-200 uppercase tracking-widest leading-none mb-1">表單編號</span>
+            <span className="text-base font-black font-mono tracking-wider leading-none">{currentSerialId}</span>
+          </div>
+        </div>
         <h1 className="text-3xl font-black relative z-10 text-left">請假申請單</h1>
         <p className="mt-2 text-teal-100 opacity-90 text-sm font-medium italic relative z-10 text-left">請在此填寫您的請假計畫</p>
       </div>
@@ -288,8 +297,20 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-           <div className="space-y-4 text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假類別</label>
+            <select name="type" className="w-full p-4 border border-slate-200 rounded-xl bg-white text-base font-semibold outline-none focus:ring-4 focus:ring-teal-50" value={formData.type} onChange={handleInputChange}>
+              {LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><UserCheck className="w-4 h-4 text-teal-500" /> 職務代理人</label>
+            <input type="text" name="proxy" required placeholder="請輸入職代姓名" className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50" value={formData.proxy} onChange={handleInputChange} />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+           <div className="space-y-4">
              <label className="text-sm font-bold text-emerald-600 uppercase tracking-widest">開始時間</label>
              <div className="flex gap-2">
                <input type="date" name="startDate" className="flex-grow p-3 rounded-xl border border-slate-200 font-semibold" value={formData.startDate} onChange={handleInputChange} />
@@ -299,7 +320,7 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
                </div>
              </div>
            </div>
-           <div className="space-y-4 text-left">
+           <div className="space-y-4">
              <label className="text-sm font-bold text-rose-600 uppercase tracking-widest">結束時間</label>
              <div className="flex gap-2">
                <input type="date" name="endDate" className="flex-grow p-3 rounded-xl border border-slate-200 font-semibold" value={formData.endDate} onChange={handleInputChange} />
@@ -310,13 +331,10 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
              </div>
            </div>
         </div>
-
-        <div className="space-y-3 text-left">
+        <div className="space-y-3">
           <label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由 (請詳述)</label>
           <textarea name="reason" rows="8" required className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-teal-50" value={formData.reason} onChange={handleInputChange}></textarea>
         </div>
-
-        {/* 總計時數靠下 */}
         <div className="flex flex-col md:flex-row justify-between items-center p-6 bg-teal-50 rounded-3xl border border-teal-100 gap-4">
           <div className="flex items-center gap-2">
             <Info className="text-teal-600 w-5 h-5" />
@@ -330,7 +348,6 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
             </div>
           </div>
         </div>
-
         <button type="submit" disabled={totalHours <= 0} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
           <ClipboardCheck size={24} />
           提交請假申請
@@ -379,7 +396,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
         <div className={`${editingId ? 'bg-orange-500' : 'bg-sky-600'} px-8 py-10 text-white relative overflow-hidden flex justify-between items-center transition-colors duration-500`}>
           <div className="relative z-10 text-left">
@@ -392,7 +409,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
           </div>
         </div>
         <form onSubmit={handleSubmit} className={`p-8 space-y-8 ${dbStatus !== 'connected' ? 'opacity-50 pointer-events-none' : ''}`}>
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold text-left">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold">
             {['name', 'empId', 'dept', 'jobTitle'].map(f => (
               <div key={f} className="space-y-3">
                 <label className="flex items-center text-slate-500 uppercase tracking-widest">{f === 'name' ? '姓名' : f === 'empId' ? '員編' : f === 'dept' ? '單位' : '職稱'}</label>
@@ -416,7 +433,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
         </div>
         <div className="overflow-x-auto text-left">
           <table className="w-full border-collapse">
-            <thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5">員編</th><th className="px-6 py-5">姓名</th><th className="px-6 py-5">單位</th><th className="px-6 py-5">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead>
+            <thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5 text-left">員編</th><th className="px-6 py-5 text-left">姓名</th><th className="px-6 py-5 text-left">單位</th><th className="px-6 py-5 text-left">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {employees.length > 0 ? employees.map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
@@ -438,7 +455,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
 // --- 查詢中心視圖 ---
 const QueryCenterView = ({ records, getStatusBadge }) => {
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500 text-left">
       <div className="bg-amber-600 px-8 py-12 text-white relative overflow-hidden">
         <h1 className="text-3xl font-black text-left">查詢中心</h1>
         <p className="mt-2 text-amber-100 italic text-left">全系統單據檢索</p>
@@ -478,9 +495,15 @@ const App = () => {
     fetchEmployees();
   }, []);
 
-  const currentSerialId = useMemo(() => {
+  const otSerialId = useMemo(() => {
     const dateStr = today.replace(/-/g, '');
-    const todaysCount = records.filter(r => r.serialId && r.serialId.startsWith(dateStr)).length;
+    const todaysCount = records.filter(r => r.formType === '加班' && r.serialId && r.serialId.startsWith(dateStr)).length;
+    return `${dateStr}-${String(todaysCount + 1).padStart(3, '0')}`;
+  }, [records, today]);
+
+  const leaveSerialId = useMemo(() => {
+    const dateStr = today.replace(/-/g, '');
+    const todaysCount = records.filter(r => r.formType === '請假' && r.serialId && r.serialId.startsWith(dateStr)).length;
     return `${dateStr}-${String(todaysCount + 1).padStart(3, '0')}`;
   }, [records, today]);
 
@@ -539,8 +562,8 @@ const App = () => {
 
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-6xl mx-auto space-y-12">
-          {activeMenu === 'overtime' ? <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} /> : 
-           activeMenu === 'leave' ? <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={leaveAppType} setAppType={setLeaveAppType} /> : 
+          {activeMenu === 'overtime' ? <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={otSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} /> : 
+           activeMenu === 'leave' ? <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={leaveSerialId} appType={leaveAppType} setAppType={setLeaveAppType} /> : 
            activeMenu === 'query' ? <QueryCenterView records={records} getStatusBadge={getStatusBadge} /> : 
            <PersonnelManagementView employees={employees} refreshEmployees={fetchEmployees} requestDelete={requestDelete} dbStatus={dbStatus} />}
           
@@ -549,19 +572,26 @@ const App = () => {
                <h3 className="text-xl font-black flex items-center gap-3 mb-6 text-left"><History /> 歷史紀錄清單</h3>
                <div className="overflow-x-auto text-left">
                  <table className="w-full text-left">
-                   <thead><tr className="border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="py-4 px-4">表單編號</th><th className="py-4">申請人資訊</th><th className="py-4 text-center">時數</th><th className="py-4 text-center">審核狀態</th><th className="py-4 text-right pr-4">操作</th></tr></thead>
+                   <thead><tr className="border-b border-slate-100 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="py-4 px-4">表單編號</th><th className="py-4">申請人資訊</th><th className="py-4 text-center">數量</th><th className="py-4 text-center">審核狀態</th><th className="py-4 text-right pr-4">操作</th></tr></thead>
                    <tbody className="divide-y divide-slate-50">
                      {filteredHistory.length > 0 ? filteredHistory.map(r => (
                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                         <td className="py-6 px-4">
+                         <td className="py-6 px-4 text-left">
                             <div className="font-mono font-bold text-indigo-600">{r.serialId}</div>
+                            {/* 加班單顯示事前事後註記 */}
                             {r.formType === '加班' && (
                               <div className={`mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded ${r.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
                                 {r.appType === 'pre' ? '事前申請' : '事後補報'}
                               </div>
                             )}
+                            {/* 請假單顯示請假類別 */}
+                            {r.formType === '請假' && (
+                              <div className="mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded bg-teal-100 text-teal-700">
+                                {LEAVE_TYPES.find(t => t.id === r.type)?.label || '一般請假'}
+                              </div>
+                            )}
                          </td>
-                         <td className="py-6">
+                         <td className="py-6 text-left">
                            <div className="font-bold text-slate-800 text-base">{r.name}</div>
                            <div className="text-xs text-slate-400 mt-1 font-medium">{r.startDate} {r.startHour ? `${r.startHour}:${r.startMin || '00'}` : ''}</div>
                          </td>
