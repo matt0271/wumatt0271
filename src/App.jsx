@@ -10,9 +10,11 @@ import {
 } from 'lucide-react';
 
 // --- NGROK 設定區 ---
+// 已根據您的要求套用特定的 ngrok 網址
 const NGROK_URL = 'https://lindsy-unarbitrative-gannon.ngrok-free.dev'; 
 const API_BASE_URL = `${NGROK_URL}/api`;
 
+// 使用 ngrok 時必須帶上的 Header，以跳過瀏覽器警告頁面
 const NGROK_HEADERS = {
   'Content-Type': 'application/json',
   'ngrok-skip-browser-warning': 'true'
@@ -199,7 +201,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
                   </div>
                 </div>
                 <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10">
-                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button>
+                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button>
                   <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
                 </div>
               </div>
@@ -551,7 +553,14 @@ const App = () => {
                    <tbody className="divide-y divide-slate-50">
                      {filteredHistory.length > 0 ? filteredHistory.map(r => (
                        <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                         <td className="py-6 px-4 font-mono font-bold text-indigo-600">{r.serialId}</td>
+                         <td className="py-6 px-4">
+                            <div className="font-mono font-bold text-indigo-600">{r.serialId}</div>
+                            {r.formType === '加班' && (
+                              <div className={`mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded ${r.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                                {r.appType === 'pre' ? '事前申請' : '事後補報'}
+                              </div>
+                            )}
+                         </td>
                          <td className="py-6">
                            <div className="font-bold text-slate-800 text-base">{r.name}</div>
                            <div className="text-xs text-slate-400 mt-1 font-medium">{r.startDate} {r.startHour ? `${r.startHour}:${r.startMin || '00'}` : ''}</div>
