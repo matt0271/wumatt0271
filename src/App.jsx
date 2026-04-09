@@ -4,13 +4,15 @@ import {
   AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, 
   Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X,
-  ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle
+  ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle,
+  Search, Filter, BarChart3, MousePointerClick
 } from 'lucide-react';
 
 // --- 加班申請視圖 ---
 const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
-  const [opinions, setOpinions] = useState({}); // 暫存主管簽核意見
-  const [errors, setErrors] = useState({}); // 錯誤提示狀態
+  const [selectedId, setSelectedId] = useState(null); // 當前選取的案件 ID
+  const [currentOpinion, setCurrentOpinion] = useState(''); // 當前輸入的意見
+  const [error, setError] = useState(false); // 駁回必填錯誤提示
 
   const initialFormState = {
     name: '',
@@ -90,24 +92,31 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
     }
   };
 
-  const handleApproval = (id, newStatus) => {
-    const opinion = opinions[id] || '';
-    if (newStatus === 'rejected' && !opinion.trim()) {
-      setErrors(prev => ({ ...prev, [id]: true }));
+  // 處理簽核提交
+  const handleApprovalSubmit = (newStatus) => {
+    if (!selectedId) return;
+
+    // 若選擇駁回，意見為必填
+    if (newStatus === 'rejected' && !currentOpinion.trim()) {
+      setError(true);
       return;
     }
-    const updated = records.map(r => r.id === id ? { ...r, status: newStatus, comment: opinion } : r);
+
+    const updated = records.map(r => 
+      r.id === selectedId ? { ...r, status: newStatus, comment: currentOpinion } : r
+    );
+    
     setRecords(updated);
     localStorage.setItem('portal_records', JSON.stringify(updated));
-    const newOpinions = { ...opinions };
-    delete newOpinions[id];
-    setOpinions(newOpinions);
-    const newErrors = { ...errors };
-    delete newErrors[id];
-    setErrors(newErrors);
+    
+    // 清空狀態
+    setSelectedId(null);
+    setCurrentOpinion('');
+    setError(false);
   };
 
   const pendingOvertime = records.filter(r => r.formType === '加班' && r.status === 'pending');
+  const selectedRecord = records.find(r => r.id === selectedId);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -137,88 +146,134 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
         </div>
 
         {appType === 'approve' ? (
-          <div className="px-8 py-10 space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-              <ShieldCheck className="w-5 h-5 text-indigo-600" />
-              <h3 className="font-bold text-slate-800 tracking-tight">待簽核加班項目</h3>
+          <div className="px-8 py-10 space-y-8">
+            {/* 1. 待簽核表格區 (單選勾選模式) */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-800 tracking-tight">待簽核加班清單</h3>
+                <span className="text-[10px] text-slate-400 font-medium">請點選下方項目進行簽核處理</span>
+              </div>
+              
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-16">選取</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">員編</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">姓名</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">加班事由</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">加班日期</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">工時數</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">選項</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingOvertime.length > 0 ? (
+                      pendingOvertime.map((record) => (
+                        <tr 
+                          key={record.id} 
+                          onClick={() => { setSelectedId(record.id); setError(false); }}
+                          className={`cursor-pointer transition-all duration-200 ${selectedId === record.id ? 'bg-indigo-50/70 hover:bg-indigo-50' : 'hover:bg-slate-50'}`}
+                        >
+                          <td className="px-4 py-5 text-center">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedId === record.id ? 'border-indigo-600 bg-indigo-600 shadow-md shadow-indigo-200' : 'border-slate-300 bg-white'}`}>
+                              {selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white animate-in zoom-in duration-300"></div>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-5">
+                            <div className="text-xs font-black font-mono text-indigo-600">{record.serialId}</div>
+                            <div className={`mt-1 inline-flex text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                              {record.appType === 'pre' ? '事前申請' : '事後補報'}
+                            </div>
+                          </td>
+                          <td className="px-4 py-5 text-xs font-bold text-slate-600">{record.empId}</td>
+                          <td className="px-4 py-5 text-xs font-bold text-slate-800">{record.name}</td>
+                          <td className="px-6 py-5">
+                            <p className="text-xs text-slate-500 font-medium line-clamp-4 max-w-[200px]" title={record.reason}>{record.reason}</p>
+                          </td>
+                          <td className="px-4 py-5">
+                            <div className="text-xs font-bold text-slate-700">{record.startDate}</div>
+                            <div className="text-[10px] text-slate-400">{record.startHour}:{record.startMin} - {record.endHour}:{record.endMin}</div>
+                          </td>
+                          <td className="px-4 py-5 text-center">
+                            <span className="text-sm font-black text-indigo-600 bg-white border border-indigo-100 px-2 py-1 rounded-lg">{record.totalHours}</span>
+                          </td>
+                          <td className="px-4 py-5">
+                            <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-600 uppercase tracking-tighter">
+                              {record.compensationType === 'leave' ? '補休' : '計薪'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan="8" className="py-20 text-center text-slate-300 opacity-30 font-bold">目前無待簽核項目</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-left border-collapse min-w-[1000px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">員編</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">姓名</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">加班事由</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">加班日期</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">工時數</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">選項</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">簽核與意見</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingOvertime.length > 0 ? (
-                    pendingOvertime.map((record) => (
-                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-5">
-                          <div className="text-xs font-black font-mono text-indigo-600">{record.serialId}</div>
-                          {/* 新增：主管簽核表格內的類型顯示 */}
-                          <div className={`mt-1 inline-flex text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
-                            {record.appType === 'pre' ? '事前申請' : '事後補報'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-5 text-xs font-bold text-slate-600">{record.empId}</td>
-                        <td className="px-4 py-5 text-xs font-bold text-slate-800">{record.name}</td>
-                        <td className="px-6 py-5">
-                          <p className="text-xs text-slate-500 font-medium line-clamp-4 max-w-[200px]" title={record.reason}>{record.reason}</p>
-                        </td>
-                        <td className="px-4 py-5">
-                          <div className="text-xs font-bold text-slate-700">{record.startDate}</div>
-                          <div className="text-[10px] text-slate-400">{record.startHour}:{record.startMin} - {record.endHour}:{record.endMin}</div>
-                        </td>
-                        <td className="px-4 py-5 text-center">
-                          <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">{record.totalHours}</span>
-                        </td>
-                        <td className="px-4 py-5">
-                          <span className="text-xs font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-600">
-                            {record.compensationType === 'leave' ? '補休' : '計薪'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-col gap-2">
-                            <div className="relative">
-                              <input 
-                                type="text"
-                                placeholder={errors[record.id] ? "駁回必須填寫理由！" : "輸入簽核意見..."}
-                                className={`w-full px-3 py-2 text-[11px] rounded-xl border outline-none transition-all ${errors[record.id] ? 'border-rose-400 bg-rose-50 placeholder-rose-400' : 'border-slate-200 focus:border-indigo-400'}`}
-                                value={opinions[record.id] || ''}
-                                onChange={(e) => {
-                                  setOpinions({ ...opinions, [record.id]: e.target.value });
-                                  if (errors[record.id]) setErrors({ ...errors, [record.id]: false });
-                                }}
-                              />
-                            </div>
-                            <div className="flex gap-2">
-                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
-                                <Check size={14} strokeWidth={3} /> 核准
-                              </button>
-                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
-                                <XCircle size={14} /> 駁回
-                              </button>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan="8" className="py-20 text-center text-slate-300 opacity-30 font-bold">目前無待簽核項目</td></tr>
-                  )}
-                </tbody>
-              </table>
+
+            {/* 2. 獨立的簽核與意見區塊 */}
+            <div className={`p-6 rounded-3xl border-2 transition-all duration-500 ${selectedId ? 'bg-white border-indigo-100 shadow-xl shadow-indigo-100/50 scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+                <div className="flex-grow space-y-4 w-full">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className={`w-5 h-5 ${selectedId ? 'text-indigo-600' : 'text-slate-400'}`} />
+                      <h4 className="font-black text-slate-800 tracking-tight">案件處理與簽核意見</h4>
+                    </div>
+                    {selectedRecord && (
+                      <div className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 animate-in fade-in slide-in-from-right-4">
+                        當前選取：{selectedRecord.serialId} ({selectedRecord.name})
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="relative">
+                    <textarea 
+                      disabled={!selectedId}
+                      placeholder={selectedId ? "在此輸入審核意見或駁回具體原因..." : "請先從上方列表中勾選待簽核案件..."}
+                      className={`w-full p-4 rounded-2xl text-sm font-medium border outline-none transition-all resize-none h-24 ${error ? 'border-rose-400 bg-rose-50 ring-4 ring-rose-50' : 'border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50'}`}
+                      value={currentOpinion}
+                      onChange={(e) => { setCurrentOpinion(e.target.value); if (error) setError(false); }}
+                    />
+                    {error && (
+                      <div className="absolute left-4 bottom-2 text-[10px] font-black text-rose-500 flex items-center gap-1 animate-pulse">
+                        <AlertTriangle size={12} /> 駁回必須填寫意見理由！
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-row md:flex-col gap-3 shrink-0 w-full md:w-auto pt-8">
+                  <button 
+                    disabled={!selectedId}
+                    onClick={() => handleApprovalSubmit('approved')}
+                    className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-emerald-500 text-white rounded-2xl text-sm font-black hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 active:scale-95 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed"
+                  >
+                    <Check size={18} strokeWidth={4} /> 核准通過
+                  </button>
+                  <button 
+                    disabled={!selectedId}
+                    onClick={() => handleApprovalSubmit('rejected')}
+                    className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-rose-500 text-white rounded-2xl text-sm font-black hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 active:scale-95 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed"
+                  >
+                    <XCircle size={18} /> 駁回申請
+                  </button>
+                </div>
+              </div>
+              {!selectedId && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-slate-400 animate-bounce">
+                  <MousePointerClick size={16} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest font-sans">Please Select a Record Above</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
+          /* 加班申請表單 */
           <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-6 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -269,7 +324,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
 
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班事由</label>
-              <textarea name="reason" rows="3" required placeholder="描述加班細節..." className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
+              <textarea name="reason" rows="3" required placeholder="描述加班具體工作細節..." className="w-full p-4 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-sm font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea>
             </div>
 
             <div className="bg-slate-100 rounded-2xl p-5 border border-slate-200 space-y-3">
@@ -295,8 +350,9 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
 
 // --- 請假申請視圖 ---
 const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
-  const [opinions, setOpinions] = useState({});
-  const [errors, setErrors] = useState({});
+  const [selectedId, setSelectedId] = useState(null);
+  const [currentOpinion, setCurrentOpinion] = useState('');
+  const [error, setError] = useState(false);
 
   const initialFormState = {
     name: '',
@@ -358,24 +414,22 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleApproval = (id, newStatus) => {
-    const opinion = opinions[id] || '';
-    if (newStatus === 'rejected' && !opinion.trim()) {
-      setErrors(prev => ({ ...prev, [id]: true }));
+  const handleApprovalSubmit = (newStatus) => {
+    if (!selectedId) return;
+    if (newStatus === 'rejected' && !currentOpinion.trim()) {
+      setError(true);
       return;
     }
-    const updated = records.map(r => r.id === id ? { ...r, status: newStatus, comment: opinion } : r);
+    const updated = records.map(r => r.id === selectedId ? { ...r, status: newStatus, comment: currentOpinion } : r);
     setRecords(updated);
     localStorage.setItem('portal_records', JSON.stringify(updated));
-    const newOpinions = { ...opinions };
-    delete newOpinions[id];
-    setOpinions(newOpinions);
-    const newErrors = { ...errors };
-    delete newErrors[id];
-    setErrors(newErrors);
+    setSelectedId(null);
+    setCurrentOpinion('');
+    setError(false);
   };
 
   const pendingLeaves = records.filter(r => r.formType === '請假' && r.status === 'pending');
+  const selectedRecord = records.find(r => r.id === selectedId);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -404,55 +458,68 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
         </div>
 
         {appType === 'approve' ? (
-          <div className="px-8 py-10 space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-              <ShieldCheck className="w-5 h-5 text-rose-600" />
-              <h3 className="font-bold text-slate-800 tracking-tight">待簽核請假項目</h3>
-            </div>
-            
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">員編</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">姓名</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">假別</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">請假日期</th>
-                    <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">天數</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">簽核與意見</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingLeaves.length > 0 ? (
-                    pendingLeaves.map((record) => (
-                      <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-5 font-black font-mono text-xs text-rose-600">{record.serialId}</td>
-                        <td className="px-4 py-5 text-xs font-bold text-slate-600">{record.empId}</td>
-                        <td className="px-4 py-5 text-xs font-bold text-slate-800">{record.name}</td>
-                        <td className="px-4 py-5 text-center"><span className="text-[10px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded">{leaveTypes.find(t => t.id === record.type)?.label}</span></td>
-                        <td className="px-4 py-5"><div className="text-xs font-bold text-slate-700">{record.startDate}</div><div className="text-[10px] text-slate-400">至 {record.endDate}</div></td>
-                        <td className="px-4 py-5 text-center"><span className="text-sm font-black text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">{record.totalHours / 8} 天</span></td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-col gap-2">
-                            <input type="text" placeholder={errors[record.id] ? "請填寫駁回理由" : "輸入意見..."} className={`w-full px-3 py-2 text-[11px] rounded-xl border outline-none transition-all ${errors[record.id] ? 'border-rose-400 bg-rose-50' : 'border-slate-200 focus:border-rose-400'}`} value={opinions[record.id] || ''} onChange={(e) => { setOpinions({ ...opinions, [record.id]: e.target.value }); if (errors[record.id]) setErrors({ ...errors, [record.id]: false }); }} />
-                            <div className="flex gap-2">
-                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
-                                <Check size={14} strokeWidth={3} /> 核准
-                              </button>
-                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
-                                <XCircle size={14} /> 駁回
-                              </button>
+          <div className="px-8 py-10 space-y-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <ShieldCheck className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-slate-800 tracking-tight">待簽核請假項目</h3>
+              </div>
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-left border-collapse min-w-[900px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200">
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-16">選取</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">員編</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">姓名</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">假別</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">請假日期</th>
+                      <th className="px-4 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">天數</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingLeaves.length > 0 ? (
+                      pendingLeaves.map((record) => (
+                        <tr key={record.id} onClick={() => setSelectedId(record.id)} className={`cursor-pointer transition-all duration-200 ${selectedId === record.id ? 'bg-rose-50/70 hover:bg-rose-50' : 'hover:bg-slate-50'}`}>
+                          <td className="px-4 py-5 text-center">
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedId === record.id ? 'border-rose-600 bg-rose-600' : 'border-slate-300'}`}>
+                              {selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white"></div>}
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr><td colSpan="7" className="py-20 text-center text-slate-300 font-bold opacity-30">無待簽核項目</td></tr>
-                  )}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-4 py-5 font-black font-mono text-xs text-rose-600">{record.serialId}</td>
+                          <td className="px-4 py-5 text-xs font-bold text-slate-600">{record.empId}</td>
+                          <td className="px-4 py-5 text-xs font-bold text-slate-800">{record.name}</td>
+                          <td className="px-4 py-5 text-center"><span className="text-[10px] font-black bg-rose-50 text-rose-600 px-2 py-1 rounded">{leaveTypes.find(t => t.id === record.type)?.label}</span></td>
+                          <td className="px-4 py-5"><div className="text-xs font-bold text-slate-700">{record.startDate}</div><div className="text-[10px] text-slate-400">至 {record.endDate}</div></td>
+                          <td className="px-4 py-5 text-center"><span className="text-sm font-black text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">{record.totalHours / 8} 天</span></td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr><td colSpan="7" className="py-20 text-center text-slate-300 font-bold opacity-30">無待簽核項目</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className={`p-6 rounded-3xl border-2 transition-all duration-500 ${selectedId ? 'bg-white border-rose-100 shadow-xl shadow-rose-100/50 scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+                <div className="flex-grow space-y-4 w-full">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className={`w-5 h-5 ${selectedId ? 'text-rose-600' : 'text-slate-400'}`} />
+                      <h4 className="font-black text-slate-800 tracking-tight">請假單處理意見</h4>
+                    </div>
+                    {selectedRecord && <div className="text-[10px] font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 animate-in fade-in">已選：{selectedRecord.serialId}</div>}
+                  </div>
+                  <textarea disabled={!selectedId} placeholder={selectedId ? "請輸入核准或駁回意見..." : "請先選取上方單據..."} className={`w-full p-4 rounded-2xl text-sm font-medium border outline-none transition-all resize-none h-24 ${error ? 'border-rose-400 bg-rose-50 ring-4 ring-rose-50' : 'border-slate-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-50'}`} value={currentOpinion} onChange={(e) => { setCurrentOpinion(e.target.value); if (error) setError(false); }} />
+                  {error && <div className="text-[10px] font-black text-rose-500 flex items-center gap-1 animate-pulse"><AlertTriangle size={12} /> 駁回必須填寫理由！</div>}
+                </div>
+                <div className="flex flex-row md:flex-col gap-3 shrink-0 w-full md:w-auto pt-8">
+                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-emerald-500 text-white rounded-2xl text-sm font-black hover:bg-emerald-600 shadow-lg active:scale-95 disabled:opacity-30"><Check size={18} strokeWidth={4} /> 核准</button>
+                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-2 px-8 py-4 bg-rose-500 text-white rounded-2xl text-sm font-black hover:bg-rose-600 shadow-lg active:scale-95 disabled:opacity-30"><XCircle size={18} /> 駁回</button>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -504,11 +571,127 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
   );
 };
 
+// --- 查詢中心視圖 ---
+const QueryCenterView = ({ records, getStatusBadge }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const filteredResults = useMemo(() => {
+    return records.filter(r => {
+      const matchSearch = 
+        r.serialId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.name.includes(searchTerm) ||
+        r.empId.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchType = filterType === 'all' || r.formType === filterType;
+      const matchStatus = filterStatus === 'all' || r.status === filterStatus;
+
+      return matchSearch && matchType && matchStatus;
+    });
+  }, [records, searchTerm, filterType, filterStatus]);
+
+  const stats = useMemo(() => {
+    return {
+      total: filteredResults.length,
+      approved: filteredResults.filter(r => r.status === 'approved').length,
+      pending: filteredResults.filter(r => r.status === 'pending').length,
+      rejected: filteredResults.filter(r => r.status === 'rejected').length,
+    };
+  }, [filteredResults]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+        <div className="bg-slate-800 px-8 py-10 text-white text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10"><Search size={100} /></div>
+          <h1 className="text-2xl font-black tracking-tight relative z-10 text-left">查詢中心</h1>
+          <p className="mt-1 text-slate-400 opacity-90 text-xs font-medium uppercase tracking-wider text-left">Query Center</p>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2 relative">
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+              <input type="text" placeholder="搜尋編號、姓名或員編..." className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none font-medium text-sm transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+              <select className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 outline-none font-bold text-xs appearance-none bg-white cursor-pointer" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                <option value="all">所有單據類型</option>
+                <option value="加班">加班申請單</option>
+                <option value="請假">請假申請單</option>
+              </select>
+            </div>
+            <div className="relative">
+              <ShieldCheck className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+              <select className="w-full pl-10 pr-4 py-3 rounded-2xl border border-slate-200 outline-none font-bold text-xs appearance-none bg-white cursor-pointer" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                <option value="all">所有審核狀態</option>
+                <option value="pending">待核准</option>
+                <option value="approved">已核准</option>
+                <option value="rejected">已駁回</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: '搜尋結果', value: stats.total, color: 'bg-slate-100 text-slate-600' },
+              { label: '已核准', value: stats.approved, color: 'bg-emerald-50 text-emerald-600' },
+              { label: '待簽核', value: stats.pending, color: 'bg-amber-50 text-amber-600' },
+              { label: '已駁回', value: stats.rejected, color: 'bg-rose-50 text-rose-600' }
+            ].map((stat, idx) => (
+              <div key={idx} className={`${stat.color} p-4 rounded-2xl flex flex-col items-center justify-center`}>
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{stat.label}</span>
+                <span className="text-xl font-black">{stat.value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-100">
+            <table className="w-full text-left border-collapse min-w-[900px]">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">編號 / 類型</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請資訊</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">時間範圍</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">數量</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">狀態</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredResults.length > 0 ? (
+                  filteredResults.map((record) => (
+                    <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-5">
+                        <div className="text-xs font-black font-mono text-slate-700">{record.serialId}</div>
+                        <div className={`mt-1 inline-flex text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${record.formType === '加班' ? (record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600') : 'bg-rose-100 text-rose-600'}`}>
+                          {record.formType === '加班' ? (record.appType === 'pre' ? '事前申請' : '事後補報') : record.formType}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5"><div className="text-sm font-bold text-slate-800">{record.name}</div><div className="text-[10px] text-slate-400 font-medium">{record.empId}</div></td>
+                      <td className="px-6 py-5 text-xs text-slate-500 font-medium"><div>{record.startDate}</div><div className="opacity-50 text-[10px]">至 {record.endDate}</div></td>
+                      <td className="px-6 py-5 text-center"><div className="text-sm font-black text-slate-700 bg-slate-100 inline-block px-3 py-1 rounded-lg">{record.formType === '加班' ? `${record.totalHours} HR` : `${record.totalHours/8} D`}</div></td>
+                      <td className="px-6 py-5 text-center">{getStatusBadge(record.status)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr><td colSpan="5" className="py-20 text-center text-slate-300 font-bold opacity-30">找不到符合條件的單據</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- 主程式入口 ---
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('overtime');
-  const [overtimeAppType, setOvertimeAppType] = useState('pre'); // 加班單標籤頁狀態
-  const [leaveAppType, setLeaveAppType] = useState('form');     // 請假單標籤頁狀態
+  const [overtimeAppType, setOvertimeAppType] = useState('pre'); 
+  const [leaveAppType, setLeaveAppType] = useState('form');     
   const [records, setRecords] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
@@ -539,18 +722,15 @@ const App = () => {
     setDeleteConfirm({ show: false, id: null });
   };
 
-  // 動態過濾紀錄的邏輯
   const filteredHistory = useMemo(() => {
     const isApprovalMode = (activeMenu === 'overtime' && overtimeAppType === 'approve') || 
                            (activeMenu === 'leave' && leaveAppType === 'approve');
 
     if (isApprovalMode) {
-      // 簽核模式：只顯示「已核准」或「已駁回」的紀錄
       return records.filter(r => (r.status === 'approved' || r.status === 'rejected') && 
                                  ((activeMenu === 'overtime' && r.formType === '加班') || 
                                   (activeMenu === 'leave' && r.formType === '請假')));
     } else {
-      // 申請模式：顯示該選單類型的所有紀錄
       return records.filter(r => (activeMenu === 'overtime' && r.formType === '加班') || 
                                  (activeMenu === 'leave' && r.formType === '請假'));
     }
@@ -559,6 +739,7 @@ const App = () => {
   const navItems = [
     { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: 'leave', label: '請假申請單', icon: CalendarDays, color: 'text-rose-600', bg: 'bg-rose-50' },
+    { id: 'query', label: '查詢中心', icon: Search, color: 'text-slate-700', bg: 'bg-slate-100' },
   ];
 
   const getStatusBadge = (status) => {
@@ -580,7 +761,7 @@ const App = () => {
           <nav className="flex-grow px-4 space-y-2">
             {navItems.map((item) => (
               <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-bold transition-all ${activeMenu === item.id ? `${item.bg} ${item.color} shadow-sm` : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
-                <item.icon className="w-5 h-5" />{item.label}{activeMenu === item.id && <div className={`ml-auto w-1.5 h-6 rounded-full ${item.id === 'overtime' ? 'bg-indigo-600' : 'bg-rose-600'}`}></div>}
+                <item.icon className="w-5 h-5" />{item.label}{activeMenu === item.id && <div className={`ml-auto w-1.5 h-6 rounded-full ${item.id === 'overtime' ? 'bg-indigo-600' : (item.id === 'leave' ? 'bg-rose-600' : 'bg-slate-600')}`}></div>}
               </button>
             ))}
           </nav>
@@ -598,66 +779,60 @@ const App = () => {
           <div className="max-w-5xl mx-auto space-y-12">
             {activeMenu === 'overtime' ? (
               <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} />
-            ) : (
+            ) : activeMenu === 'leave' ? (
               <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={leaveAppType} setAppType={setLeaveAppType} />
+            ) : (
+              <QueryCenterView records={records} getStatusBadge={getStatusBadge} />
             )}
             
-            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                  <History className="w-5 h-5 text-indigo-500" />
-                  {((activeMenu === 'overtime' && overtimeAppType === 'approve') || (activeMenu === 'leave' && leaveAppType === 'approve')) ? '歷史簽核紀錄' : '歷史申請紀錄'}
-                  <span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded-full">{filteredHistory.length} 筆</span>
-                </h2>
-              </div>
-              <div className="overflow-x-auto">
-                {filteredHistory.length > 0 ? (
-                  <table className="w-full text-left border-collapse min-w-[1000px]">
-                    <thead>
-                      <tr className="bg-slate-50/50">
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">編號 / 類型</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請資訊</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">時間</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">時數/天</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">狀態</th>
-                        <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">簽核意見</th>
-                        <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredHistory.map((record) => (
-                        <tr key={record.id} className="hover:bg-slate-50/30 transition-colors">
-                          <td className="px-8 py-5">
-                            <div className="text-xs font-black font-mono text-slate-700">{record.serialId || '---'}</div>
-                            {/* 更新：歷史紀錄標籤改為「事前申請」或「事後補報」 */}
-                            <div className={`mt-1 inline-flex text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
-                              record.formType === '加班' 
-                                ? (record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600')
-                                : 'bg-rose-100 text-rose-600'
-                            }`}>
-                              {record.formType === '加班' 
-                                ? (record.appType === 'pre' ? '事前申請' : '事後補報') 
-                                : record.formType}
-                            </div>
-                          </td>
-                          <td className="px-6 py-5"><div className="text-sm font-bold text-slate-800">{record.name}</div><div className="text-[10px] text-slate-400 font-medium">{record.empId}</div></td>
-                          <td className="px-6 py-5 text-xs text-slate-500 font-medium"><div>{record.startDate}</div><div className="opacity-50 text-[10px]">至 {record.endDate}</div></td>
-                          <td className="px-6 py-5 text-center"><div className="text-sm font-black text-slate-700 bg-slate-100 inline-block px-3 py-1 rounded-lg">{record.formType === '加班' ? `${record.totalHours} HR` : `${record.totalHours/8} D`}</div></td>
-                          <td className="px-6 py-5 text-center">{getStatusBadge(record.status)}</td>
-                          <td className="px-6 py-5">{record.comment ? <div className="text-[11px] font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">{record.comment}</div> : <span className="text-[10px] text-slate-300 italic">尚未填寫意見</span>}</td>
-                          <td className="px-8 py-5 text-right"><button onClick={() => requestDelete(record.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button></td>
+            {activeMenu !== 'query' && (
+              <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <History className="w-5 h-5 text-indigo-500" />
+                    {((activeMenu === 'overtime' && overtimeAppType === 'approve') || (activeMenu === 'leave' && leaveAppType === 'approve')) ? '歷史簽核紀錄' : '歷史申請紀錄'}
+                    <span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded-full">{filteredHistory.length} 筆</span>
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  {filteredHistory.length > 0 ? (
+                    <table className="w-full text-left border-collapse min-w-[1000px]">
+                      <thead>
+                        <tr className="bg-slate-50/50">
+                          <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">編號 / 類型</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請資訊</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">時間</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">時數/天</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">狀態</th>
+                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">簽核意見</th>
+                          <th className="px-8 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">操作</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-                    <ListChecks size={48} className="mb-4 opacity-10" />
-                    <p className="text-sm font-bold opacity-30 tracking-widest">尚無紀錄</p>
-                  </div>
-                )}
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredHistory.map((record) => (
+                          <tr key={record.id} className="hover:bg-slate-50/30 transition-colors">
+                            <td className="px-8 py-5">
+                              <div className="text-xs font-black font-mono text-slate-700">{record.serialId || '---'}</div>
+                              <div className={`mt-1 inline-flex text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${record.formType === '加班' ? (record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600') : 'bg-rose-100 text-rose-600'}`}>
+                                {record.formType === '加班' ? (record.appType === 'pre' ? '事前申請' : '事後補報') : record.formType}
+                              </div>
+                            </td>
+                            <td className="px-6 py-5"><div className="text-sm font-bold text-slate-800">{record.name}</div><div className="text-[10px] text-slate-400 font-medium">{record.empId}</div></td>
+                            <td className="px-6 py-5 text-xs text-slate-500 font-medium"><div>{record.startDate}</div><div className="opacity-50 text-[10px]">至 {record.endDate}</div></td>
+                            <td className="px-6 py-5 text-center"><div className="text-sm font-black text-slate-700 bg-slate-100 inline-block px-3 py-1 rounded-lg">{record.formType === '加班' ? `${record.totalHours} HR` : `${record.totalHours/8} D`}</div></td>
+                            <td className="px-6 py-5 text-center">{getStatusBadge(record.status)}</td>
+                            <td className="px-6 py-5">{record.comment ? <div className="text-[11px] font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">{record.comment}</div> : <span className="text-[10px] text-slate-300 italic">尚未填寫意見</span>}</td>
+                            <td className="px-8 py-5 text-right"><button onClick={() => requestDelete(record.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="py-20 flex flex-col items-center justify-center text-slate-300"><ListChecks size={48} className="mb-4 opacity-10" /><p className="text-sm font-bold opacity-30 tracking-widest">尚無紀錄</p></div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             <footer className="text-center opacity-30 pb-4"><p className="text-[10px] font-black uppercase tracking-[0.3em]">HR Management System 2.0</p></footer>
           </div>
         </div>
@@ -678,7 +853,6 @@ const App = () => {
           </div>
         </div>
       )}
-
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"></div>}
     </div>
   );
