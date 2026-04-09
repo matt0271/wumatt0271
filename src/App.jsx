@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Clock, User, Hash, FileText, Calendar, CheckCircle2, 
   AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, 
@@ -7,7 +7,7 @@ import {
   ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle,
   Search, Filter, BarChart3, MousePointerClick, Building2, Briefcase,
   Users, UserPlus, Wifi, WifiOff, HelpCircle, Edit2, CalendarSearch,
-  Download
+  Download, Upload, FileSpreadsheet
 } from 'lucide-react';
 
 // --- NGROK 設定區 ---
@@ -253,20 +253,18 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
   );
 };
 
-// --- 主管簽核 (新增歷史紀錄清單) ---
+// --- 主管簽核 ---
 const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
   const [activeTab, setActiveTab] = useState('加班');
   const [selectedId, setSelectedId] = useState(null);
   const [currentOpinion, setCurrentOpinion] = useState('');
   const [error, setError] = useState(false);
 
-  // 待處理案件
   const pendingItems = useMemo(() => 
     records.filter(r => r.formType === activeTab && r.status === 'pending'),
     [records, activeTab]
   );
 
-  // 已簽核案件 (本次新增重點)
   const processedItems = useMemo(() => 
     records.filter(r => r.formType === activeTab && r.status !== 'pending'),
     [records, activeTab]
@@ -300,14 +298,12 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
           <p className="mt-2 text-rose-100 italic text-left">統一處理全系統之加班與請假申請案件</p>
         </div>
 
-        <div className="p-8 space-y-8">
-          {/* 頁籤切換 */}
+        <div className="p-8 space-y-8 text-left">
           <div className="flex p-1.5 bg-slate-100 rounded-2xl w-fit">
             <button onClick={() => { setActiveTab('加班'); setSelectedId(null); }} className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === '加班' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500'}`}>加班簽核</button>
             <button onClick={() => { setActiveTab('請假'); setSelectedId(null); }} className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === '請假' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500'}`}>請假簽核</button>
           </div>
 
-          {/* 待處理案件 */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 px-2"><ListChecks className="text-rose-600" /> 待處理案件清單</h3>
             <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
@@ -352,7 +348,6 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
             </div>
           </div>
 
-          {/* 簽核處理與意見 */}
           <div className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${selectedId ? 'bg-white border-rose-100 shadow-2xl scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="flex-grow space-y-5 w-full">
@@ -361,30 +356,28 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
               </div>
               <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10"><button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button><button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button></div>
             </div>
-            {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /><span className="text-xs font-bold uppercase tracking-widest font-sans tracking-widest">Please Select a Record Above</span></div>}
+            {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /></div>}
           </div>
 
-          {/* 已簽核歷史紀錄區塊 */}
           <div className="pt-10 space-y-6">
             <div className="flex items-center gap-3 px-2 border-l-4 border-rose-600">
                <History className="text-rose-600 w-6 h-6" />
                <h3 className="text-xl font-black text-slate-800">已處理歷史紀錄 ({activeTab})</h3>
-               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest ml-auto">Processed History Only</span>
             </div>
-            <div className="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm bg-slate-50/50">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+            <div className="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm bg-slate-50/50 text-left">
+              <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請人資訊</th>
-                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">事由類別</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">表單編號</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">申請人資訊</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">事由類別</th>
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">工時</th>
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">處理結果</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
                   {processedItems.length > 0 ? processedItems.map(item => (
-                    <tr key={item.id} className="hover:bg-white transition-all">
+                    <tr key={item.id} className="hover:bg-white transition-all text-left">
                       <td className="px-6 py-6 font-mono font-bold text-slate-600">{item.serialId}</td>
                       <td className="px-6 py-6">
                         <div className="font-bold text-slate-800">{item.name}</div>
@@ -417,6 +410,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', empId: '', dept: '', jobTitle: '' });
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -450,6 +444,50 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
     } catch (err) { console.error("操作失敗:", err); } finally { setSubmitting(false); }
   };
 
+  const handleExport = () => {
+    if (employees.length === 0) return;
+    const headers = ['員編', '姓名', '單位', '職稱'];
+    const csvContent = employees.map(e => [e.empId, e.name, e.dept, e.jobTitle].join(',')).join('\n');
+    const csvString = '\uFEFF' + [headers.join(','), csvContent].join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.body.appendChild(document.createElement('a'));
+    link.href = URL.createObjectURL(blob);
+    link.download = `員工清單_${new Date().toLocaleDateString()}.csv`;
+    // 改用 Upload 圖標對調後的邏輯：匯出現在使用 Upload 圖標
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file || dbStatus !== 'connected') return;
+
+    setSubmitting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      const dataRows = lines.slice(1);
+      
+      for (const row of dataRows) {
+        const [empId, name, dept, jobTitle] = row.split(',').map(s => s.trim());
+        if (empId && name) {
+          try {
+            await fetch(`${API_BASE_URL}/employees`, {
+              method: 'POST',
+              headers: NGROK_HEADERS,
+              body: JSON.stringify({ empId, name, dept, jobTitle })
+            });
+          } catch (err) { console.error(`匯入失敗: ${empId}`); }
+        }
+      }
+      refreshEmployees();
+      setSubmitting(false);
+      e.target.value = null; 
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
@@ -465,7 +503,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
             {['name', 'empId', 'dept', 'jobTitle'].map(f => (
               <div key={f} className="space-y-3">
                 <label className="flex items-center text-slate-500 uppercase tracking-widest">{f === 'name' ? '姓名' : f === 'empId' ? '員編' : f === 'dept' ? '單位' : '職稱'}</label>
-                <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100" value={formData[f]} onChange={handleInputChange} />
+                <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100 text-sm" value={formData[f]} onChange={handleInputChange} />
               </div>
             ))}
           </div>
@@ -475,12 +513,41 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
           </div>
         </form>
       </div>
+
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3"><Users className="text-sky-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800">現有人員清單</h2></div>
-          <span className="bg-sky-50 text-sky-600 text-xs px-3 py-1.5 rounded-full font-bold">{employees.length} 位人員</span>
+        <div className="px-8 py-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3"><Users className="text-sky-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800">現有人員清單</h2><span className="bg-sky-50 text-sky-600 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest">{employees.length} TOTAL</span></div>
+          
+          <div className="flex items-center gap-3">
+            <input type="file" ref={fileInputRef} onChange={handleImport} accept=".csv" className="hidden" />
+            {/* 圖示對調：匯入使用 Download, 匯出使用 Upload */}
+            <button onClick={() => fileInputRef.current?.click()} disabled={submitting || dbStatus !== 'connected'} className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50">
+              <Download size={14} /> 批次匯入 CSV
+            </button>
+            <button onClick={handleExport} disabled={employees.length === 0} className="px-5 py-2.5 bg-sky-50 border border-sky-100 text-sky-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-sky-100 transition-all disabled:opacity-50">
+              <Upload size={14} /> 匯出 Excel
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto text-left"><table className="w-full border-collapse"><thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5 text-left">員編</th><th className="px-6 py-5 text-left">姓名</th><th className="px-6 py-5 text-left">單位</th><th className="px-6 py-5 text-left">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead><tbody className="divide-y divide-slate-100 text-sm">{employees.length > 0 ? employees.map(emp => (<tr key={emp.id} className="hover:bg-slate-50 transition-colors"><td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td><td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td><td className="px-6 py-6 text-slate-600 font-medium">{emp.dept}</td><td className="px-6 py-6 text-slate-600 font-medium">{emp.jobTitle}</td><td className="px-8 py-6 text-right flex justify-end gap-2"><button onClick={() => startEdit(emp)} className="p-3 text-slate-300 hover:text-sky-600 transition-all rounded-xl hover:bg-sky-50"><Edit2 size={20} /></button><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button></td></tr>)) : <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg">載入資料中...</td></tr>}</tbody></table></div>
+
+        <div className="overflow-x-auto text-left">
+          <table className="w-full border-collapse">
+            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <tr><th className="px-8 py-5 text-left">員編</th><th className="px-6 py-5 text-left">姓名</th><th className="px-6 py-5 text-left">單位</th><th className="px-6 py-5 text-left">職稱</th><th className="px-8 py-5 text-right">操作</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {employees.length > 0 ? employees.map(emp => (
+                <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td>
+                  <td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td>
+                  <td className="px-6 py-6 text-slate-600 font-medium">{emp.dept}</td>
+                  <td className="px-6 py-6 text-slate-600 font-medium">{emp.jobTitle}</td>
+                  <td className="px-8 py-6 text-right flex justify-end gap-2"><button onClick={() => startEdit(emp)} className="p-3 text-slate-300 hover:text-sky-600 transition-all rounded-xl hover:bg-sky-50"><Edit2 size={20} /></button><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button></td>
+                </tr>
+              )) : <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg italic">目前尚無人員數據</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -526,6 +593,7 @@ const FormQueryView = ({ records, getStatusBadge }) => {
     const link = document.body.appendChild(document.createElement('a'));
     link.href = URL.createObjectURL(blob);
     link.download = `表單報表_${new Date().toLocaleDateString()}.csv`;
+    // 圖示對調後，全系統匯出均使用 Upload
     link.click();
     document.body.removeChild(link);
   };
@@ -538,9 +606,6 @@ const FormQueryView = ({ records, getStatusBadge }) => {
             <div className="flex items-center gap-3 mb-2"><BarChart3 size={32}/><h1 className="text-3xl font-black tracking-tight">表單查詢</h1></div>
             <p className="mt-2 text-amber-100 italic text-left">全系統單據檢索與資料匯出</p>
           </div>
-          <button onClick={handleExport} disabled={filteredResults.length === 0} className="relative z-10 bg-white text-amber-600 px-6 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-amber-50 shadow-xl transition-all disabled:opacity-50">
-            <Download size={20} /> 匯出 Excel
-          </button>
           <div className="absolute top-0 right-0 p-4 opacity-10"><CalendarSearch size={140} /></div>
         </div>
         <div className="p-8 space-y-6 text-left">
@@ -561,15 +626,23 @@ const FormQueryView = ({ records, getStatusBadge }) => {
               <input type="date" className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold bg-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">單據類型</label><select className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold" value={filterType} onChange={(e) => { setFilterType(e.target.value); setSubType('all'); }}><option value="all">全部單據</option><option value="加班">加班單</option><option value="請假">請假單</option></select></div>
-            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">審核狀態</label><select className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有狀態</option><option value="pending">待簽核</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
-            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filterType === '加班' ? '加班類別' : filterType === '請假' ? '請假假別' : '細項篩選'}</label><select disabled={filterType === 'all'} className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold disabled:opacity-50" value={subType} onChange={(e) => setSubType(e.target.value)}><option value="all">不限類別</option>{filterType === '加班' && OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}{filterType === '請假' && LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">單據類型</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm" value={filterType} onChange={(e) => { setFilterType(e.target.value); setSubType('all'); }}><option value="all">全部單據</option><option value="加班">加班單</option><option value="請假">請假單</option></select></div>
+            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">審核狀態</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有狀態</option><option value="pending">待簽核</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
+            <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filterType === '加班' ? '加班類別' : filterType === '請假' ? '請假假別' : '細項篩選'}</label><select disabled={filterType === 'all'} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm disabled:opacity-50" value={subType} onChange={(e) => setSubType(e.target.value)}><option value="all">不限類別</option>{filterType === '加班' && OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}{filterType === '請假' && LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div className="pt-2">
+              {/* 圖示對調後，全系統匯出均使用 Upload */}
+              <button onClick={handleExport} disabled={filteredResults.length === 0} className="w-full bg-amber-600 text-white py-3 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-amber-700 shadow-lg shadow-amber-100 transition-all disabled:opacity-50">
+                <Upload size={18} /> 匯出 Excel
+              </button>
+            </div>
           </div>
+
           <div className="overflow-x-auto rounded-2xl border border-slate-100 text-left">
             <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest"><tr><th className="px-6 py-4">單號/類別</th><th className="px-6 py-4">申請資訊</th><th className="px-6 py-4">日期</th><th className="px-6 py-4 text-center">時數</th><th className="px-6 py-4 text-center">狀態</th></tr></thead>
-              <tbody className="divide-y divide-slate-50 text-sm">{filteredResults.length > 0 ? filteredResults.map(r => (<tr key={r.id} className="hover:bg-slate-50 transition-colors font-medium"><td className="px-6 py-5"><div className="font-mono font-bold text-slate-700">{r.serialId}</div><div className={`mt-1 inline-flex text-[9px] font-black px-1.5 py-0.5 rounded ${r.formType==='加班'?'bg-blue-100 text-blue-600':'bg-teal-100 text-teal-600'}`}>{r.formType==='加班' ? OT_CATEGORIES.find(c=>c.id===r.category)?.label : LEAVE_TYPES.find(t=>t.id===r.type)?.label}</div></td><td className="px-6 py-5"><div><div className="font-bold text-slate-800">{r.name}</div><div className="text-[10px] text-slate-400">{r.dept} / {r.jobTitle}</div></div></td><td className="px-6 py-5 text-center font-black">{r.totalHours} HR</td><td className="px-6 py-5 text-center">{getStatusBadge(r.status)}</td></tr>)) : <tr><td colSpan="5" className="py-20 text-center text-slate-300 font-bold italic opacity-50">查無資料</td></tr>}</tbody>
+              <tbody className="divide-y divide-slate-100 text-sm">{filteredResults.length > 0 ? filteredResults.map(r => (<tr key={r.id} className="hover:bg-slate-50 transition-colors font-medium"><td className="px-6 py-5"><div className="font-mono font-bold text-slate-700">{r.serialId}</div><div className={`mt-1 inline-flex text-[9px] font-black px-1.5 py-0.5 rounded ${r.formType==='加班'?'bg-blue-100 text-blue-600':'bg-teal-100 text-teal-600'}`}>{r.formType==='加班' ? OT_CATEGORIES.find(c=>c.id===r.category)?.label : LEAVE_TYPES.find(t=>t.id===r.type)?.label}</div></td><td className="px-6 py-5"><div><div className="font-bold text-slate-800">{r.name}</div><div className="text-[10px] text-slate-400">{r.dept} / {r.jobTitle}</div></div></td><td className="px-6 py-5 text-center font-black">{r.totalHours} HR</td><td className="px-6 py-5 text-center">{getStatusBadge(r.status)}</td></tr>)) : <tr><td colSpan="5" className="py-20 text-center text-slate-300 font-bold italic opacity-50">查無資料</td></tr>}</tbody>
             </table>
           </div>
         </div>
@@ -651,9 +724,9 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
       <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} transition-transform shadow-xl lg:shadow-none`}>
-        <div className="h-full flex flex-col p-8 space-y-6">
+        <div className="h-full flex flex-col p-8 space-y-6 text-left">
           <div className="flex items-center gap-3"><div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100"><LayoutDashboard className="text-white" /></div><h2 className="font-black text-xl text-left tracking-tight">員工服務平台</h2></div>
-          <nav className="flex-grow space-y-2 text-left">
+          <nav className="flex-grow space-y-2">
             {navItems.map(item => (
               <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${activeMenu === item.id ? `bg-slate-100 ${item.color} border-l-4 ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-l-4 border-transparent'}`}><item.icon size={20}/>{item.label}{item.id === 'approval' && records.filter(r=>r.status==='pending').length > 0 && <span className="ml-auto w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full animate-pulse">{records.filter(r=>r.status==='pending').length}</span>}</button>
             ))}
