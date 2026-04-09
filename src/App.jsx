@@ -119,15 +119,35 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left">
+        {/* 人員資訊：與請假單一致 (4欄) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
             <div key={f} className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
-              <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-indigo-50" value={formData[f]} onChange={handleInputChange} />
+              <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-indigo-50 text-sm" value={formData[f]} onChange={handleInputChange} />
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+
+        {/* 類別與方式：與請假單類別/代理人位置對應 (2欄) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">加班類別</label>
+            <select name="category" className="w-full p-4 border border-slate-200 rounded-xl bg-white font-semibold outline-none focus:ring-4 focus:ring-indigo-50" value={formData.category} onChange={handleInputChange}>
+              {OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-3">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">補償方式</label>
+            <select name="compensationType" className="w-full p-4 border border-slate-200 rounded-xl bg-white font-semibold outline-none focus:ring-4 focus:ring-indigo-50" value={formData.compensationType} onChange={handleInputChange}>
+              <option value="leave">補休</option>
+              <option value="pay">計薪</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 時間選擇：與請假單一致，總計時數移至最右邊 (3欄) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 items-end font-sans">
           <div className="space-y-4">
             <label className="text-sm font-bold text-emerald-600 uppercase tracking-widest">加班開始時間</label>
             <div className="flex gap-2">
@@ -148,12 +168,18 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
               </div>
             </div>
           </div>
+          {/* 總計時數：與請假單位置對齊 */}
+          <div className="lg:justify-self-end w-full lg:w-fit">
+            <div className="bg-indigo-600 px-5 py-3.5 rounded-2xl shadow-md flex items-center gap-4 text-white min-w-[140px] h-[52px]">
+              <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-90">總時數</span>
+              <div className="flex items-baseline gap-1 ml-auto">
+                <span className="text-xl font-black">{totalHours}</span>
+                <span className="text-[9px] font-bold text-indigo-200 uppercase">HR</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
-          <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班類別</label><select name="category" className="w-full p-4 border border-slate-200 rounded-xl bg-white font-semibold outline-none focus:ring-4 focus:ring-indigo-50" value={formData.category} onChange={handleInputChange}>{OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-          <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">補償方式</label><select name="compensationType" className="w-full p-4 border border-slate-200 rounded-xl bg-white font-semibold outline-none focus:ring-4 focus:ring-indigo-50" value={formData.compensationType} onChange={handleInputChange}><option value="leave">補休</option><option value="pay">計薪</option></select></div>
-          <div className="bg-indigo-600 p-5 rounded-2xl shadow-xl flex items-center justify-between px-6 text-white"><span className="text-xs font-black uppercase tracking-widest">總計時數</span><span className="text-2xl font-black">{totalHours} HR</span></div>
-        </div>
+
         <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班事由</label><textarea name="reason" rows="4" required placeholder="請詳細說明加班工作內容..." className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50" value={formData.reason} onChange={handleInputChange}></textarea></div>
         
         <div className="bg-slate-50 rounded-[1.5rem] p-6 border border-slate-200 space-y-4">
@@ -227,16 +253,15 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
           {['name', 'empId', 'dept', 'jobTitle'].map((field) => (
             <div key={field} className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{field === 'name' ? '姓名' : field === 'empId' ? '員編' : field === 'dept' ? '單位' : '職稱'}</label>
-              <input type="text" name={field} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50" value={formData[field]} onChange={handleInputChange} />
+              <input type="text" name={field} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50 text-sm" value={formData[field]} onChange={handleInputChange} />
             </div>
           ))}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
           <div className="space-y-3"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest">請假類別</label><select name="type" className="w-full p-4 border border-slate-200 rounded-xl bg-white text-base font-semibold outline-none focus:ring-4 focus:ring-teal-50" value={formData.type} onChange={handleInputChange}>{LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
-          <div className="space-y-3"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><UserCheck className="w-4 h-4 text-teal-500" /> 職務代理人</label><input type="text" name="proxy" required placeholder="請輸入職代姓名" className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50" value={formData.proxy} onChange={handleInputChange} /></div>
+          <div className="space-y-3"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><UserCheck className="w-4 h-4 text-teal-500" /> 職務代理人</label><input type="text" name="proxy" required placeholder="請輸入職代姓名" className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50 text-sm" value={formData.proxy} onChange={handleInputChange} /></div>
         </div>
 
-        {/* 時間選擇列：優化總計時數欄位尺寸 */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 items-end text-left font-sans">
            <div className="space-y-4">
              <label className="text-sm font-bold text-emerald-600 uppercase tracking-widest">開始時間</label>
@@ -252,7 +277,6 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
                <div className="flex gap-1 shrink-0"><select name="endHour" className="p-3 rounded-xl border border-slate-200 bg-white" value={formData.endHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select><select name="endMin" className="p-3 rounded-xl border border-slate-200 bg-white w-20" value={formData.endMin} onChange={handleInputChange}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
              </div>
            </div>
-           {/* 優化後的小尺寸總計時數 */}
            <div className="lg:justify-self-end w-full lg:w-fit">
              <div className="bg-teal-600 px-5 py-3.5 rounded-2xl shadow-md flex items-center gap-4 text-white min-w-[140px] h-[52px]">
                <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-90">總時數</span>
@@ -264,7 +288,7 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
            </div>
         </div>
 
-        <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由</label><textarea name="reason" rows="8" required className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-teal-50" value={formData.reason} onChange={handleInputChange}></textarea></div>
+        <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由</label><textarea name="reason" rows="4" required className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-teal-50" value={formData.reason} onChange={handleInputChange}></textarea></div>
         
         <div className="p-6 bg-teal-50 rounded-3xl border border-teal-100 flex items-center gap-3 text-sm font-bold text-teal-800">
            <Info className="text-teal-600 w-5 h-5" />
@@ -318,7 +342,7 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-rose-600 px-8 py-12 text-white relative overflow-hidden text-left">
           <div className="absolute top-0 right-0 p-4 opacity-10"><ShieldCheck size={120} /></div>
-          <h1 className="text-3xl font-black">主管簽核</h1>
+          <h1 className="text-3xl font-black text-left">主管簽核</h1>
           <p className="mt-2 text-rose-100 italic text-left">統一處理全系統之加班與請假申請案件</p>
         </div>
 
@@ -349,7 +373,7 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
                           {selectedId === item.id && <div className="w-2.5 h-2.5 rounded-full bg-white animate-in zoom-in duration-300"></div>}
                         </div>
                       </td>
-                      <td className="px-4 py-6">
+                      <td className="px-4 py-6 text-left">
                         <div className="font-mono font-black text-rose-600">{item.serialId}</div>
                         {item.formType === '加班' && (
                           <div className={`mt-1 inline-flex text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${item.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
@@ -357,8 +381,8 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-6"><div className="font-bold text-slate-800">{item.name}</div><div className="text-[10px] text-slate-400">{item.dept} / {item.jobTitle}</div></td>
-                      <td className="px-6 py-6 text-slate-500 leading-relaxed font-medium line-clamp-2 max-w-[300px]">
+                      <td className="px-4 py-6 text-left"><div className="font-bold text-slate-800">{item.name}</div><div className="text-[10px] text-slate-400">{item.dept} / {item.jobTitle}</div></td>
+                      <td className="px-6 py-6 text-left text-slate-500 leading-relaxed font-medium line-clamp-2 max-w-[300px]">
                         <div className="text-xs font-black text-slate-700 mb-1">{activeTab === '加班' ? OT_CATEGORIES.find(c=>c.id===item.category)?.label : LEAVE_TYPES.find(t=>t.id===item.type)?.label}</div>
                         {item.reason}
                       </td>
@@ -374,11 +398,11 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
 
           <div className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${selectedId ? 'bg-white border-rose-100 shadow-2xl scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
             <div className="flex flex-col md:flex-row gap-8 items-start">
-              <div className="flex-grow space-y-5 w-full">
+              <div className="flex-grow space-y-5 w-full text-left">
                 <div className="flex items-center justify-between text-left"><div className="flex items-center gap-3"><MessageSquare className={`w-6 h-6 ${selectedId ? 'text-rose-600' : 'text-slate-400'}`} /><h4 className="text-lg font-black text-slate-800 tracking-tight">案件處理意見</h4></div>{selectedRecord && <div className="text-xs font-black text-rose-600 bg-rose-50 px-4 py-1.5 rounded-full border border-rose-100 animate-in fade-in">已選取：{selectedRecord.serialId} ({selectedRecord.name})</div>}</div>
-                <div className="relative"><textarea disabled={!selectedId} placeholder={selectedId ? "在此輸入審核意見或駁回具體原因..." : "請先從上方列表中選取一個案件..."} className={`w-full p-5 rounded-2xl text-base font-medium border outline-none transition-all resize-none h-32 ${error ? 'border-rose-400 bg-rose-50 ring-4 ring-rose-50' : 'border-slate-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-50'}`} value={currentOpinion} onChange={(e) => { setCurrentOpinion(e.target.value); if (error) setError(false); }} />{error && <div className="absolute left-5 bottom-3 text-xs font-black text-rose-500 flex items-center gap-1 animate-pulse"><AlertTriangle size={14} /> 駁回必須填寫理由！</div>}</div>
+                <div className="relative text-left"><textarea disabled={!selectedId} placeholder={selectedId ? "在此輸入審核意見或駁回具體原因..." : "請先從上方列表中選取一個案件..."} className={`w-full p-5 rounded-2xl text-base font-medium border outline-none transition-all resize-none h-32 ${error ? 'border-rose-400 bg-rose-50 ring-4 ring-rose-50' : 'border-slate-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-50'} text-left`} value={currentOpinion} onChange={(e) => { setCurrentOpinion(e.target.value); if (error) setError(false); }} />{error && <div className="absolute left-5 bottom-3 text-xs font-black text-rose-500 flex items-center gap-1 animate-pulse"><AlertTriangle size={14} /> 駁回必須填寫理由！</div>}</div>
               </div>
-              <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10"><button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button><button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button></div>
+              <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10 text-left"><button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button><button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button></div>
             </div>
             {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /></div>}
           </div>
@@ -389,7 +413,7 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
                <h3 className="text-xl font-black text-slate-800">已處理歷史紀錄 ({activeTab})</h3>
             </div>
             <div className="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm bg-slate-50/50 text-left">
-              <table className="w-full border-collapse min-w-[900px]">
+              <table className="w-full border-collapse min-w-[900px] text-left">
                 <thead>
                   <tr className="border-b border-slate-200">
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">表單編號</th>
@@ -399,19 +423,19 @@ const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
                     <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">處理結果</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-sm">
+                <tbody className="divide-y divide-slate-100 text-sm text-left">
                   {processedItems.length > 0 ? processedItems.map(item => (
                     <tr key={item.id} className="hover:bg-white transition-all text-left">
-                      <td className="px-6 py-6 font-mono font-bold text-slate-600">{item.serialId}</td>
-                      <td className="px-6 py-6">
-                        <div className="font-bold text-slate-800">{item.name}</div>
-                        <div className="text-[10px] text-slate-400">{item.dept} / {item.jobTitle}</div>
+                      <td className="px-6 py-6 font-mono font-bold text-slate-600 text-left">{item.serialId}</td>
+                      <td className="px-6 py-6 text-left">
+                        <div className="font-bold text-slate-800 text-left">{item.name}</div>
+                        <div className="text-[10px] text-slate-400 text-left">{item.dept} / {item.jobTitle}</div>
                       </td>
                       <td className="px-6 py-6 text-left">
-                         <div className="text-xs font-black text-slate-500">
+                         <div className="text-xs font-black text-slate-500 text-left">
                            {activeTab === '加班' ? OT_CATEGORIES.find(c=>c.id===item.category)?.label : LEAVE_TYPES.find(t=>t.id===item.type)?.label}
                          </div>
-                         <div className="text-[10px] text-slate-400 mt-1">{item.startDate}</div>
+                         <div className="text-[10px] text-slate-400 mt-1 text-left">{item.startDate}</div>
                       </td>
                       <td className="px-6 py-6 text-center font-black text-slate-700">{item.totalHours} HR</td>
                       <td className="px-6 py-6 text-center">{getStatusBadge(item.status)}</td>
@@ -524,9 +548,9 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
         <form onSubmit={handleSubmit} className={`p-8 space-y-8 ${dbStatus !== 'connected' ? 'opacity-50 pointer-events-none' : ''}`}>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold">
             {['name', 'empId', 'dept', 'jobTitle'].map(f => (
-              <div key={f} className="space-y-3">
+              <div key={f} className="space-y-3 text-left">
                 <label className="flex items-center text-slate-500 uppercase tracking-widest">{f === 'name' ? '姓名' : f === 'empId' ? '員編' : f === 'dept' ? '單位' : '職稱'}</label>
-                <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100 text-sm" value={formData[f]} onChange={handleInputChange} />
+                <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100 text-sm text-left" value={formData[f]} onChange={handleInputChange} />
               </div>
             ))}
           </div>
@@ -537,23 +561,23 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
         </form>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="px-8 py-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3"><Users className="text-sky-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800">現有人員清單</h2><span className="bg-sky-50 text-sky-600 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest">{employees.length} TOTAL</span></div>
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left text-left">
+        <div className="px-8 py-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
+          <div className="flex items-center gap-3 text-left"><Users className="text-sky-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800 text-left">現有人員清單</h2><span className="bg-sky-50 text-sky-600 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-widest text-left">{employees.length} TOTAL</span></div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-left">
             <input type="file" ref={fileInputRef} onChange={handleImport} accept=".csv" className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} disabled={submitting || dbStatus !== 'connected'} className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50">
+            <button onClick={() => fileInputRef.current?.click()} disabled={submitting || dbStatus !== 'connected'} className="px-5 py-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-100 transition-all disabled:opacity-50 text-left">
               <Download size={14} /> 批次匯入 CSV
             </button>
-            <button onClick={handleExport} disabled={employees.length === 0} className="px-5 py-2.5 bg-sky-50 border border-sky-100 text-sky-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-sky-100 transition-all disabled:opacity-50">
+            <button onClick={handleExport} disabled={employees.length === 0} className="px-5 py-2.5 bg-sky-50 border border-sky-100 text-sky-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-sky-100 transition-all disabled:opacity-50 text-left">
               <Upload size={14} /> 匯出 Excel
             </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto text-left"><table className="w-full border-collapse"><thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5 text-left">員編</th><th className="px-6 py-5 text-left">姓名</th><th className="px-6 py-5 text-left">單位</th><th className="px-6 py-5 text-left">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead><tbody className="divide-y divide-slate-100 text-sm">{employees.length > 0 ? employees.map(emp => (
-                <tr key={emp.id} className="hover:bg-slate-50 transition-colors text-left"><td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td><td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td><td className="px-6 py-6 text-slate-600 font-medium">{emp.dept}</td><td className="px-6 py-6 text-slate-600 font-medium">{emp.jobTitle}</td><td className="px-8 py-6 text-right flex justify-end gap-2"><button onClick={() => startEdit(emp)} className="p-3 text-slate-300 hover:text-sky-600 transition-all rounded-xl hover:bg-sky-50"><Edit2 size={20} /></button><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button></td></tr>)) : <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg italic">目前尚無人員數據</td></tr>}</tbody></table></div>
+        <div className="overflow-x-auto text-left"><table className="w-full border-collapse text-left"><thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest text-left"><th className="px-8 py-5 text-left">員編</th><th className="px-6 py-5 text-left">姓名</th><th className="px-6 py-5 text-left">單位</th><th className="px-6 py-5 text-left">職稱</th><th className="px-8 py-5 text-right text-left">操作</th></tr></thead><tbody className="divide-y divide-slate-100 text-sm text-left">{employees.length > 0 ? employees.map(emp => (
+                <tr key={emp.id} className="hover:bg-slate-50 transition-colors text-left"><td className="px-8 py-6 font-mono font-black text-slate-700 text-left">{emp.empId}</td><td className="px-6 py-6 font-bold text-slate-800 text-left">{emp.name}</td><td className="px-6 py-6 text-slate-600 font-medium text-left">{emp.dept}</td><td className="px-6 py-6 text-slate-600 font-medium text-left">{emp.jobTitle}</td><td className="px-8 py-6 text-right flex justify-end gap-2 text-left"><button onClick={() => startEdit(emp)} className="p-3 text-slate-300 hover:text-sky-600 transition-all rounded-xl hover:bg-sky-50 text-left"><Edit2 size={20} /></button><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50 text-left"><Trash2 size={20} /></button></td></tr>)) : <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg italic text-center">目前尚無人員數據</td></tr>}</tbody></table></div>
       </div>
     </div>
   );
@@ -607,40 +631,42 @@ const FormQueryView = ({ records, getStatusBadge }) => {
     <div className="space-y-8 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-amber-600 px-8 py-12 text-white relative overflow-hidden flex justify-between items-end text-left">
-          <div className="relative z-10 text-left">
-            <div className="flex items-center gap-3 mb-2"><BarChart3 size={32}/><h1 className="text-3xl font-black tracking-tight">表單查詢</h1></div>
+          <div className="relative z-10 text-left text-left">
+            <div className="flex items-center gap-3 mb-2 text-left"><BarChart3 size={32}/><h1 className="text-3xl font-black tracking-tight text-left">表單查詢</h1></div>
             <p className="mt-2 text-amber-100 italic text-left">全系統單據檢索與資料匯出</p>
           </div>
           <div className="absolute top-0 right-0 p-4 opacity-10 text-left"><CalendarSearch size={140} /></div>
         </div>
-        <div className="p-8 space-y-6 text-left">
+        <div className="p-8 space-y-6 text-left font-sans">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 text-left">
-            <div className="lg:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Search size={12} /> 關鍵字搜尋</label>
+            <div className="lg:col-span-2 space-y-2 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 text-left"><Search size={12} /> 關鍵字搜尋</label>
               <div className="relative text-left">
                 <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
                 <input type="text" placeholder="輸入姓名 / 員編 / 單位 / 單號..." className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-50 text-sm font-bold text-left" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> 開始日期</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 text-left"><Calendar size={12}/> 開始日期</label>
               <input type="date" className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold bg-white text-left" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> 結束日期</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1 text-left"><Calendar size={12}/> 結束日期</label>
               <input type="date" className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold bg-white text-left" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end text-left">
-            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">單據類型</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm" value={filterType} onChange={(e) => { setFilterType(e.target.value); setSubType('all'); }}><option value="all">全部單據</option><option value="加班">加班單</option><option value="請假">請假單</option></select></div>
-            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">審核狀態</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有狀態</option><option value="pending">待簽核</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
-            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{filterType === '加班' ? '加班類別' : filterType === '請假' ? '請假假別' : '細項篩選'}</label><select disabled={filterType === 'all'} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm disabled:opacity-50" value={subType} onChange={(e) => setSubType(e.target.value)}><option value="all">不限類別</option>{filterType === '加班' && OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}{filterType === '請假' && LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
-            <div className="pt-2 text-left"><button onClick={handleExport} disabled={filteredResults.length === 0} className="w-full bg-amber-600 text-white py-3 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-amber-700 shadow-lg shadow-amber-100 transition-all disabled:opacity-50"><Upload size={18} /> 匯出 Excel</button></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end text-left text-left">
+            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left text-left">單據類型</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm text-left" value={filterType} onChange={(e) => { setFilterType(e.target.value); setSubType('all'); }}><option value="all">全部單據</option><option value="加班">加班單</option><option value="請假">請假單</option></select></div>
+            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left text-left">審核狀態</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm text-left" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有狀態</option><option value="pending">待簽核</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
+            <div className="space-y-2 text-left"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left text-left">{filterType === '加班' ? '加班類別' : filterType === '請假' ? '請假假別' : '細項篩選'}</label><select disabled={filterType === 'all'} className="w-full p-3 rounded-xl border border-slate-200 bg-white font-bold text-sm disabled:opacity-50 text-left" value={subType} onChange={(e) => setSubType(e.target.value)}><option value="all">不限類別</option>{filterType === '加班' && OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}{filterType === '請假' && LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></div>
+            <div className="pt-2 text-left"><button onClick={handleExport} disabled={filteredResults.length === 0} className="w-full bg-amber-600 text-white py-3 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-amber-700 shadow-lg shadow-amber-100 transition-all disabled:opacity-50 text-left"><Upload size={18} /> 匯出 Excel</button></div>
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-slate-100 text-left">
-            <table className="w-full border-collapse">
-              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left"><tr><th className="px-6 py-4 text-left">單號/類別</th><th className="px-6 py-4 text-left">申請資訊</th><th className="px-6 py-4 text-left">日期</th><th className="px-6 py-4 text-center">時數</th><th className="px-6 py-4 text-center">狀態</th></tr></thead>
-              <tbody className="divide-y divide-slate-100 text-sm text-left">{filteredResults.length > 0 ? filteredResults.map(r => (<tr key={r.id} className="hover:bg-slate-50 transition-colors font-medium text-left"><td className="px-6 py-5 text-left"><div className="font-mono font-bold text-slate-700">{r.serialId}</div><div className={`mt-1 inline-flex text-[9px] font-black px-1.5 py-0.5 rounded ${r.formType==='加班'?'bg-blue-100 text-blue-600':'bg-teal-100 text-teal-600'}`}>{r.formType==='加班' ? OT_CATEGORIES.find(c=>c.id===r.category)?.label : LEAVE_TYPES.find(t=>t.id===r.type)?.label}</div></td><td className="px-6 py-5 text-left"><div><div className="font-bold text-slate-800">{r.name}</div><div className="text-[10px] text-slate-400">{r.dept} / {r.jobTitle}</div></div></td><td className="px-6 py-5 text-left text-slate-600">{r.startDate}</td><td className="px-6 py-5 text-center font-black">{r.totalHours} HR</td><td className="px-6 py-5 text-center">{getStatusBadge(r.status)}</td></tr>)) : <tr><td colSpan="5" className="py-20 text-center text-slate-300 font-bold italic opacity-50">查無資料</td></tr>}</tbody>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 text-left text-left">
+            <table className="w-full text-left border-collapse text-left">
+              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left"><tr><th className="px-6 py-4 text-left">單號/類別</th><th className="px-6 py-4 text-left">申請資訊</th><th className="px-6 py-4 text-center text-left">日期</th><th className="px-6 py-4 text-center text-left">時數</th><th className="px-6 py-4 text-center text-left">狀態</th></tr></thead>
+              <tbody className="divide-y divide-slate-50 text-sm text-left">{filteredResults.length > 0 ? filteredResults.map(r => (<tr key={r.id} className="hover:bg-slate-50 transition-colors font-medium text-left"><td className="px-6 py-5 text-left"><div className="font-mono font-bold text-slate-700 text-left">{r.serialId}</div><div className={`mt-1 inline-flex text-[9px] font-black px-1.5 py-0.5 rounded ${r.formType==='加班'?'bg-blue-100 text-blue-600':'bg-teal-100 text-teal-600'} text-left`}>{r.formType==='加班' ? OT_CATEGORIES.find(c=>c.id===r.category)?.label : LEAVE_TYPES.find(t=>t.id===r.type)?.label}</div></td><td className="px-6 py-5 text-left"><div><div className="font-bold text-slate-800 text-left">{r.name}</div><div className="text-[10px] text-slate-400 text-left">{r.dept} / {r.jobTitle}</div></div></td><td className="px-6 py-5 text-left text-slate-600 text-center text-left">{r.startDate}</td><td className="px-6 py-5 text-center font-black text-left">{r.totalHours} HR</td><td className="px-6 py-5 text-center text-left">{getStatusBadge(r.status)}</td></tr>)) : <tr><td colSpan="5" className="py-20 text-center text-slate-300 font-bold italic opacity-50 text-center text-left">查無資料</td></tr>}</tbody>
             </table>
           </div>
         </div>
@@ -713,27 +739,27 @@ const App = () => {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'approved': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">已核准</span>;
-      case 'rejected': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700">已駁回</span>;
-      default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">待簽核</span>;
+      case 'approved': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 text-left">已核准</span>;
+      case 'rejected': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-700 text-left">已駁回</span>;
+      default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 text-left">待簽核</span>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-      <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} transition-transform shadow-xl lg:shadow-none`}>
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 text-left">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} transition-transform shadow-xl lg:shadow-none text-left`}>
         <div className="h-full flex flex-col p-8 space-y-6 text-left">
-          <div className="flex items-center gap-3"><div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100"><LayoutDashboard className="text-white" /></div><h2 className="font-black text-xl text-left tracking-tight">員工服務平台</h2></div>
+          <div className="flex items-center gap-3 text-left"><div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-100 text-left"><LayoutDashboard className="text-white text-left" /></div><h2 className="font-black text-xl text-left tracking-tight text-left">員工服務平台</h2></div>
           <nav className="flex-grow space-y-2 text-left">
             {navItems.map(item => (
-              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${activeMenu === item.id ? `bg-slate-100 ${item.color} border-l-4 ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-l-4 border-transparent'}`}><item.icon size={20}/>{item.label}{item.id === 'approval' && records.filter(r=>r.status==='pending').length > 0 && <span className="ml-auto w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full animate-pulse">{records.filter(r=>r.status==='pending').length}</span>}</button>
+              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${activeMenu === item.id ? `bg-slate-100 ${item.color} border-l-4 ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-l-4 border-transparent'} text-left`}><item.icon size={20} className="text-left" />{item.label}{item.id === 'approval' && records.filter(r=>r.status==='pending').length > 0 && <span className="ml-auto w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full animate-pulse text-left">{records.filter(r=>r.status==='pending').length}</span>}</button>
             ))}
           </nav>
         </div>
       </aside>
 
-      <main className="flex-grow p-10 overflow-y-auto">
-        <div className="max-w-6xl mx-auto space-y-12">
+      <main className="flex-grow p-10 overflow-y-auto text-left">
+        <div className="max-w-6xl mx-auto space-y-12 text-left">
           {activeMenu === 'overtime' ? <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={otSerialId} /> : 
            activeMenu === 'leave' ? <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={leaveSerialId} /> : 
            activeMenu === 'approval' ? <ApprovalCenterView records={records} setRecords={setRecords} getStatusBadge={getStatusBadge} /> :
@@ -742,22 +768,22 @@ const App = () => {
           
           {activeMenu !== 'query' && activeMenu !== 'personnel' && activeMenu !== 'approval' && (
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200 overflow-hidden text-left">
-               <h3 className="text-xl font-black flex items-center gap-3 mb-6"><History /> 歷史紀錄清單</h3>
+               <h3 className="text-xl font-black flex items-center gap-3 mb-6 text-left"><History className="text-left" /> 歷史紀錄清單</h3>
                <div className="overflow-x-auto text-left">
-                 <table className="w-full border-collapse">
-                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left"><tr><th className="py-4 px-4 text-left">表單編號</th><th className="py-4 text-left">申請人資訊</th><th className="py-4 text-center">數量</th><th className="py-4 text-center">審核狀態</th><th className="py-4 text-right pr-4">操作</th></tr></thead>
+                 <table className="w-full border-collapse text-left">
+                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left"><tr><th className="py-4 px-4 text-left">表單編號</th><th className="py-4 text-left">申請人資訊</th><th className="py-4 text-center text-left">數量</th><th className="py-4 text-center text-left">審核狀態</th><th className="py-4 text-right pr-4 text-left">操作</th></tr></thead>
                    <tbody className="divide-y divide-slate-50 text-left">
                      {records.filter(r => (activeMenu === 'overtime' && r.formType === '加班') || (activeMenu === 'leave' && r.formType === '請假')).map(r => (
                        <tr key={r.id} className="hover:bg-slate-50 transition-colors font-medium text-left">
                          <td className="py-6 px-4 text-left">
-                            <div className="font-mono font-bold text-indigo-600">{r.serialId}</div>
-                            {r.formType === '加班' && <div className={`mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded ${r.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>{r.appType === 'pre' ? '事前申請' : '事後補報'}</div>}
-                            {r.formType === '請假' && <div className="mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded bg-teal-100 text-teal-700">{LEAVE_TYPES.find(t => t.id === r.type)?.label || '一般請假'}</div>}
+                            <div className="font-mono font-bold text-indigo-600 text-left">{r.serialId}</div>
+                            {r.formType === '加班' && <div className={`mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded ${r.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'} text-left`}>{r.appType === 'pre' ? '事前申請' : '事後補報'}</div>}
+                            {r.formType === '請假' && <div className="mt-1 inline-flex text-[10px] font-black uppercase px-2 py-0.5 rounded bg-teal-100 text-teal-700 text-left">{LEAVE_TYPES.find(t => t.id === r.type)?.label || '一般請假'}</div>}
                          </td>
-                         <td className="py-6 text-left"><div className="font-bold text-slate-800 text-base">{r.name}</div><div className="text-[10px] text-slate-400 mt-1">{r.dept} / {r.jobTitle}</div><div className="text-[10px] text-slate-400 font-medium">{r.startDate} {r.startHour ? `${r.startHour}:${r.startMin || '00'}` : ''}</div></td>
-                         <td className="py-6 text-center font-black text-slate-700">{r.totalHours} HR</td>
-                         <td className="py-6 text-center">{getStatusBadge(r.status)}</td>
-                         <td className="py-6 text-right pr-4"><button onClick={() => setDeleteConfirm({show:true,id:r.id,type:'record'})} className="p-2 text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={18}/></button></td>
+                         <td className="py-6 text-left"><div className="font-bold text-slate-800 text-base text-left">{r.name}</div><div className="text-[10px] text-slate-400 mt-1 text-left">{r.dept} / {r.jobTitle}</div><div className="text-[10px] text-slate-400 font-medium text-left">{r.startDate} {r.startHour ? `${r.startHour}:${r.startMin || '00'}` : ''}</div></td>
+                         <td className="py-6 text-center font-black text-slate-700 text-left">{r.totalHours} HR</td>
+                         <td className="py-6 text-center text-left">{getStatusBadge(r.status)}</td>
+                         <td className="py-6 text-right pr-4 text-left"><button onClick={() => setDeleteConfirm({show:true,id:r.id,type:'record'})} className="p-2 text-slate-300 hover:text-rose-500 transition-colors text-left"><Trash2 size={18} className="text-left" /></button></td>
                        </tr>
                      ))}
                    </tbody>
@@ -769,12 +795,12 @@ const App = () => {
       </main>
 
       {deleteConfirm.show && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center">
-            <AlertTriangle className="text-rose-500 mx-auto mb-4" size={48} />
-            <h3 className="text-2xl font-black mb-4 text-slate-800">確認刪除{deleteConfirm.type === 'record' ? '紀錄' : '人員'}？</h3>
-            <p className="text-slate-500 mb-8 leading-relaxed text-center">此操作會直接從系統中移除數據，且無法再次還原。</p>
-            <div className="flex gap-4"><button onClick={() => setDeleteConfirm({show:false})} className="flex-1 py-4 bg-slate-100 rounded-2xl font-bold hover:bg-slate-200 transition-all">取消</button><button onClick={executeDelete} className="flex-1 py-4 bg-rose-500 text-white rounded-2xl font-bold hover:bg-rose-600 transition-all shadow-lg shadow-rose-200">確認刪除</button></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in text-left">
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center text-left">
+            <AlertTriangle className="text-rose-500 mx-auto mb-4 text-left" size={48} />
+            <h3 className="text-2xl font-black mb-4 text-slate-800 text-left">確認刪除{deleteConfirm.type === 'record' ? '紀錄' : '人員'}？</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed text-center text-left">此操作會直接從系統中移除數據，且無法再次還原。</p>
+            <div className="flex gap-4 text-left"><button onClick={() => setDeleteConfirm({show:false})} className="flex-1 py-4 bg-slate-100 rounded-2xl font-bold hover:bg-slate-200 transition-all text-left">取消</button><button onClick={executeDelete} className="flex-1 py-4 bg-rose-500 text-white rounded-2xl font-bold hover:bg-rose-600 transition-all shadow-lg shadow-rose-200 text-left">確認刪除</button></div>
           </div>
         </div>
       )}
