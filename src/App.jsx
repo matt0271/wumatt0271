@@ -98,7 +98,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
           </div>
           <div className="absolute top-0 right-0 p-4 opacity-10"><Timer size={100} /></div>
           <h1 className="text-2xl font-black tracking-tight relative z-10">加班申請單</h1>
-          <p className="mt-1 text-indigo-100 opacity-90 text-xs font-medium uppercase tracking-wider">Overtime Application</p>
+          <p className="mt-1 text-indigo-100 opacity-90 text-xs font-medium uppercase tracking-wider">事前／事後加班皆可在此完成申請</p>
         </div>
 
         <div className="px-8 pt-8 pb-2">
