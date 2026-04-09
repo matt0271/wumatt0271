@@ -236,8 +236,8 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
           <div className="space-y-3"><label className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2"><UserCheck className="w-4 h-4 text-teal-500" /> 職務代理人</label><input type="text" name="proxy" required placeholder="請輸入職代姓名" className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50" value={formData.proxy} onChange={handleInputChange} /></div>
         </div>
 
-        {/* 時間選擇列：將總計時數調整至右側 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 items-end text-left">
+        {/* 時間選擇列：優化總計時數欄位尺寸 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 items-end text-left font-sans">
            <div className="space-y-4">
              <label className="text-sm font-bold text-emerald-600 uppercase tracking-widest">開始時間</label>
              <div className="flex gap-2">
@@ -252,19 +252,20 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
                <div className="flex gap-1 shrink-0"><select name="endHour" className="p-3 rounded-xl border border-slate-200 bg-white" value={formData.endHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select><select name="endMin" className="p-3 rounded-xl border border-slate-200 bg-white w-20" value={formData.endMin} onChange={handleInputChange}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
              </div>
            </div>
-           {/* 總計時數調整至此 */}
-           <div className="bg-teal-600 p-4 rounded-2xl shadow-lg flex items-center justify-between px-6 text-white h-[58px]">
-             <span className="text-[10px] font-black uppercase tracking-widest">總計時數</span>
-             <div className="flex items-baseline gap-1">
-               <span className="text-2xl font-black">{totalHours}</span>
-               <span className="text-[10px] font-black text-teal-200 uppercase">HR</span>
+           {/* 優化後的小尺寸總計時數 */}
+           <div className="lg:justify-self-end w-full lg:w-fit">
+             <div className="bg-teal-600 px-5 py-3.5 rounded-2xl shadow-md flex items-center gap-4 text-white min-w-[140px] h-[52px]">
+               <span className="text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-90">總時數</span>
+               <div className="flex items-baseline gap-1 ml-auto">
+                 <span className="text-xl font-black">{totalHours}</span>
+                 <span className="text-[9px] font-bold text-teal-200 uppercase">HR</span>
+               </div>
              </div>
            </div>
         </div>
 
         <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由</label><textarea name="reason" rows="8" required className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-teal-50" value={formData.reason} onChange={handleInputChange}></textarea></div>
         
-        {/* 底部提示條 */}
         <div className="p-6 bg-teal-50 rounded-3xl border border-teal-100 flex items-center gap-3 text-sm font-bold text-teal-800">
            <Info className="text-teal-600 w-5 h-5" />
            請確認以上資訊正確無誤後再點擊提交。
