@@ -253,15 +253,22 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
   );
 };
 
-// --- 主管簽核 ---
-const ApprovalCenterView = ({ records, setRecords }) => {
+// --- 主管簽核 (新增歷史紀錄清單) ---
+const ApprovalCenterView = ({ records, setRecords, getStatusBadge }) => {
   const [activeTab, setActiveTab] = useState('加班');
   const [selectedId, setSelectedId] = useState(null);
   const [currentOpinion, setCurrentOpinion] = useState('');
   const [error, setError] = useState(false);
 
+  // 待處理案件
   const pendingItems = useMemo(() => 
     records.filter(r => r.formType === activeTab && r.status === 'pending'),
+    [records, activeTab]
+  );
+
+  // 已簽核案件 (本次新增重點)
+  const processedItems = useMemo(() => 
+    records.filter(r => r.formType === activeTab && r.status !== 'pending'),
     [records, activeTab]
   );
 
@@ -294,14 +301,16 @@ const ApprovalCenterView = ({ records, setRecords }) => {
         </div>
 
         <div className="p-8 space-y-8">
+          {/* 頁籤切換 */}
           <div className="flex p-1.5 bg-slate-100 rounded-2xl w-fit">
             <button onClick={() => { setActiveTab('加班'); setSelectedId(null); }} className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === '加班' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500'}`}>加班簽核</button>
             <button onClick={() => { setActiveTab('請假'); setSelectedId(null); }} className={`px-8 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === '請假' ? 'bg-white text-rose-600 shadow-md' : 'text-slate-500'}`}>請假簽核</button>
           </div>
 
+          {/* 待處理案件 */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><ListChecks className="text-rose-600" /> 待處理案件清單</h3>
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 px-2"><ListChecks className="text-rose-600" /> 待處理案件清單</h3>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
@@ -343,6 +352,7 @@ const ApprovalCenterView = ({ records, setRecords }) => {
             </div>
           </div>
 
+          {/* 簽核處理與意見 */}
           <div className={`p-8 rounded-[2rem] border-2 transition-all duration-500 ${selectedId ? 'bg-white border-rose-100 shadow-2xl scale-[1.01]' : 'bg-slate-50 border-slate-100 opacity-60 grayscale'}`}>
             <div className="flex flex-col md:flex-row gap-8 items-start">
               <div className="flex-grow space-y-5 w-full">
@@ -352,6 +362,49 @@ const ApprovalCenterView = ({ records, setRecords }) => {
               <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10"><button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button><button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button></div>
             </div>
             {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /><span className="text-xs font-bold uppercase tracking-widest font-sans tracking-widest">Please Select a Record Above</span></div>}
+          </div>
+
+          {/* 已簽核歷史紀錄區塊 */}
+          <div className="pt-10 space-y-6">
+            <div className="flex items-center gap-3 px-2 border-l-4 border-rose-600">
+               <History className="text-rose-600 w-6 h-6" />
+               <h3 className="text-xl font-black text-slate-800">已處理歷史紀錄 ({activeTab})</h3>
+               <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest ml-auto">Processed History Only</span>
+            </div>
+            <div className="overflow-x-auto rounded-3xl border border-slate-100 shadow-sm bg-slate-50/50">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">表單編號</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">申請人資訊</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">事由類別</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">工時</th>
+                    <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">處理結果</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {processedItems.length > 0 ? processedItems.map(item => (
+                    <tr key={item.id} className="hover:bg-white transition-all">
+                      <td className="px-6 py-6 font-mono font-bold text-slate-600">{item.serialId}</td>
+                      <td className="px-6 py-6">
+                        <div className="font-bold text-slate-800">{item.name}</div>
+                        <div className="text-[10px] text-slate-400">{item.dept} / {item.jobTitle}</div>
+                      </td>
+                      <td className="px-6 py-6">
+                         <div className="text-xs font-black text-slate-500">
+                           {activeTab === '加班' ? OT_CATEGORIES.find(c=>c.id===item.category)?.label : LEAVE_TYPES.find(t=>t.id===item.type)?.label}
+                         </div>
+                         <div className="text-[10px] text-slate-400 mt-1">{item.startDate}</div>
+                      </td>
+                      <td className="px-6 py-6 text-center font-black text-slate-700">{item.totalHours} HR</td>
+                      <td className="px-6 py-6 text-center">{getStatusBadge(item.status)}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="5" className="py-16 text-center text-slate-300 font-bold opacity-30 italic">目前尚無已簽核之紀錄</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -479,7 +532,7 @@ const FormQueryView = ({ records, getStatusBadge }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left">
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-amber-600 px-8 py-12 text-white relative overflow-hidden flex justify-between items-end">
           <div className="relative z-10 text-left">
             <div className="flex items-center gap-3 mb-2"><BarChart3 size={32}/><h1 className="text-3xl font-black tracking-tight">表單查詢</h1></div>
@@ -490,38 +543,24 @@ const FormQueryView = ({ records, getStatusBadge }) => {
           </button>
           <div className="absolute top-0 right-0 p-4 opacity-10"><CalendarSearch size={140} /></div>
         </div>
-        <div className="p-8 space-y-6">
-          {/* 第一列：對齊關鍵字與日期篩選 */}
+        <div className="p-8 space-y-6 text-left">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="lg:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Search size={12} /> 關鍵字搜尋
-              </label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Search size={12} /> 關鍵字搜尋</label>
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="輸入姓名 / 員編 / 單位 / 單號..." 
-                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-50 text-sm font-bold" 
-                  value={searchTerm} 
-                  onChange={(e) => setSearchTerm(e.target.value)} 
-                />
+                <input type="text" placeholder="輸入姓名 / 員編 / 單位 / 單號..." className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-50 text-sm font-bold" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Calendar size={12}/> 開始日期
-              </label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> 開始日期</label>
               <input type="date" className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold bg-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Calendar size={12}/> 結束日期
-              </label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1"><Calendar size={12}/> 結束日期</label>
               <input type="date" className="w-full p-3 rounded-xl border border-slate-200 text-sm font-bold bg-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">單據類型</label><select className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold" value={filterType} onChange={(e) => { setFilterType(e.target.value); setSubType('all'); }}><option value="all">全部單據</option><option value="加班">加班單</option><option value="請假">請假單</option></select></div>
             <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">審核狀態</label><select className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有狀態</option><option value="pending">待簽核</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
@@ -626,7 +665,7 @@ const App = () => {
         <div className="max-w-6xl mx-auto space-y-12">
           {activeMenu === 'overtime' ? <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={otSerialId} /> : 
            activeMenu === 'leave' ? <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={leaveSerialId} /> : 
-           activeMenu === 'approval' ? <ApprovalCenterView records={records} setRecords={setRecords} /> :
+           activeMenu === 'approval' ? <ApprovalCenterView records={records} setRecords={setRecords} getStatusBadge={getStatusBadge} /> :
            activeMenu === 'query' ? <FormQueryView records={records} getStatusBadge={getStatusBadge} /> : 
            <PersonnelManagementView employees={employees} refreshEmployees={fetchEmployees} requestDelete={(id,type)=>setDeleteConfirm({show:true,id,type})} dbStatus={dbStatus} />}
           
