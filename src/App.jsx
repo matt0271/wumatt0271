@@ -10,12 +10,11 @@ import {
 } from 'lucide-react';
 
 // --- NGROK 設定區 ---
-// 請在此替換為您執行 ngrok http 5000 後產生的網址 (記得結尾不要斜線)
-// 例如: https://abcd-123-456.ngrok-free.app
+// 已根據您的要求套用特定的 ngrok 網址
 const NGROK_URL = 'https://lindsy-unarbitrative-gannon.ngrok-free.dev'; 
 const API_BASE_URL = `${NGROK_URL}/api`;
 
-// 使用 ngrok 時必須帶上的 Header，否則 API 會回傳 ngrok 的警告 HTML
+// 使用 ngrok 時必須帶上的 Header，以跳過瀏覽器警告頁面
 const NGROK_HEADERS = {
   'Content-Type': 'application/json',
   'ngrok-skip-browser-warning': 'true'
@@ -204,18 +203,28 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
                 </div>
                 <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10">
                   <button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button>
-                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
+                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 transition-all shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
                 </div>
               </div>
+              {!selectedId && <div className="mt-6 flex items-center justify-center gap-3 text-slate-400 animate-bounce"><MousePointerClick size={20} /><span className="text-xs font-bold uppercase tracking-widest font-sans">Please Select a Record Above</span></div>}
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="px-8 pb-10 space-y-8 pt-6">
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3"><label className="flex items-center text-sm font-bold text-slate-500 uppercase tracking-widest"><User className="w-4 h-4 mr-2 text-indigo-500" /> 姓名</label><input type="text" name="name" required placeholder="請輸入姓名" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-base font-medium" value={formData.name} onChange={handleInputChange} /></div>
               <div className="space-y-3"><label className="flex items-center text-sm font-bold text-slate-500 uppercase tracking-widest"><Hash className="w-4 h-4 mr-2 text-indigo-500" /> 員工編號</label><input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-5 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-base font-medium" value={formData.empId} onChange={handleInputChange} /></div>
             </div>
-            {/* 表單其餘部分... */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+              <div className="space-y-4"><label className="flex items-center text-sm font-bold text-emerald-600 uppercase tracking-widest"><Clock className="w-4 h-4 mr-2" /> 開始</label><div className="flex gap-3"><input type="date" name="startDate" className="flex-grow px-4 py-3 rounded-xl border border-slate-200 text-base font-semibold" value={formData.startDate} onChange={handleInputChange} /><div className="flex gap-2 shrink-0"><select name="startHour" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.startHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select><select name="startMin" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.startMin} onChange={handleInputChange}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select></div></div></div>
+              <div className="space-y-4"><label className="flex items-center text-sm font-bold text-rose-600 uppercase tracking-widest"><Clock className="w-4 h-4 mr-2" /> 結束</label><div className="flex gap-3"><input type="date" name="endDate" className="flex-grow px-4 py-3 rounded-xl border border-slate-200 text-base font-semibold" value={formData.endDate} onChange={handleInputChange} /><div className="flex gap-2 shrink-0"><select name="endHour" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.endHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select><select name="endMin" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.endMin} onChange={handleInputChange}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select></div></div></div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end">
+              <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班類別</label><select name="category" className="w-full px-5 py-4 border border-slate-200 rounded-xl bg-white text-base font-semibold outline-none" value={formData.category} onChange={handleInputChange}>{categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+              <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">補償方式</label><select name="compensationType" className="w-full px-5 py-4 border border-slate-200 rounded-xl bg-white text-base font-semibold outline-none" value={formData.compensationType} onChange={handleInputChange}>{compensationTypes.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+              <div className="bg-indigo-600 p-5 rounded-2xl shadow-xl shadow-indigo-200 text-center flex items-center justify-between px-6"><span className="text-xs font-black text-indigo-100 uppercase tracking-tighter">總計時數</span><span className="text-2xl font-black text-white">{totalHours} <small className="text-xs opacity-80">HR</small></span></div>
+            </div>
+            <div className="space-y-3"><label className="text-sm font-bold text-slate-500 uppercase tracking-widest">加班事由</label><textarea name="reason" rows="4" required placeholder="描述加班具體工作細節..." className="w-full p-5 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all text-base font-medium bg-white" value={formData.reason} onChange={handleInputChange}></textarea></div>
             <button type="submit" disabled={totalHours <= 0 || submitting} className={`w-full py-5 rounded-2xl font-black text-lg text-white shadow-2xl flex items-center justify-center gap-4 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : totalHours <= 0 ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}>{submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : submitted ? <CheckCircle2 className="w-6 h-6" /> : <ClipboardCheck className="w-6 h-6" />}{submitted ? '提交成功' : '提交加班申請'}</button>
           </form>
         )}
@@ -226,11 +235,96 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
 
 // --- 請假申請視圖 ---
 const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
-  // ... 請假單組件邏輯 (保持原有優化後的版本)
-  return (<div>請假單內容</div>);
+  const [formData, setFormData] = useState({
+    name: '', empId: '', dept: '', jobTitle: '', type: 'annual',
+    startDate: today, startHour: '09', startMin: '00',
+    endDate: today, endHour: '18', endMin: '00',
+    proxy: '', reason: '',
+  });
+
+  const totalHours = useMemo(() => {
+    const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
+    const end = new Date(`${formData.endDate}T${formData.endHour}:${formData.endMin}:00`);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+    const diffInMs = end - start;
+    if (diffInMs <= 0) return 0;
+    return Math.round((diffInMs / (1000 * 60 * 60)) * 10) / 10;
+  }, [formData]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const leaveTypes = [
+    { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
+    { id: 'personal', label: '事假' }, { id: 'sick', label: '病假' },
+    { id: 'hospitalized', label: '病假(連續住院)' }, { id: 'marriage', label: '婚假' },
+    { id: 'official', label: '公假' }, { id: 'maternity', label: '產假' },
+    { id: 'paternity', label: '陪產假' }, { id: 'prenatal', label: '產檢假' },
+    { id: 'bereavement', label: '喪假' }, { id: 'benefit', label: '福利假' },
+    { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停' },
+  ];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const newRecord = { ...formData, id: Date.now(), serialId: currentSerialId, formType: '請假', totalHours, status: 'pending', timestamp: new Date().toLocaleString() };
+    const updated = [newRecord, ...records];
+    setRecords(updated);
+    localStorage.setItem('portal_records', JSON.stringify(updated));
+    setFormData({ ...formData, reason: '' });
+  };
+
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+      <div className="bg-teal-600 px-8 py-12 text-white relative overflow-hidden">
+        <h1 className="text-3xl font-black relative z-10">請假申請單</h1>
+        <p className="mt-2 text-teal-100 opacity-90 text-sm font-medium italic relative z-10 text-left">請在此填寫您的請假計畫</p>
+      </div>
+      <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {['name', 'empId', 'dept', 'jobTitle'].map((field) => (
+            <div key={field} className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">{field === 'name' ? '姓名' : field === 'empId' ? '員編' : field === 'dept' ? '單位' : '職稱'}</label>
+              <input type="text" name={field} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-teal-50" value={formData[field]} onChange={handleInputChange} />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+           <div className="space-y-4">
+             <label className="text-sm font-bold text-emerald-600 uppercase tracking-widest">開始時間</label>
+             <div className="flex gap-2">
+               <input type="date" name="startDate" className="flex-grow p-3 rounded-xl border border-slate-200" value={formData.startDate} onChange={handleInputChange} />
+               <select name="startHour" className="p-3 rounded-xl border border-slate-200" value={formData.startHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+             </div>
+           </div>
+           <div className="space-y-4">
+             <label className="text-sm font-bold text-rose-600 uppercase tracking-widest">結束時間</label>
+             <div className="flex gap-2">
+               <input type="date" name="endDate" className="flex-grow p-3 rounded-xl border border-slate-200" value={formData.endDate} onChange={handleInputChange} />
+               <select name="endHour" className="p-3 rounded-xl border border-slate-200" value={formData.endHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+             </div>
+           </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-10 space-y-3">
+            <label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由 (請詳述)</label>
+            <textarea name="reason" rows="8" required className="w-full p-5 border border-slate-200 rounded-2xl outline-none" value={formData.reason} onChange={handleInputChange}></textarea>
+          </div>
+          <div className="lg:col-span-2">
+            <div className="bg-teal-600 p-5 rounded-3xl shadow-xl flex flex-col items-center justify-center gap-1">
+              <span className="text-[10px] font-black text-teal-100 uppercase tracking-widest">總計</span>
+              <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-white">{totalHours}</span><span className="text-[10px] font-black text-teal-200 uppercase">HR</span></div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" disabled={totalHours <= 0} className="w-full py-5 bg-teal-600 text-white rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all">提交請假申請</button>
+      </form>
+    </div>
+  );
 };
 
-// --- 人員管理視圖 (已更新 NGROK 連線邏輯) ---
+// --- 人員管理視圖 (SQL 串接版) ---
 const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, dbStatus }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', dept: '', jobTitle: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -247,7 +341,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
     try {
       const response = await fetch(`${API_BASE_URL}/employees`, {
         method: 'POST',
-        headers: NGROK_HEADERS, // 使用 ngrok 專用 Header
+        headers: NGROK_HEADERS,
         body: JSON.stringify(formData)
       });
       if (response.ok) {
@@ -267,7 +361,7 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
         <div className="bg-sky-600 px-8 py-10 text-white relative overflow-hidden flex justify-between items-center">
           <div className="relative z-10">
             <h1 className="text-3xl font-black tracking-tight">人員管理中心</h1>
-            <p className="mt-2 text-sky-100 opacity-90 text-sm font-medium italic">NGROK 遠端連線模式</p>
+            <p className="mt-2 text-sky-100 opacity-90 text-sm font-medium italic">遠端資料庫連線中</p>
           </div>
           <div className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-full border ${dbStatus === 'connected' ? 'bg-emerald-500/20 border-emerald-400' : 'bg-rose-500/20 border-rose-400'}`}>
             {dbStatus === 'connected' ? <Wifi className="w-4 h-4 text-emerald-200" /> : <WifiOff className="w-4 h-4 text-rose-200" />}
@@ -275,39 +369,61 @@ const PersonnelManagementView = ({ employees, refreshEmployees, requestDelete, d
           </div>
         </div>
 
-        {dbStatus !== 'connected' && (
-          <div className="mx-8 mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-4">
-            <HelpCircle className="text-amber-500 shrink-0 mt-1" />
-            <div className="space-y-2">
-              <h4 className="font-bold text-amber-800">無法連線至 NGROK 端點</h4>
-              <p className="text-sm text-amber-700 leading-relaxed">請確認：<br/>1. 您的 ngrok 是否正在運行？<br/>2. 程式碼最上方的 <code>NGROK_URL</code> 是否已更新為最新的網址？<br/>3. 您的本地後端 <code>server.js</code> 是否已啟動？</p>
-            </div>
-          </div>
-        )}
-
         <form onSubmit={handleAddEmployee} className={`p-8 space-y-8 ${dbStatus !== 'connected' ? 'opacity-50 pointer-events-none' : ''}`}>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold">
             {['name', 'empId', 'dept', 'jobTitle'].map(f => (
               <div key={f} className="space-y-3">
                 <label className="flex items-center text-slate-500 uppercase tracking-widest">{f === 'name' ? '姓名' : f === 'empId' ? '員編' : f === 'dept' ? '單位' : '職稱'}</label>
-                <input type="text" name={f} className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100" value={formData[f]} onChange={handleInputChange} />
+                <input type="text" name={f} required className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-sky-100" value={formData[f]} onChange={handleInputChange} />
               </div>
             ))}
           </div>
           <button type="submit" disabled={submitting} className="w-full py-5 bg-sky-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-sky-700 transition-all active:scale-95 flex items-center justify-center gap-3">
             {submitting ? <Loader2 className="animate-spin" /> : <UserPlus size={20} />}
-            {submitting ? '同步中...' : '儲存至遠端資料庫'}
+            {submitting ? '同步中...' : '新增人員至資料庫'}
           </button>
         </form>
       </div>
-      {/* 列表部分... (略) */}
+
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+        <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3"><Users className="text-sky-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800">現有人員清單</h2></div>
+          <span className="bg-sky-50 text-sky-600 text-xs px-3 py-1.5 rounded-full font-bold">{employees.length} 位人員</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5">員編</th><th className="px-6 py-5">姓名</th><th className="px-6 py-5">單位</th><th className="px-6 py-5">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {employees.length > 0 ? employees.map(emp => (
+                <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td>
+                  <td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td>
+                  <td className="px-6 py-6 text-slate-600">{emp.dept}</td>
+                  <td className="px-6 py-6 text-slate-600">{emp.jobTitle}</td>
+                  <td className="px-8 py-6 text-right"><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button></td>
+                </tr>
+              )) : (
+                <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg">載入資料中...</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
 
 // --- 查詢中心視圖 ---
 const QueryCenterView = ({ records, getStatusBadge }) => {
-  return (<div className="bg-white p-20 rounded-3xl text-center font-bold text-slate-400">查詢模組</div>);
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+      <div className="bg-amber-600 px-8 py-12 text-white relative overflow-hidden">
+        <h1 className="text-3xl font-black">查詢中心</h1>
+        <p className="mt-2 text-amber-100 italic">全系統單據檢索</p>
+      </div>
+      <div className="p-20 text-center text-slate-400">模組載入中...</div>
+    </div>
+  );
 };
 
 // --- 主程式入口 ---
@@ -323,22 +439,15 @@ const App = () => {
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, type: 'record' });
 
-  // --- 改良：使用 NGROK Headers 獲取資料 ---
   const fetchEmployees = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees`, {
-        headers: NGROK_HEADERS
-      });
+      const response = await fetch(`${API_BASE_URL}/employees`, { headers: NGROK_HEADERS });
       if (response.ok) {
         const data = await response.json();
         setEmployees(data);
         setDbStatus('connected');
-      } else {
-        setDbStatus('error');
-      }
-    } catch (err) {
-      setDbStatus('error');
-    }
+      } else { setDbStatus('error'); }
+    } catch (err) { setDbStatus('error'); }
   };
 
   useEffect(() => {
@@ -362,14 +471,9 @@ const App = () => {
       localStorage.setItem('portal_records', JSON.stringify(updated));
     } else {
       try {
-        const res = await fetch(`${API_BASE_URL}/employees/${deleteConfirm.id}`, { 
-          method: 'DELETE',
-          headers: NGROK_HEADERS
-        });
+        const res = await fetch(`${API_BASE_URL}/employees/${deleteConfirm.id}`, { method: 'DELETE', headers: NGROK_HEADERS });
         if (res.ok) fetchEmployees();
-      } catch (err) {
-        console.error("刪除失敗:", err);
-      }
+      } catch (err) { console.error("刪除失敗:", err); }
     }
     setDeleteConfirm({ show: false, id: null, type: 'record' });
   };
@@ -391,13 +495,12 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-      {/* 導覽列與主介面... (與前一版一致) */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-slate-200 lg:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} transition-transform`}>
         <div className="h-full flex flex-col p-8 space-y-6">
-          <div className="flex items-center gap-3"><div className="p-3 bg-indigo-600 rounded-2xl"><LayoutDashboard className="text-white" /></div><h2 className="font-black text-xl">員工平台</h2></div>
+          <div className="flex items-center gap-3"><div className="p-3 bg-indigo-600 rounded-2xl"><LayoutDashboard className="text-white" /></div><h2 className="font-black text-xl text-left">員工平台</h2></div>
           <nav className="flex-grow space-y-2">
             {navItems.map(item => (
-              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${activeMenu === item.id ? `bg-slate-100 ${item.color} border-l-4 ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50'}`}><item.icon size={20}/>{item.label}</button>
+              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${activeMenu === item.id ? `bg-slate-100 ${item.color} border-l-4 ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-l-4 border-transparent'}`}><item.icon size={20}/>{item.label}</button>
             ))}
           </nav>
         </div>
@@ -410,11 +513,46 @@ const App = () => {
            activeMenu === 'query' ? <QueryCenterView records={records} getStatusBadge={getStatusBadge} /> : 
            <PersonnelManagementView employees={employees} refreshEmployees={fetchEmployees} requestDelete={requestDelete} dbStatus={dbStatus} />}
           
-          {/* 歷史紀錄區塊... */}
+          {activeMenu !== 'query' && activeMenu !== 'personnel' && (
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200 overflow-hidden">
+               <h3 className="text-xl font-black flex items-center gap-3 mb-6"><History /> 歷史紀錄</h3>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                   <thead><tr className="border-b border-slate-100 text-xs font-black text-slate-400 uppercase"><th className="py-4 px-4">編號</th><th className="py-4">申請人資訊</th><th className="py-4 text-center">數量</th><th className="py-4 text-center">狀態</th><th className="py-4 text-right pr-4">操作</th></tr></thead>
+                   <tbody className="divide-y divide-slate-50">
+                     {records.filter(r => (activeMenu === 'overtime' && r.formType === '加班') || (activeMenu === 'leave' && r.formType === '請假')).map(r => (
+                       <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                         <td className="py-6 px-4 font-mono font-bold text-indigo-600">{r.serialId}</td>
+                         <td className="py-6">
+                           <div className="font-bold text-slate-800">{r.name}</div>
+                           <div className="text-xs text-slate-400">{r.startDate} {r.startHour ? `${r.startHour}:00` : ''}</div>
+                         </td>
+                         <td className="py-6 text-center font-black text-slate-700">{r.totalHours} HR</td>
+                         <td className="py-6 text-center">{getStatusBadge(r.status)}</td>
+                         <td className="py-6 text-right pr-4"><button onClick={() => requestDelete(r.id, 'record')} className="p-2 text-slate-300 hover:text-rose-500"><Trash2 size={18}/></button></td>
+                       </tr>
+                     ))}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          )}
         </div>
       </main>
 
-      {/* 刪除確認 Modal... */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center scale-up">
+            <AlertTriangle className="text-rose-500 mx-auto mb-4" size={48} />
+            <h3 className="text-2xl font-black mb-4 text-slate-800">確認刪除？</h3>
+            <p className="text-slate-500 mb-8 leading-relaxed">這將從 {deleteConfirm.type === 'record' ? '紀錄中' : 'SQL 資料庫中'} 永久移除此項數據。</p>
+            <div className="flex gap-4">
+              <button onClick={() => setDeleteConfirm({show:false, id:null, type:'record'})} className="flex-1 py-4 bg-slate-100 rounded-2xl font-bold hover:bg-slate-200 transition-all">取消</button>
+              <button onClick={executeDelete} className="flex-1 py-4 bg-rose-500 text-white rounded-2xl font-bold hover:bg-rose-600 transition-all shadow-lg shadow-rose-200">確認刪除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
