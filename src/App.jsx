@@ -192,7 +192,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, se
                 </div>
                 <div className="flex flex-row md:flex-col gap-4 shrink-0 w-full md:w-auto pt-10">
                   <button disabled={!selectedId} onClick={() => handleApprovalSubmit('approved')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-emerald-500 text-white rounded-2xl text-base font-black hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-200 active:scale-95 disabled:opacity-30"><Check size={20} strokeWidth={4} /> 核准通過</button>
-                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
+                  <button disabled={!selectedId} onClick={() => handleApprovalSubmit('rejected')} className="flex-1 flex items-center justify-center gap-3 px-10 py-5 bg-rose-500 text-white rounded-2xl text-base font-black hover:bg-rose-600 transition-all shadow-xl shadow-rose-200 active:scale-95 disabled:opacity-30"><XCircle size={20} /> 駁回申請</button>
                 </div>
               </div>
             </div>
@@ -450,7 +450,7 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
   );
 };
 
-// --- 人員管理視圖 (New Feature) ---
+// --- 人員管理視圖 ---
 const PersonnelManagementView = ({ employees, setEmployees, requestDelete }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -481,70 +481,44 @@ const PersonnelManagementView = ({ employees, setEmployees, requestDelete }) => 
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* 新增人員表單 */}
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
-        <div className="bg-slate-700 px-8 py-10 text-white relative overflow-hidden">
+        {/* 人員管理標題改為 Orange 色系 */}
+        <div className="bg-orange-600 px-8 py-12 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10"><UserPlus size={120} /></div>
           <h1 className="text-3xl font-black tracking-tight relative z-10">人員管理中心</h1>
-          <p className="mt-2 text-slate-300 opacity-90 text-sm font-medium uppercase tracking-wider italic">維護企業員工基本主檔</p>
+          <p className="mt-2 text-orange-100 opacity-90 text-sm font-medium uppercase tracking-wider italic">維護企業員工基本主檔</p>
         </div>
 
         <form onSubmit={handleAddEmployee} className="p-8 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold">
-            <div className="space-y-3">
-              <label className="flex items-center text-slate-500 uppercase tracking-widest"><User className="w-4 h-4 mr-2 text-slate-400" /> 姓名</label>
-              <input type="text" name="name" required placeholder="員工姓名" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.name} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Hash className="w-4 h-4 mr-2 text-slate-400" /> 員工編號</label>
-              <input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.empId} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Building2 className="w-4 h-4 mr-2 text-slate-400" /> 單位</label>
-              <input type="text" name="dept" required placeholder="所屬部門" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.dept} onChange={handleInputChange} />
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Briefcase className="w-4 h-4 mr-2 text-slate-400" /> 職稱</label>
-              <input type="text" name="jobTitle" required placeholder="職務角色" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.jobTitle} onChange={handleInputChange} />
-            </div>
+            <div className="space-y-3"><label className="flex items-center text-slate-500 uppercase tracking-widest"><User className="w-4 h-4 mr-2 text-orange-500" /> 姓名</label><input type="text" name="name" required placeholder="員工姓名" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-base font-medium" value={formData.name} onChange={handleInputChange} /></div>
+            <div className="space-y-3"><label className="flex items-center text-slate-500 uppercase tracking-widest"><Hash className="w-4 h-4 mr-2 text-orange-500" /> 員工編號</label><input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-base font-medium" value={formData.empId} onChange={handleInputChange} /></div>
+            <div className="space-y-3"><label className="flex items-center text-slate-500 uppercase tracking-widest"><Building2 className="w-4 h-4 mr-2 text-orange-500" /> 單位</label><input type="text" name="dept" required placeholder="所屬部門" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-base font-medium" value={formData.dept} onChange={handleInputChange} /></div>
+            <div className="space-y-3"><label className="flex items-center text-slate-500 uppercase tracking-widest"><Briefcase className="w-4 h-4 mr-2 text-orange-500" /> 職稱</label><input type="text" name="jobTitle" required placeholder="職務角色" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-orange-100 outline-none transition-all text-base font-medium" value={formData.jobTitle} onChange={handleInputChange} /></div>
           </div>
-          <button type="submit" disabled={submitting} className="w-full py-5 bg-slate-800 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-slate-900 transition-all active:scale-95 flex items-center justify-center gap-3">
+          <button type="submit" disabled={submitting} className="w-full py-5 bg-orange-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center gap-3">
             {submitting ? <Loader2 className="animate-spin" /> : <UserPlus size={20} />}
             {submitting ? '處理中...' : '新增人員至資料庫'}
           </button>
         </form>
       </div>
 
-      {/* 人員列表表格 */}
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
         <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Users className="text-slate-800 w-6 h-6" />
-            <h2 className="text-xl font-black text-slate-800">現有人員清單</h2>
-          </div>
-          <span className="bg-slate-100 text-slate-500 text-xs px-3 py-1.5 rounded-full font-bold">{employees.length} 位人員</span>
+          <div className="flex items-center gap-3"><Users className="text-orange-600 w-6 h-6" /><h2 className="text-xl font-black text-slate-800">現有人員清單</h2></div>
+          <span className="bg-orange-50 text-orange-600 text-xs px-3 py-1.5 rounded-full font-bold">{employees.length} 位人員</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-8 py-5">員編</th>
-                <th className="px-6 py-5">姓名</th>
-                <th className="px-6 py-5">單位</th>
-                <th className="px-6 py-5">職稱</th>
-                <th className="px-8 py-5 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-base">
+            <thead><tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest"><th className="px-8 py-5">員編</th><th className="px-6 py-5">姓名</th><th className="px-6 py-5">單位</th><th className="px-6 py-5">職稱</th><th className="px-8 py-5 text-right">操作</th></tr></thead>
+            <tbody className="divide-y divide-slate-100 text-base text-sm">
               {employees.length > 0 ? employees.map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td>
                   <td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td>
                   <td className="px-6 py-6 text-slate-600 font-medium">{emp.dept}</td>
                   <td className="px-6 py-6 text-slate-600 font-medium">{emp.jobTitle}</td>
-                  <td className="px-8 py-6 text-right">
-                    <button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button>
-                  </td>
+                  <td className="px-8 py-6 text-right"><button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button></td>
                 </tr>
               )) : (
                 <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg">尚未建立任何人員資料</td></tr>
@@ -569,10 +543,8 @@ const QueryCenterView = ({ records, getStatusBadge }) => {
         r.serialId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.name.includes(searchTerm) ||
         r.empId.toLowerCase().includes(searchTerm.toLowerCase());
-      
       const matchType = filterType === 'all' || r.formType === filterType;
       const matchStatus = filterStatus === 'all' || r.status === filterStatus;
-
       return matchSearch && matchType && matchStatus;
     });
   }, [records, searchTerm, filterType, filterStatus]);
@@ -589,17 +561,18 @@ const QueryCenterView = ({ records, getStatusBadge }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
-        <div className="bg-slate-800 px-8 py-12 text-white text-center relative overflow-hidden">
+        {/* 查詢中心標題改為 Violet 色系 */}
+        <div className="bg-violet-600 px-8 py-12 text-white text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Search size={120} /></div>
           <h1 className="text-3xl font-black tracking-tight relative z-10 text-left">查詢中心</h1>
-          <p className="mt-2 text-slate-400 opacity-90 text-sm font-medium uppercase tracking-wider text-left">Query Center</p>
+          <p className="mt-2 text-violet-100 opacity-90 text-sm font-medium uppercase tracking-wider text-left italic">跨類別檢索所有電子單據</p>
         </div>
 
         <div className="p-8 space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-2 relative"><Search className="absolute left-5 top-4.5 w-6 h-6 text-slate-400" /><input type="text" placeholder="搜尋編號、姓名或員編..." className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none font-medium text-base transition-all shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-            <div className="relative"><Filter className="absolute left-5 top-4.5 w-5 h-5 text-slate-400" /><select className="w-full pl-12 pr-5 py-4 rounded-2xl border border-slate-200 outline-none font-bold text-sm appearance-none bg-white cursor-pointer shadow-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="all">所有單據類型</option><option value="加班">加班申請單</option><option value="請假">請假申請單</option></select></div>
-            <div className="relative"><ShieldCheck className="absolute left-5 top-4.5 w-5 h-5 text-slate-400" /><select className="w-full pl-12 pr-5 py-4 rounded-2xl border border-slate-200 outline-none font-bold text-sm appearance-none bg-white cursor-pointer shadow-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有審核狀態</option><option value="pending">待核准</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
+            <div className="lg:col-span-2 relative"><Search className="absolute left-5 top-4.5 w-6 h-6 text-violet-400" /><input type="text" placeholder="搜尋編號、姓名或員編..." className="w-full pl-14 pr-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-violet-100 outline-none font-medium text-base transition-all shadow-sm" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+            <div className="relative"><Filter className="absolute left-5 top-4.5 w-5 h-5 text-violet-400" /><select className="w-full pl-12 pr-5 py-4 rounded-2xl border border-slate-200 outline-none font-bold text-sm appearance-none bg-white cursor-pointer shadow-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="all">所有單據類型</option><option value="加班">加班申請單</option><option value="請假">請假申請單</option></select></div>
+            <div className="relative"><ShieldCheck className="absolute left-5 top-4.5 w-5 h-5 text-violet-400" /><select className="w-full pl-12 pr-5 py-4 rounded-2xl border border-slate-200 outline-none font-bold text-sm appearance-none bg-white cursor-pointer shadow-sm" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}><option value="all">所有審核狀態</option><option value="pending">待核准</option><option value="approved">已核准</option><option value="rejected">已駁回</option></select></div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -648,23 +621,17 @@ const App = () => {
   const [overtimeAppType, setOvertimeAppType] = useState('pre'); 
   const [leaveAppType, setLeaveAppType] = useState('form');     
   const [records, setRecords] = useState([]);
-  const [employees, setEmployees] = useState([]); // 人員清單狀態
+  const [employees, setEmployees] = useState([]); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, type: 'record' });
 
   useEffect(() => {
-    // 載入表單紀錄
     const savedRecords = localStorage.getItem('portal_records');
-    if (savedRecords) {
-      try { setRecords(JSON.parse(savedRecords)); } catch (e) { console.error(e); }
-    }
-    // 載入人員資料
+    if (savedRecords) { try { setRecords(JSON.parse(savedRecords)); } catch (e) { console.error(e); } }
     const savedEmployees = localStorage.getItem('portal_employees');
-    if (savedEmployees) {
-      try { setEmployees(JSON.parse(savedEmployees)); } catch (e) { console.error(e); }
-    }
+    if (savedEmployees) { try { setEmployees(JSON.parse(savedEmployees)); } catch (e) { console.error(e); } }
   }, []);
 
   const currentSerialId = useMemo(() => {
@@ -673,11 +640,7 @@ const App = () => {
     return `${dateStr}-${String(todaysCount + 1).padStart(3, '0')}`;
   }, [records, today]);
 
-  // 更新刪除請求觸發邏輯，支援不同類型的刪除
-  const requestDelete = (id, type = 'record') => {
-    setDeleteConfirm({ show: true, id, type });
-  };
-
+  const requestDelete = (id, type = 'record') => { setDeleteConfirm({ show: true, id, type }); };
   const executeDelete = () => {
     if (deleteConfirm.type === 'record') {
       const updated = records.filter(r => r.id !== deleteConfirm.id);
@@ -705,10 +668,10 @@ const App = () => {
   }, [records, activeMenu, overtimeAppType, leaveAppType]);
 
   const navItems = [
-    { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { id: 'leave', label: '請假申請單', icon: CalendarDays, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { id: 'query', label: '查詢中心', icon: Search, color: 'text-slate-700', bg: 'bg-slate-100' },
-    { id: 'personnel', label: '人員管理', icon: Users, color: 'text-slate-700', bg: 'bg-slate-100' },
+    { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50', activeBorder: 'border-indigo-600' },
+    { id: 'leave', label: '請假申請單', icon: CalendarDays, color: 'text-teal-600', bg: 'bg-teal-50', activeBorder: 'border-teal-600' },
+    { id: 'query', label: '查詢中心', icon: Search, color: 'text-violet-600', bg: 'bg-violet-50', activeBorder: 'border-violet-600' },
+    { id: 'personnel', label: '人員管理', icon: Users, color: 'text-orange-600', bg: 'bg-orange-50', activeBorder: 'border-orange-600' },
   ];
 
   const getStatusBadge = (status) => {
@@ -726,7 +689,7 @@ const App = () => {
           <div className="px-8 py-12 flex items-center gap-4"><div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200"><LayoutDashboard className="text-white w-7 h-7" /></div><div><h2 className="font-black text-slate-800 tracking-tight text-xl text-left">員工服務平台</h2><p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-left">Employee Portal</p></div></div>
           <nav className="flex-grow px-5 space-y-3">
             {navItems.map((item) => (
-              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-5 px-5 py-4.5 rounded-2xl text-base font-bold transition-all ${activeMenu === item.id ? `${item.bg} ${item.color} shadow-sm border-l-4 ${item.id === 'overtime' ? 'border-indigo-600' : (item.id === 'leave' ? 'border-teal-600' : 'border-slate-800')}` : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-l-4 border-transparent'}`}>
+              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-5 px-5 py-4.5 rounded-2xl text-base font-bold transition-all ${activeMenu === item.id ? `${item.bg} ${item.color} shadow-sm border-l-4 ${item.activeBorder}` : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-l-4 border-transparent'}`}>
                 <item.icon className="w-6 h-6" />{item.label}
               </button>
             ))}
@@ -748,7 +711,7 @@ const App = () => {
                   {filteredHistory.length > 0 ? (
                     <table className="w-full text-left border-collapse min-w-[1000px]">
                       <thead><tr className="bg-slate-50/50"><th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">編號 / 類型</th><th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">申請資訊</th><th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">時間</th><th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-center">時數/天</th><th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-center">狀態</th><th className="px-6 py-5 text-xs font-black text-slate-400 uppercase tracking-widest">簽核意見</th><th className="px-8 py-5 text-xs font-black text-slate-400 uppercase tracking-widest text-right">操作</th></tr></thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
+                      <tbody className="divide-y divide-slate-100 text-sm text-base">
                         {filteredHistory.map((record) => (
                           <tr key={record.id} className="hover:bg-slate-50/30 transition-colors">
                             <td className="px-8 py-7"><div className="font-black font-mono text-slate-700">{record.serialId || '---'}</div><div className={`mt-2 inline-flex text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded ${record.formType === '加班' ? (record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600') : 'bg-teal-100 text-teal-600'}`}>{record.formType === '加班' ? (record.appType === 'pre' ? '事前申請' : '事後補報') : record.formType}</div></td>
