@@ -5,7 +5,8 @@ import {
   Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X,
   ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle,
-  Search, Filter, BarChart3, MousePointerClick, Building2, Briefcase
+  Search, Filter, BarChart3, MousePointerClick, Building2, Briefcase,
+  Users, UserPlus
 } from 'lucide-react';
 
 // 通用的時間選項
@@ -396,7 +397,6 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="px-8 py-10 space-y-8">
-            {/* 使用者資訊區域 - 四欄位 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="space-y-3">
                 <label className="flex items-center text-sm font-bold text-slate-500 uppercase tracking-widest"><User className="w-4 h-4 mr-2 text-teal-500" /> 姓名</label>
@@ -426,7 +426,6 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
               <div className="space-y-4"><label className="text-sm font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2"><Calendar className="w-4 h-4" /> 結束日期與時間</label><div className="flex gap-3"><input type="date" name="endDate" className="flex-grow px-4 py-3 rounded-xl border border-slate-200 text-base font-semibold" value={formData.endDate} onChange={handleInputChange} /><div className="flex gap-2 shrink-0"><select name="endHour" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.endHour} onChange={handleInputChange}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select><select name="endMin" className="w-20 border border-slate-200 rounded-xl text-base px-2 bg-white" value={formData.endMin} onChange={handleInputChange}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select></div></div></div>
             </div>
 
-            {/* 請假事由加大與時數欄位優化區域 */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <div className="lg:col-span-10 space-y-3">
                 <label className="text-sm font-bold text-slate-500 uppercase tracking-widest">請假事由 (請詳述)</label>
@@ -446,6 +445,113 @@ const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAp
             <button type="submit" disabled={totalHours <= 0 || submitting} className={`w-full py-5 rounded-2xl font-black text-lg text-white shadow-2xl flex items-center justify-center gap-4 transition-all transform active:scale-95 ${submitted ? 'bg-emerald-500 shadow-emerald-200' : totalHours <= 0 ? 'bg-slate-300' : 'bg-teal-600 hover:bg-teal-700 shadow-teal-200'}`}>{submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : submitted ? <CheckCircle2 className="w-6 h-6" /> : <ClipboardCheck className="w-6 h-6" />}{submitted ? '提交成功' : '提交請假申請'}</button>
           </form>
         )}
+      </div>
+    </div>
+  );
+};
+
+// --- 人員管理視圖 (New Feature) ---
+const PersonnelManagementView = ({ employees, setEmployees, requestDelete }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    empId: '',
+    dept: '',
+    jobTitle: ''
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddEmployee = (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setTimeout(() => {
+      const newEmployee = { ...formData, id: Date.now() };
+      const updated = [newEmployee, ...employees];
+      setEmployees(updated);
+      localStorage.setItem('portal_employees', JSON.stringify(updated));
+      setFormData({ name: '', empId: '', dept: '', jobTitle: '' });
+      setSubmitting(false);
+    }, 600);
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* 新增人員表單 */}
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+        <div className="bg-slate-700 px-8 py-10 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10"><UserPlus size={120} /></div>
+          <h1 className="text-3xl font-black tracking-tight relative z-10">人員管理中心</h1>
+          <p className="mt-2 text-slate-300 opacity-90 text-sm font-medium uppercase tracking-wider italic">維護企業員工基本主檔</p>
+        </div>
+
+        <form onSubmit={handleAddEmployee} className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm font-bold">
+            <div className="space-y-3">
+              <label className="flex items-center text-slate-500 uppercase tracking-widest"><User className="w-4 h-4 mr-2 text-slate-400" /> 姓名</label>
+              <input type="text" name="name" required placeholder="員工姓名" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.name} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Hash className="w-4 h-4 mr-2 text-slate-400" /> 員工編號</label>
+              <input type="text" name="empId" required placeholder="例如: EMP-001" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.empId} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Building2 className="w-4 h-4 mr-2 text-slate-400" /> 單位</label>
+              <input type="text" name="dept" required placeholder="所屬部門" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.dept} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center text-slate-500 uppercase tracking-widest"><Briefcase className="w-4 h-4 mr-2 text-slate-400" /> 職稱</label>
+              <input type="text" name="jobTitle" required placeholder="職務角色" className="w-full px-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-base font-medium" value={formData.jobTitle} onChange={handleInputChange} />
+            </div>
+          </div>
+          <button type="submit" disabled={submitting} className="w-full py-5 bg-slate-800 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-slate-900 transition-all active:scale-95 flex items-center justify-center gap-3">
+            {submitting ? <Loader2 className="animate-spin" /> : <UserPlus size={20} />}
+            {submitting ? '處理中...' : '新增人員至資料庫'}
+          </button>
+        </form>
+      </div>
+
+      {/* 人員列表表格 */}
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+        <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Users className="text-slate-800 w-6 h-6" />
+            <h2 className="text-xl font-black text-slate-800">現有人員清單</h2>
+          </div>
+          <span className="bg-slate-100 text-slate-500 text-xs px-3 py-1.5 rounded-full font-bold">{employees.length} 位人員</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 text-xs font-black text-slate-400 uppercase tracking-widest">
+                <th className="px-8 py-5">員編</th>
+                <th className="px-6 py-5">姓名</th>
+                <th className="px-6 py-5">單位</th>
+                <th className="px-6 py-5">職稱</th>
+                <th className="px-8 py-5 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-base">
+              {employees.length > 0 ? employees.map(emp => (
+                <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-8 py-6 font-mono font-black text-slate-700">{emp.empId}</td>
+                  <td className="px-6 py-6 font-bold text-slate-800">{emp.name}</td>
+                  <td className="px-6 py-6 text-slate-600 font-medium">{emp.dept}</td>
+                  <td className="px-6 py-6 text-slate-600 font-medium">{emp.jobTitle}</td>
+                  <td className="px-8 py-6 text-right">
+                    <button onClick={() => requestDelete(emp.id, 'employee')} className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-xl hover:bg-rose-50"><Trash2 size={20} /></button>
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-bold opacity-30 text-lg">尚未建立任何人員資料</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -542,15 +648,22 @@ const App = () => {
   const [overtimeAppType, setOvertimeAppType] = useState('pre'); 
   const [leaveAppType, setLeaveAppType] = useState('form');     
   const [records, setRecords] = useState([]);
+  const [employees, setEmployees] = useState([]); // 人員清單狀態
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
 
-  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null, type: 'record' });
 
   useEffect(() => {
-    const saved = localStorage.getItem('portal_records');
-    if (saved) {
-      try { setRecords(JSON.parse(saved)); } catch (e) { console.error(e); }
+    // 載入表單紀錄
+    const savedRecords = localStorage.getItem('portal_records');
+    if (savedRecords) {
+      try { setRecords(JSON.parse(savedRecords)); } catch (e) { console.error(e); }
+    }
+    // 載入人員資料
+    const savedEmployees = localStorage.getItem('portal_employees');
+    if (savedEmployees) {
+      try { setEmployees(JSON.parse(savedEmployees)); } catch (e) { console.error(e); }
     }
   }, []);
 
@@ -560,8 +673,23 @@ const App = () => {
     return `${dateStr}-${String(todaysCount + 1).padStart(3, '0')}`;
   }, [records, today]);
 
-  const requestDelete = (id) => { setDeleteConfirm({ show: true, id }); };
-  const executeDelete = () => { const updated = records.filter(r => r.id !== deleteConfirm.id); setRecords(updated); localStorage.setItem('portal_records', JSON.stringify(updated)); setDeleteConfirm({ show: false, id: null }); };
+  // 更新刪除請求觸發邏輯，支援不同類型的刪除
+  const requestDelete = (id, type = 'record') => {
+    setDeleteConfirm({ show: true, id, type });
+  };
+
+  const executeDelete = () => {
+    if (deleteConfirm.type === 'record') {
+      const updated = records.filter(r => r.id !== deleteConfirm.id);
+      setRecords(updated);
+      localStorage.setItem('portal_records', JSON.stringify(updated));
+    } else {
+      const updated = employees.filter(e => e.id !== deleteConfirm.id);
+      setEmployees(updated);
+      localStorage.setItem('portal_employees', JSON.stringify(updated));
+    }
+    setDeleteConfirm({ show: false, id: null, type: 'record' });
+  };
 
   const filteredHistory = useMemo(() => {
     const isApprovalMode = (activeMenu === 'overtime' && overtimeAppType === 'approve') || 
@@ -580,6 +708,7 @@ const App = () => {
     { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: 'leave', label: '請假申請單', icon: CalendarDays, color: 'text-teal-600', bg: 'bg-teal-50' },
     { id: 'query', label: '查詢中心', icon: Search, color: 'text-slate-700', bg: 'bg-slate-100' },
+    { id: 'personnel', label: '人員管理', icon: Users, color: 'text-slate-700', bg: 'bg-slate-100' },
   ];
 
   const getStatusBadge = (status) => {
@@ -597,8 +726,8 @@ const App = () => {
           <div className="px-8 py-12 flex items-center gap-4"><div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200"><LayoutDashboard className="text-white w-7 h-7" /></div><div><h2 className="font-black text-slate-800 tracking-tight text-xl text-left">員工服務平台</h2><p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-left">Employee Portal</p></div></div>
           <nav className="flex-grow px-5 space-y-3">
             {navItems.map((item) => (
-              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-5 px-5 py-4.5 rounded-2xl text-base font-bold transition-all ${activeMenu === item.id ? `${item.bg} ${item.color} shadow-sm` : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
-                <item.icon className="w-6 h-6" />{item.label}{activeMenu === item.id && <div className={`ml-auto w-2 h-7 rounded-full ${item.id === 'overtime' ? 'bg-indigo-600' : (item.id === 'leave' ? 'bg-teal-600' : 'bg-slate-600')}`}></div>}
+              <button key={item.id} onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }} className={`w-full flex items-center gap-5 px-5 py-4.5 rounded-2xl text-base font-bold transition-all ${activeMenu === item.id ? `${item.bg} ${item.color} shadow-sm border-l-4 ${item.id === 'overtime' ? 'border-indigo-600' : (item.id === 'leave' ? 'border-teal-600' : 'border-slate-800')}` : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-l-4 border-transparent'}`}>
+                <item.icon className="w-6 h-6" />{item.label}
               </button>
             ))}
           </nav>
@@ -610,9 +739,9 @@ const App = () => {
         <header className="lg:hidden h-20 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-40"><button onClick={() => setSidebarOpen(true)} className="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl"><Menu size={28} /></button><h1 className="font-black text-slate-800 text-base">員工服務平台</h1><div className="w-11 h-11 bg-indigo-100 rounded-full"></div></header>
         <div className="flex-grow overflow-y-auto p-6 sm:p-10 lg:p-14 scroll-smooth">
           <div className="max-w-5xl mx-auto space-y-14">
-            {activeMenu === 'overtime' ? ( <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} /> ) : activeMenu === 'leave' ? ( <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={leaveAppType} setAppType={setLeaveAppType} /> ) : ( <QueryCenterView records={records} getStatusBadge={getStatusBadge} /> )}
+            {activeMenu === 'overtime' ? ( <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} /> ) : activeMenu === 'leave' ? ( <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={leaveAppType} setAppType={setLeaveAppType} /> ) : activeMenu === 'query' ? ( <QueryCenterView records={records} getStatusBadge={getStatusBadge} /> ) : ( <PersonnelManagementView employees={employees} setEmployees={setEmployees} requestDelete={requestDelete} /> )}
             
-            {activeMenu !== 'query' && (
+            {activeMenu !== 'query' && activeMenu !== 'personnel' && (
               <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
                 <div className="px-8 py-8 border-b border-slate-100 flex items-center justify-between"><h2 className="text-xl font-black text-slate-800 flex items-center gap-3"><History className="w-6 h-6 text-indigo-500" />{((activeMenu === 'overtime' && overtimeAppType === 'approve') || (activeMenu === 'leave' && leaveAppType === 'approve')) ? '歷史簽核紀錄' : '歷史申請紀錄'}<span className="ml-3 bg-slate-100 text-slate-500 text-xs px-3 py-1.5 rounded-full">{filteredHistory.length} 筆</span></h2></div>
                 <div className="overflow-x-auto">
@@ -628,7 +757,7 @@ const App = () => {
                             <td className="px-6 py-7 text-center"><div className="text-base font-black text-slate-700 bg-slate-100 inline-block px-4 py-2 rounded-xl">{record.totalHours} HR</div></td>
                             <td className="px-6 py-7 text-center">{getStatusBadge(record.status)}</td>
                             <td className="px-6 py-7">{record.comment ? <div className="text-sm font-medium text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 leading-relaxed">{record.comment}</div> : <span className="text-xs text-slate-300 italic">尚未填寫意見</span>}</td>
-                            <td className="px-8 py-7 text-right"><button onClick={() => requestDelete(record.id)} className="p-3 text-slate-300 hover:text-rose-500 transition-colors rounded-xl hover:bg-rose-50 shadow-sm"><Trash2 size={20} /></button></td>
+                            <td className="px-8 py-7 text-right"><button onClick={() => requestDelete(record.id, 'record')} className="p-3 text-slate-300 hover:text-rose-500 transition-colors rounded-xl hover:bg-rose-50 shadow-sm"><Trash2 size={20} /></button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -642,7 +771,7 @@ const App = () => {
         </div>
       </main>
 
-      {deleteConfirm.show && ( <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200"><div className="p-10 text-center"><div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="text-rose-500 w-10 h-10" /></div><h3 className="text-2xl font-black text-slate-800 mb-3">確認刪除紀錄？</h3><p className="text-base text-slate-500 font-medium leading-relaxed">此操作無法撤銷，您確定要將這項申請紀錄從系統中永久移除嗎？</p></div><div className="bg-slate-50 p-6 flex gap-4"><button onClick={() => setDeleteConfirm({ show: false, id: null })} className="flex-1 py-4 px-6 bg-white border border-slate-200 rounded-2xl text-base font-bold text-slate-600 hover:bg-slate-100 transition-all shadow-sm">取消返回</button><button onClick={executeDelete} className="flex-1 py-4 px-6 bg-rose-500 rounded-2xl text-base font-bold text-white hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all active:scale-95">確認刪除</button></div></div></div> )}
+      {deleteConfirm.show && ( <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"><div className="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200"><div className="p-10 text-center"><div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6"><AlertTriangle className="text-rose-500 w-10 h-10" /></div><h3 className="text-2xl font-black text-slate-800 mb-3">確認刪除{deleteConfirm.type === 'record' ? '紀錄' : '人員'}？</h3><p className="text-base text-slate-500 font-medium leading-relaxed">此操作無法撤銷，您確定要將這項{deleteConfirm.type === 'record' ? '申請紀錄' : '人員資料'}從系統中永久移除嗎？</p></div><div className="bg-slate-50 p-6 flex gap-4"><button onClick={() => setDeleteConfirm({ show: false, id: null, type: 'record' })} className="flex-1 py-4 px-6 bg-white border border-slate-200 rounded-2xl text-base font-bold text-slate-600 hover:bg-slate-100 transition-all shadow-sm">取消返回</button><button onClick={executeDelete} className="flex-1 py-4 px-6 bg-rose-500 rounded-2xl text-base font-bold text-white hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all active:scale-95">確認刪除</button></div></div></div> )}
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"></div>}
     </div>
   );
