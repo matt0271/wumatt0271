@@ -4,16 +4,14 @@ import {
   AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, 
   Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X,
-  ShieldCheck, ThumbsUp, ThumbsDown, MessageSquare, AlertTriangle
+  ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle
 } from 'lucide-react';
 
 // --- 加班申請視圖 ---
-const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
-  const [appType, setAppType] = useState('pre'); 
+const OvertimeView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
   const [opinions, setOpinions] = useState({}); // 暫存主管簽核意見
   const [errors, setErrors] = useState({}); // 錯誤提示狀態
 
-  // 定義初始狀態，以便提交後重置
   const initialFormState = {
     name: '',
     empId: '',
@@ -29,7 +27,6 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
   };
   
   const [formData, setFormData] = useState(initialFormState);
-
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -79,10 +76,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
       localStorage.setItem('portal_records', JSON.stringify(updated));
       setSubmitted(true);
       setSubmitting(false);
-      
-      // 提交成功後，將所有欄位跳回預設值
       setFormData(initialFormState);
-      
       setTimeout(() => setSubmitted(false), 3000);
     }, 800);
   };
@@ -96,7 +90,6 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
     }
   };
 
-  // 處理主管簽核動作
   const handleApproval = (id, newStatus) => {
     const opinion = opinions[id] || '';
     if (newStatus === 'rejected' && !opinion.trim()) {
@@ -170,11 +163,15 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
                       <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-5">
                           <div className="text-xs font-black font-mono text-indigo-600">{record.serialId}</div>
+                          {/* 新增：主管簽核表格內的類型顯示 */}
+                          <div className={`mt-1 inline-flex text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'}`}>
+                            {record.appType === 'pre' ? '事前申請' : '事後補報'}
+                          </div>
                         </td>
                         <td className="px-4 py-5 text-xs font-bold text-slate-600">{record.empId}</td>
                         <td className="px-4 py-5 text-xs font-bold text-slate-800">{record.name}</td>
                         <td className="px-6 py-5">
-                          <p className="text-xs text-slate-500 font-medium line-clamp-2 max-w-[200px]" title={record.reason}>{record.reason}</p>
+                          <p className="text-xs text-slate-500 font-medium line-clamp-4 max-w-[200px]" title={record.reason}>{record.reason}</p>
                         </td>
                         <td className="px-4 py-5">
                           <div className="text-xs font-bold text-slate-700">{record.startDate}</div>
@@ -194,7 +191,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
                               <input 
                                 type="text"
                                 placeholder={errors[record.id] ? "駁回必須填寫理由！" : "輸入簽核意見..."}
-                                className={`w-full px-3 py-2 text-[11px] rounded-xl border outline-none transition-all ${errors[record.id] ? 'border-rose-400 bg-rose-50 placeholder-rose-400' : 'border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'}`}
+                                className={`w-full px-3 py-2 text-[11px] rounded-xl border outline-none transition-all ${errors[record.id] ? 'border-rose-400 bg-rose-50 placeholder-rose-400' : 'border-slate-200 focus:border-indigo-400'}`}
                                 value={opinions[record.id] || ''}
                                 onChange={(e) => {
                                   setOpinions({ ...opinions, [record.id]: e.target.value });
@@ -203,8 +200,12 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
                               />
                             </div>
                             <div className="flex gap-2">
-                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95"><ThumbsUp size={12} /> 核准</button>
-                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95"><ThumbsDown size={12} /> 駁回</button>
+                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
+                                <Check size={14} strokeWidth={3} /> 核准
+                              </button>
+                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
+                                <XCircle size={14} /> 駁回
+                              </button>
                             </div>
                           </div>
                         </td>
@@ -293,8 +294,7 @@ const OvertimeView = ({ records, setRecords, today, currentSerialId }) => {
 };
 
 // --- 請假申請視圖 ---
-const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
-  const [appType, setAppType] = useState('form'); 
+const LeaveView = ({ records, setRecords, today, currentSerialId, appType, setAppType }) => {
   const [opinions, setOpinions] = useState({});
   const [errors, setErrors] = useState({});
 
@@ -348,10 +348,7 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
       localStorage.setItem('portal_records', JSON.stringify(updated));
       setSubmitted(true);
       setSubmitting(false);
-      
-      // 提交成功後，將欄位重置
       setFormData(initialFormState);
-      
       setTimeout(() => setSubmitted(false), 3000);
     }, 800);
   };
@@ -440,8 +437,12 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
                           <div className="flex flex-col gap-2">
                             <input type="text" placeholder={errors[record.id] ? "請填寫駁回理由" : "輸入意見..."} className={`w-full px-3 py-2 text-[11px] rounded-xl border outline-none transition-all ${errors[record.id] ? 'border-rose-400 bg-rose-50' : 'border-slate-200 focus:border-rose-400'}`} value={opinions[record.id] || ''} onChange={(e) => { setOpinions({ ...opinions, [record.id]: e.target.value }); if (errors[record.id]) setErrors({ ...errors, [record.id]: false }); }} />
                             <div className="flex gap-2">
-                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all"><ThumbsUp size={12} /> 核准</button>
-                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all"><ThumbsDown size={12} /> 駁回</button>
+                              <button onClick={() => handleApproval(record.id, 'approved')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-500 hover:text-white transition-all shadow-sm active:scale-95">
+                                <Check size={14} strokeWidth={3} /> 核准
+                              </button>
+                              <button onClick={() => handleApproval(record.id, 'rejected')} className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black hover:bg-rose-500 hover:text-white transition-all shadow-sm active:scale-95">
+                                <XCircle size={14} /> 駁回
+                              </button>
                             </div>
                           </div>
                         </td>
@@ -506,9 +507,13 @@ const LeaveView = ({ records, setRecords, today, currentSerialId }) => {
 // --- 主程式入口 ---
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('overtime');
+  const [overtimeAppType, setOvertimeAppType] = useState('pre'); // 加班單標籤頁狀態
+  const [leaveAppType, setLeaveAppType] = useState('form');     // 請假單標籤頁狀態
   const [records, setRecords] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const today = new Date().toISOString().split('T')[0];
+
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null });
 
   useEffect(() => {
     const saved = localStorage.getItem('portal_records');
@@ -523,11 +528,33 @@ const App = () => {
     return `${dateStr}-${String(todaysCount + 1).padStart(3, '0')}`;
   }, [records, today]);
 
-  const deleteRecord = (id) => {
-    const updated = records.filter(r => r.id !== id);
+  const requestDelete = (id) => {
+    setDeleteConfirm({ show: true, id });
+  };
+
+  const executeDelete = () => {
+    const updated = records.filter(r => r.id !== deleteConfirm.id);
     setRecords(updated);
     localStorage.setItem('portal_records', JSON.stringify(updated));
+    setDeleteConfirm({ show: false, id: null });
   };
+
+  // 動態過濾紀錄的邏輯
+  const filteredHistory = useMemo(() => {
+    const isApprovalMode = (activeMenu === 'overtime' && overtimeAppType === 'approve') || 
+                           (activeMenu === 'leave' && leaveAppType === 'approve');
+
+    if (isApprovalMode) {
+      // 簽核模式：只顯示「已核准」或「已駁回」的紀錄
+      return records.filter(r => (r.status === 'approved' || r.status === 'rejected') && 
+                                 ((activeMenu === 'overtime' && r.formType === '加班') || 
+                                  (activeMenu === 'leave' && r.formType === '請假')));
+    } else {
+      // 申請模式：顯示該選單類型的所有紀錄
+      return records.filter(r => (activeMenu === 'overtime' && r.formType === '加班') || 
+                                 (activeMenu === 'leave' && r.formType === '請假'));
+    }
+  }, [records, activeMenu, overtimeAppType, leaveAppType]);
 
   const navItems = [
     { id: 'overtime', label: '加班申請單', icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -560,20 +587,31 @@ const App = () => {
           <div className="p-4 border-t border-slate-100"><button className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-bold text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"><LogOut className="w-5 h-5" />登出系統</button></div>
         </div>
       </aside>
+
       <main className="flex-grow min-w-0 flex flex-col">
         <header className="lg:hidden h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-0 z-40">
           <button onClick={() => setSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg"><Menu /></button>
           <h1 className="font-black text-slate-800 text-sm">員工服務平台</h1><div className="w-10 h-10 bg-indigo-100 rounded-full"></div>
         </header>
+
         <div className="flex-grow overflow-y-auto p-4 sm:p-8 lg:p-12 scroll-smooth">
           <div className="max-w-5xl mx-auto space-y-12">
-            {activeMenu === 'overtime' ? <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} /> : <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} />}
+            {activeMenu === 'overtime' ? (
+              <OvertimeView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={overtimeAppType} setAppType={setOvertimeAppType} />
+            ) : (
+              <LeaveView records={records} setRecords={setRecords} today={today} currentSerialId={currentSerialId} appType={leaveAppType} setAppType={setLeaveAppType} />
+            )}
+            
             <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
               <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2"><History className="w-5 h-5 text-indigo-500" />歷史申請紀錄<span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded-full">{records.length} 筆</span></h2>
+                <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <History className="w-5 h-5 text-indigo-500" />
+                  {((activeMenu === 'overtime' && overtimeAppType === 'approve') || (activeMenu === 'leave' && leaveAppType === 'approve')) ? '歷史簽核紀錄' : '歷史申請紀錄'}
+                  <span className="ml-2 bg-slate-100 text-slate-500 text-[10px] px-2 py-1 rounded-full">{filteredHistory.length} 筆</span>
+                </h2>
               </div>
               <div className="overflow-x-auto">
-                {records.length > 0 ? (
+                {filteredHistory.length > 0 ? (
                   <table className="w-full text-left border-collapse min-w-[1000px]">
                     <thead>
                       <tr className="bg-slate-50/50">
@@ -587,21 +625,36 @@ const App = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {records.map((record) => (
+                      {filteredHistory.map((record) => (
                         <tr key={record.id} className="hover:bg-slate-50/30 transition-colors">
-                          <td className="px-8 py-5"><div className="text-xs font-black font-mono text-slate-700">{record.serialId || '---'}</div><div className={`mt-1 inline-flex text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${record.formType === '加班' ? 'bg-indigo-100 text-indigo-600' : 'bg-rose-100 text-rose-600'}`}>{record.formType}</div></td>
+                          <td className="px-8 py-5">
+                            <div className="text-xs font-black font-mono text-slate-700">{record.serialId || '---'}</div>
+                            {/* 更新：歷史紀錄標籤改為「事前申請」或「事後補報」 */}
+                            <div className={`mt-1 inline-flex text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
+                              record.formType === '加班' 
+                                ? (record.appType === 'pre' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600')
+                                : 'bg-rose-100 text-rose-600'
+                            }`}>
+                              {record.formType === '加班' 
+                                ? (record.appType === 'pre' ? '事前申請' : '事後補報') 
+                                : record.formType}
+                            </div>
+                          </td>
                           <td className="px-6 py-5"><div className="text-sm font-bold text-slate-800">{record.name}</div><div className="text-[10px] text-slate-400 font-medium">{record.empId}</div></td>
                           <td className="px-6 py-5 text-xs text-slate-500 font-medium"><div>{record.startDate}</div><div className="opacity-50 text-[10px]">至 {record.endDate}</div></td>
                           <td className="px-6 py-5 text-center"><div className="text-sm font-black text-slate-700 bg-slate-100 inline-block px-3 py-1 rounded-lg">{record.formType === '加班' ? `${record.totalHours} HR` : `${record.totalHours/8} D`}</div></td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(record.status)}</td>
                           <td className="px-6 py-5">{record.comment ? <div className="text-[11px] font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100">{record.comment}</div> : <span className="text-[10px] text-slate-300 italic">尚未填寫意見</span>}</td>
-                          <td className="px-8 py-5 text-right"><button onClick={() => deleteRecord(record.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button></td>
+                          <td className="px-8 py-5 text-right"><button onClick={() => requestDelete(record.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <div className="py-20 flex flex-col items-center justify-center text-slate-300"><ListChecks size={48} className="mb-4 opacity-10" /><p className="text-sm font-bold opacity-30 tracking-widest">目前尚無任何紀錄</p></div>
+                  <div className="py-20 flex flex-col items-center justify-center text-slate-300">
+                    <ListChecks size={48} className="mb-4 opacity-10" />
+                    <p className="text-sm font-bold opacity-30 tracking-widest">尚無紀錄</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -609,6 +662,23 @@ const App = () => {
           </div>
         </div>
       </main>
+
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4"><AlertTriangle className="text-rose-500 w-8 h-8" /></div>
+              <h3 className="text-xl font-black text-slate-800 mb-2">確認刪除紀錄？</h3>
+              <p className="text-sm text-slate-500 font-medium">此操作無法撤銷，確定要將此項申請紀錄從系統中移除嗎？</p>
+            </div>
+            <div className="bg-slate-50 p-4 flex gap-3">
+              <button onClick={() => setDeleteConfirm({ show: false, id: null })} className="flex-1 py-3 px-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all">取消</button>
+              <button onClick={executeDelete} className="flex-1 py-3 px-4 bg-rose-500 rounded-2xl text-sm font-bold text-white hover:bg-rose-600 shadow-lg shadow-rose-200 transition-all active:scale-95">確認刪除</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"></div>}
     </div>
   );
