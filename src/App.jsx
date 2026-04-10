@@ -43,7 +43,7 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- View: Overtime Application ---
-const OvertimeView = ({ currentSerialId, onRefresh }) => {
+const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -57,6 +57,28 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  // 處理姓名輸入並自動帶出員編
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    const match = employees.find(emp => emp.name === value);
+    setFormData(prev => ({
+      ...prev,
+      name: value,
+      empId: match ? match.empId : prev.empId
+    }));
+  };
+
+  // 處理員編輸入並自動帶出姓名
+  const handleEmpIdChange = (e) => {
+    const value = e.target.value;
+    const match = employees.find(emp => emp.empId === value);
+    setFormData(prev => ({
+      ...prev,
+      empId: value,
+      name: match ? match.name : prev.name
+    }));
+  };
 
   const handleStartDateChange = (e) => {
     const newDate = e.target.value;
@@ -117,11 +139,23 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
-            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+            <input 
+              type="text" 
+              required 
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+              value={formData.name} 
+              onChange={handleNameChange}
+            />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">員編</label>
-            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.empId} onChange={e => setFormData({...formData, empId: e.target.value})} />
+            <input 
+              type="text" 
+              required 
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+              value={formData.empId} 
+              onChange={handleEmpIdChange}
+            />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label>
@@ -308,11 +342,10 @@ const ApprovalView = ({ records, onRefresh }) => {
               <tr>
                 <th className="px-8 py-4">選擇</th>
                 <th className="px-4 py-4">單號</th>
-                {/* 標題調整為 申請人/員編 */}
                 <th className="px-4 py-4">申請人/員編</th>
                 <th className="px-4 py-4">加班時間/時數</th>
                 <th className="px-4 py-4">補償方式</th>
-                <th className="px-4 py-4">事由</th>
+                <th className="px-4 py-4 min-w-[200px]">事由</th>
                 <th className="px-8 py-4 text-right">狀態</th>
               </tr>
             </thead>
@@ -340,7 +373,6 @@ const ApprovalView = ({ records, onRefresh }) => {
                     </div>
                   </td>
                   <td className="px-4 py-5">
-                    {/* 申請人與員編呈現優化 */}
                     <div className="font-black text-slate-800 text-sm">{record.name}</div>
                     <div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div>
                   </td>
@@ -356,7 +388,10 @@ const ApprovalView = ({ records, onRefresh }) => {
                     </span>
                   </td>
                   <td className="px-4 py-5">
-                    <p className="text-xs text-slate-500 line-clamp-1 max-w-[150px]">{record.reason}</p>
+                    {/* 秀出 3 行資料，調整 max-w 以適應內容 */}
+                    <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed max-w-[250px]">
+                      {record.reason}
+                    </p>
                   </td>
                   <td className="px-8 py-5 text-right">
                     <StatusBadge status={record.status} />
@@ -478,7 +513,7 @@ const App = () => {
 
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-12">
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} />}
+          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} employees={employees} />}
           {activeMenu === 'approval' && <ApprovalView records={records} onRefresh={fetchData} />}
           {activeMenu === 'personnel' && <PersonnelManagement employees={employees} onRefresh={fetchData} />}
         </div>
