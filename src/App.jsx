@@ -2,12 +2,12 @@
 import { 
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
-  BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw
+  BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
+  Info
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
 // 重要：請將下方的網址替換為您執行 ngrok http 5000 後產生的 https 網址
-// 範例：https://1234-56-78-90.ngrok-free.app
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
 // 建立一個統一的 fetch 標頭，包含跳過 ngrok 警告頁面的設定
@@ -17,6 +17,14 @@ const fetchOptions = {
     'ngrok-skip-browser-warning': 'true' 
   }
 };
+
+// --- Constants ---
+const OT_CATEGORIES = [
+  { id: 'regular', label: '一般上班日' },
+  { id: 'holiday', label: '國定假日' },
+  { id: 'rest', label: '休息日' },
+  { id: 'business', label: '出差加班' },
+];
 
 // --- Helper: Status Badge ---
 const StatusBadge = ({ status }) => {
@@ -38,7 +46,7 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', jobTitle: '', dept: '',
+    name: '', empId: '',
     category: 'regular', compensationType: 'leave',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -91,19 +99,52 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
         </div>
         <h1 className="text-2xl font-black">加班申請單 <span className="text-sm font-normal opacity-70 ml-2">({appType === 'pre' ? '事前' : '事後'})</span></h1>
         <div className="mt-6 flex bg-indigo-700/50 p-1 rounded-xl w-fit">
-          <button onClick={() => setAppType('pre')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${appType === 'pre' ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>事前申請</button>
-          <button onClick={() => setAppType('post')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${appType === 'post' ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>事後補報</button>
+          <button type="button" onClick={() => setAppType('pre')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${appType === 'pre' ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>事前申請</button>
+          <button type="button" onClick={() => setAppType('post')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all ${appType === 'post' ? 'bg-white text-indigo-600 shadow' : 'text-white/70 hover:text-white'}`}>事後補報</button>
         </div>
       </div>
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        {/* 四個欄位放在同一行 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
-            <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
-              <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData[f]} onChange={e => setFormData({...formData, [f]: e.target.value})} />
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
+            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">員編</label>
+            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.empId} onChange={e => setFormData({...formData, empId: e.target.value})} />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label>
+            <select 
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+              value={formData.category} 
+              onChange={e => setFormData({...formData, category: e.target.value})}
+            >
+              {OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">補償方式</label>
+            <div className="flex bg-slate-100 p-1 rounded-xl h-[46px] items-center">
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, compensationType: 'leave'})}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'leave' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                換補休
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, compensationType: 'pay'})}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'pay' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                計薪
+              </button>
             </div>
-          ))}
+          </div>
         </div>
+
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
@@ -134,6 +175,33 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班詳細事由</label>
           <textarea required rows="3" placeholder="請描述加班內容..." className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm focus:bg-white" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} />
         </div>
+
+        {/* 備註區塊 */}
+        <div className="mt-6 p-6 bg-amber-50 rounded-2xl border border-amber-100 space-y-3">
+          <div className="flex items-center gap-2 text-amber-800 font-black text-sm">
+            <Info size={18} />
+            備註 ：
+          </div>
+          <ul className="space-y-2 text-xs text-amber-700 leading-relaxed font-medium">
+            <li className="flex gap-2">
+              <span className="font-bold">A.</span>
+              <span>加班申請須事前由直屬主管核准，始得進行加班，並於事後呈主管審核確認。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">B.</span>
+              <span>此單由各部門編序號並於加班後七個工作日內交至財務行政部辦理，逾期不受理。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">C.</span>
+              <span>此加班工時將依比率換算為補休時數或薪資。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">D.</span>
+              <span>每月加班時數上限不得超過46小時。</span>
+            </li>
+          </ul>
+        </div>
+
         <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
           {submitting ? <Loader2 className="animate-spin" /> : <ClipboardCheck />}
           {submitting ? '提交中...' : '提交申請'}
@@ -240,7 +308,6 @@ const App = () => {
   const today = new Date().toISOString().split('T')[0];
 
   const fetchData = async () => {
-    // 檢查網址是否仍為佔位符
     if (NGROK_URL.includes('您的-ngrok-網址')) {
       setErrorState({
         title: "尚未設定 ngrok 網址",
@@ -251,37 +318,52 @@ const App = () => {
       return;
     }
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 秒超時
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 15000); 
 
-      const [resEmployees, resRecords] = await Promise.all([
-        fetch(`${NGROK_URL}/api/employees`, { ...fetchOptions, signal: controller.signal }),
-        fetch(`${NGROK_URL}/api/records`, { ...fetchOptions, signal: controller.signal }).catch(() => null)
-      ]);
+    try {
+      const employeePromise = fetch(`${NGROK_URL}/api/employees`, { ...fetchOptions, signal: controller.signal })
+        .then(res => res.ok ? res.json() : Promise.reject(`Employee API Error: ${res.status}`))
+        .catch(err => {
+            if (err.name === 'AbortError') throw err;
+            console.warn("無法取得員工資料:", err);
+            return null;
+        });
+
+      const recordsPromise = fetch(`${NGROK_URL}/api/records`, { ...fetchOptions, signal: controller.signal })
+        .then(res => res.ok ? res.json() : Promise.reject(`Records API Error: ${res.status}`))
+        .catch(err => {
+            if (err.name === 'AbortError') throw err;
+            console.warn("無法取得紀錄資料:", err);
+            return null;
+        });
+
+      const [dataEmployees, dataRecords] = await Promise.all([employeePromise, recordsPromise]);
 
       clearTimeout(timeoutId);
 
-      if (!resEmployees || !resEmployees.ok) {
-        throw new Error(`無法存取 API (HTTP ${resEmployees?.status || 'Unknown'})`);
-      }
+      if (dataEmployees) setEmployees(dataEmployees);
+      if (dataRecords) setRecords(dataRecords);
 
-      const dataEmployees = await resEmployees.json();
-      setEmployees(Array.isArray(dataEmployees) ? dataEmployees : []);
-
-      if (resRecords && resRecords.ok) {
-        const dataRecords = await resRecords.json();
-        setRecords(Array.isArray(dataRecords) ? dataRecords : []);
+      if (!dataEmployees && !employees.length) {
+          throw new Error("無法連線至 API 伺服器獲取基礎資料。");
       }
       
       setErrorState(null);
       setLoading(false);
     } catch (err) { 
+      clearTimeout(timeoutId);
       console.error("Fetch failed:", err); 
+      
+      const isTimeout = err.name === 'AbortError';
       setErrorState({
-        title: "連線失敗 (Fetch Failed)",
-        message: "前端無法連線至您的後端 API。請檢查以下事項：\n1. 您的 server.js 是否正在運行 (node server.js)\n2. ngrok 是否已經開啟並指向正確的 Port (ngrok http 5000)\n3. NGROK_URL 網址是否填寫正確且沒有多餘空格。",
-        code: err.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK_ERROR'
+        title: isTimeout ? "連線逾時 (Timeout)" : "連線失敗 (Network Error)",
+        message: isTimeout 
+            ? "伺服器回應時間過長（超過 15 秒）。這通常是因為您的電腦休眠中、ngrok 斷線或網路環境不穩定。" 
+            : "前端無法連線至您的後端 API。請檢查以下事項：\n1. Node.js 伺服器是否正在運行 (node server.js)\n2. ngrok 隧道是否已啟動 (ngrok http 5000)\n3. 網址是否填寫正確且沒有重複字元。",
+        code: err.name
       });
       setLoading(false);
     }
@@ -289,7 +371,7 @@ const App = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000); // 輪詢
+    const interval = setInterval(fetchData, 20000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -302,7 +384,7 @@ const App = () => {
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
       <Loader2 className="animate-spin text-indigo-600 w-12 h-12" />
-      <div className="text-sm font-black text-slate-400 uppercase tracking-widest">正在嘗試連線至後端伺服器...</div>
+      <div className="text-sm font-black text-slate-400 uppercase tracking-widest">正在連線至後端服務...</div>
     </div>
   );
 
@@ -326,7 +408,7 @@ const App = () => {
             <RefreshCw size={20} /> 重新嘗試連線
           </button>
           <div className="text-center text-[10px] text-slate-300 font-mono uppercase">
-            Error Code: {errorState.code} | Endpoint: {NGROK_URL}
+            Error Type: {errorState.code}
           </div>
         </div>
       </div>
@@ -344,7 +426,7 @@ const App = () => {
             <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
             <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              後端同步正常
+              雲端同步正常
             </div>
           </div>
         </div>
@@ -364,11 +446,6 @@ const App = () => {
             <Users size={20} /> 人員管理
           </button>
         </nav>
-
-        <div className="mt-auto p-4 bg-slate-50 rounded-2xl border border-slate-100">
-          <div className="text-[10px] font-black text-slate-400 mb-2 uppercase tracking-tighter">當前連線網址</div>
-          <div className="text-[10px] font-mono text-slate-400 break-all select-all">{NGROK_URL}</div>
-        </div>
       </aside>
 
       <main className="flex-grow p-10 overflow-y-auto">
