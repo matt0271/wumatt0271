@@ -27,7 +27,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'employee-portal-v1';
 
 // --- Constants ---
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
+const MINUTES = ['00', '30']; // 更新為只有 00 與 30
 
 const LEAVE_TYPES = [
   { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
@@ -106,7 +106,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-300 text-left">
       <div className="bg-indigo-600 px-8 py-10 text-white relative">
         <div className="absolute top-6 right-8 flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
           <Fingerprint className="w-4 h-4" />
@@ -164,14 +164,20 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
             <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+              <div className="flex gap-1">
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:</option>)}</select>
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+              </div>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
             <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+              <div className="flex gap-1">
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:</option>)}</select>
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+              </div>
             </div>
           </div>
           <div className="bg-indigo-600 rounded-xl p-4 text-white flex justify-between items-center shadow-lg shadow-indigo-100">
@@ -247,7 +253,7 @@ const LeaveView = ({ user, currentSerialId, today }) => {
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-300">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in duration-300 text-left">
       <div className="bg-teal-600 px-8 py-10 text-white relative">
         <div className="absolute top-6 right-8 flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20">
           <Fingerprint className="w-4 h-4" />
@@ -302,14 +308,20 @@ const LeaveView = ({ user, currentSerialId, today }) => {
             <label className="text-xs font-bold text-emerald-600">開始日期</label>
             <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+              <div className="flex gap-1">
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:</option>)}</select>
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+              </div>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-rose-600">結束日期</label>
             <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
+              <div className="flex gap-1">
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:</option>)}</select>
+                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
+              </div>
             </div>
           </div>
           <div className="bg-teal-600 rounded-xl p-4 text-white flex justify-between items-center">
@@ -376,7 +388,7 @@ const ApprovalCenter = ({ records, user }) => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="bg-rose-600 px-8 py-8 text-white flex justify-between items-center">
           <div>
@@ -513,7 +525,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 text-left">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         <div className="bg-sky-600 px-8 py-8 text-white flex justify-between items-center">
           <div>
@@ -594,7 +606,7 @@ const FormQueryView = ({ records }) => {
   );
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500 text-left">
       <div className="bg-amber-600 px-8 py-8 text-white flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-black">表單綜合查詢</h1>
@@ -722,7 +734,7 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
+    <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 text-left">
       {/* Mobile Nav Header */}
       <div className="lg:hidden fixed top-0 inset-x-0 h-16 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-6">
         <div className="flex items-center gap-2">
@@ -792,7 +804,7 @@ const App = () => {
 
           {/* Quick History List (Shared for Overtime and Leave) */}
           {(activeMenu === 'overtime' || activeMenu === 'leave') && (
-            <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200">
+            <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200 text-left">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-black flex items-center gap-3"><History className="text-slate-400" /> 近期申請紀錄</h3>
                 <button onClick={() => setActiveMenu('query')} className="text-xs font-bold text-indigo-600 hover:underline">查看全部單據</button>
