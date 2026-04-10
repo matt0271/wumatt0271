@@ -1,9 +1,9 @@
-﻿import React, { useState, useMemo, useEffect } from 'react';
+﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
-  Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare
+  Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
@@ -58,7 +58,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // 處理姓名輸入並自動帶出員編
   const handleNameChange = (e) => {
     const value = e.target.value;
     const match = employees.find(emp => emp.name === value);
@@ -69,7 +68,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
     }));
   };
 
-  // 處理員編輸入並自動帶出姓名
   const handleEmpIdChange = (e) => {
     const value = e.target.value;
     const match = employees.find(emp => emp.empId === value);
@@ -201,6 +199,17 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // 動態載入 SheetJS
+  useEffect(() => {
+    if (!window.XLSX) {
+      const script = document.createElement('script');
+      script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -225,12 +234,102 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
     } catch (err) { console.error(err); }
   };
 
+  // 匯出真正 Excel (.xlsx)
+  const handleExport = () => {
+    if (!window.XLSX) return alert("系統元件載入中，請稍後再試");
+    if (employees.length === 0) return alert("目前沒有資料可以匯出");
+
+    const data = employees.map(emp => ({
+      "姓名": emp.name,
+      "員編": emp.empId,
+      "職稱": emp.jobTitle,
+      "單位": emp.dept
+    }));
+
+    const worksheet = window.XLSX.utils.json_to_sheet(data);
+    const workbook = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(workbook, worksheet, "員工名單");
+    window.XLSX.writeFile(workbook, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // 匯入 Excel (.xlsx)
+  const handleImport = (e) => {
+    if (!window.XLSX) return alert("系統元件載入中，請稍後再試");
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const bstr = evt.target.result;
+      const workbook = window.XLSX.read(bstr, { type: 'binary' });
+      const worksheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[worksheetName];
+      const jsonData = window.XLSX.utils.sheet_to_json(worksheet);
+
+      if (jsonData.length === 0) return alert("Excel 檔案中沒有找到資料");
+
+      setLoading(true);
+      let successCount = 0;
+
+      try {
+        for (const row of jsonData) {
+          // 支援多種可能的 Key (相容不同命名習慣)
+          const name = row["姓名"] || row["name"] || row["Name"];
+          const empId = row["員編"] || row["employeeId"] || row["ID"];
+          const jobTitle = row["職稱"] || row["title"] || "";
+          const dept = row["單位"] || row["department"] || "";
+
+          if (name && empId) {
+            await fetch(`${NGROK_URL}/api/employees`, {
+              method: 'POST',
+              headers: fetchOptions.headers,
+              body: JSON.stringify({ name, empId, jobTitle, dept })
+            });
+            successCount++;
+          }
+        }
+        onRefresh();
+        alert(`匯入完成！成功匯入 ${successCount} 筆人員資料。`);
+      } catch (err) {
+        console.error(err);
+        alert("匯入過程中發生錯誤，請檢查 Excel 格式。");
+      } finally {
+        setLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left animate-in fade-in duration-500">
       <div className="bg-sky-600 px-8 py-8 text-white flex justify-between items-center">
-        <div><h1 className="text-2xl font-black">人員管理</h1><p className="text-sm opacity-80 italic">維護企業員工基本資料庫</p></div>
+        <div><h1 className="text-2xl font-black">人員管理</h1><p className="text-sm opacity-80 italic">維護企業員工基本資料庫 (支援 Excel 互通)</p></div>
         <Users size={40} className="opacity-40" />
       </div>
+
+      <div className="px-8 pt-6 flex gap-3">
+        <button 
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-100 transition-all border border-emerald-100"
+        >
+          <FileSpreadsheet size={14} /> 匯出 Excel 清單
+        </button>
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl text-xs font-bold hover:bg-sky-100 transition-all border border-sky-100"
+        >
+          <Upload size={14} /> 匯入 Excel 資料
+        </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleImport} 
+          accept=".xlsx, .xls" 
+          className="hidden" 
+        />
+      </div>
+
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {['name', 'empId', 'jobTitle', 'dept'].map(f => (
@@ -241,8 +340,7 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
           ))}
         </div>
         <button disabled={loading} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${editingId ? 'bg-orange-500' : 'bg-sky-600'}`}>
-          {loading ? <Loader2 className="animate-spin" /> : editingId ? <Edit2 size={18}/> : <UserPlus size={18} />}
-          {editingId ? '確認更新資料' : '新增人員'}
+          {loading ? <Loader2 className="animate-spin" /> : editingId ? <Edit2 size={18}/> : <UserPlus size={18} />}{editingId ? '確認更新資料' : '新增人員'}
         </button>
         {editingId && <button type="button" onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="w-full text-xs text-slate-400 font-bold hover:text-rose-500 underline mt-2 text-center">取消編輯</button>}
       </form>
@@ -259,7 +357,7 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
                 <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
                 <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                 <td className="px-8 py-5 text-right flex justify-end gap-2">
-                  <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 transition-colors"><Edit2 size={16}/></button>
+                  <button onClick={() => { setEditingId(emp.id); setFormData(emp); window.scrollTo({top:0,behavior:'smooth'}); }} className="p-2 text-slate-300 hover:text-sky-600 transition-colors"><Edit2 size={16}/></button>
                   <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16}/></button>
                 </td>
               </tr>
@@ -284,23 +382,14 @@ const ApprovalView = ({ records, onRefresh }) => {
       const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, {
         method: 'PUT',
         headers: fetchOptions.headers,
-        body: JSON.stringify({ 
-          status: newStatus,
-          opinion: opinion 
-        })
+        body: JSON.stringify({ status: newStatus, opinion: opinion })
       });
       if (res.ok) {
         setSelectedId(null);
         setOpinion('');
         onRefresh();
-      } else {
-        console.error("更新狀態失敗");
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setUpdating(false);
-    }
+    } catch (err) { console.error(err); } finally { setUpdating(false); }
   };
 
   const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
@@ -310,140 +399,45 @@ const ApprovalView = ({ records, onRefresh }) => {
     <div className="space-y-6 pb-20">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left animate-in fade-in duration-500">
         <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-black">主管簽核</h1>
-            <p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p>
-          </div>
+          <div><h1 className="text-2xl font-black">主管簽核</h1><p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p></div>
           <ShieldCheck size={40} className="opacity-40" />
         </div>
-
         <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請 (請點選單筆進行簽核)</span>
-            <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span>
-          </div>
+          <div className="flex items-center gap-2"><span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請 (請點選單筆進行簽核)</span><span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span></div>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <tr>
-                <th className="px-8 py-4">選擇</th>
-                <th className="px-4 py-4">單號</th>
-                <th className="px-4 py-4">申請人/員編</th>
-                <th className="px-4 py-4">加班起迄時間</th>
-                <th className="px-4 py-4 text-center">時數</th>
-                <th className="px-4 py-4 text-center">補償</th>
-                <th className="px-4 py-4 min-w-[200px]">事由</th>
-                <th className="px-8 py-4 text-right">狀態</th>
-              </tr>
+              <tr><th className="px-8 py-4">選擇</th><th className="px-4 py-4">單號</th><th className="px-4 py-4">申請人/員編</th><th className="px-4 py-4">加班起迄時間</th><th className="px-4 py-4 text-center">時數</th><th className="px-4 py-4 text-center">補償</th><th className="px-4 py-4 min-w-[200px]">事由</th><th className="px-8 py-4 text-right">狀態</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {records.length > 0 ? records.map(record => (
-                <tr 
-                  key={record.id} 
-                  onClick={() => record.status === 'pending' && setSelectedId(record.id)}
-                  className={`transition-all cursor-pointer ${
-                    record.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-50/30' : 
-                    selectedId === record.id ? 'bg-indigo-50/50 ring-2 ring-inset ring-indigo-500/20' : 'hover:bg-slate-50'
-                  }`}
-                >
-                  <td className="px-8 py-5">
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                      selectedId === record.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'
-                    }`}>
-                      {selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                  </td>
-                  <td className="px-4 py-5">
-                    <div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div>
-                    <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>
-                      {record.appType === 'pre' ? '事前' : '補報'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-5">
-                    <div className="font-black text-slate-800 text-sm">{record.name}</div>
-                    <div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div>
-                  </td>
-                  <td className="px-4 py-5">
-                    <div className="text-xs font-bold text-slate-700 whitespace-nowrap">
-                      起：{record.startDate} {record.startHour}:{record.startMin}
-                    </div>
-                    <div className="text-xs font-bold text-slate-700 whitespace-nowrap mt-1">
-                      迄：{record.endDate} {record.endHour}:{record.endMin}
-                    </div>
-                  </td>
-                  <td className="px-4 py-5 text-center">
-                    <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-black border border-indigo-100 whitespace-nowrap">
-                      {record.totalHours} HR
-                    </span>
-                  </td>
-                  <td className="px-4 py-5 text-center">
-                    <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">
-                      {record.compensationType === 'leave' ? '補' : '薪'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-5">
-                    {/* 更新：事由標籤加入 title 屬性，滑鼠移入時顯示完整內容 */}
-                    <p 
-                      className="text-xs text-slate-500 line-clamp-3 leading-relaxed max-w-[200px] cursor-help"
-                      title={record.reason}
-                    >
-                      {record.reason}
-                    </p>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <StatusBadge status={record.status} />
-                  </td>
+                <tr key={record.id} onClick={() => record.status === 'pending' && setSelectedId(record.id)} className={`transition-all cursor-pointer ${record.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-50/30' : selectedId === record.id ? 'bg-indigo-50/50 ring-2 ring-inset ring-indigo-500/20' : 'hover:bg-slate-50'}`}>
+                  <td className="px-8 py-5"><div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedId === record.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>{selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white" />}</div></td>
+                  <td className="px-4 py-5"><div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div><div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>{record.appType === 'pre' ? '事前' : '補報'}</div></td>
+                  <td className="px-4 py-5"><div className="font-black text-slate-800 text-sm">{record.name}</div><div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div></td>
+                  <td className="px-4 py-5"><div className="text-xs font-bold text-slate-700 whitespace-nowrap">起：{record.startDate} {record.startHour}:{record.startMin}</div><div className="text-xs font-bold text-slate-700 whitespace-nowrap mt-1">迄：{record.endDate} {record.endHour}:{record.endMin}</div></td>
+                  <td className="px-4 py-5 text-center"><span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-black border border-indigo-100 whitespace-nowrap">{record.totalHours} HR</span></td>
+                  <td className="px-4 py-5 text-center"><span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">{record.compensationType === 'leave' ? '補' : '薪'}</span></td>
+                  <td className="px-4 py-5"><p className="text-xs text-slate-500 line-clamp-3 leading-relaxed max-w-[200px] cursor-help" title={record.reason}>{record.reason}</p></td>
+                  <td className="px-8 py-5 text-right"><StatusBadge status={record.status} /></td>
                 </tr>
-              )) : (
-                <tr><td colSpan="8" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
-              )}
+              )) : (<tr><td colSpan="8" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>)}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* 簽核動作面板 */}
-      <div className={`bg-white rounded-3xl shadow-xl border p-8 transition-all duration-500 ${
-        selectedId ? 'border-indigo-200 translate-y-0 opacity-100' : 'border-slate-100 translate-y-4 opacity-50 grayscale pointer-events-none'
-      }`}>
+      <div className={`bg-white rounded-3xl shadow-xl border p-8 transition-all duration-500 ${selectedId ? 'border-indigo-200 translate-y-0 opacity-100' : 'border-slate-100 translate-y-4 opacity-50 grayscale pointer-events-none'}`}>
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm">
-              <MessageSquare size={18} /> 主管簽核意見
-            </div>
-            <textarea 
-              placeholder={selectedId ? "請輸入核准或駁回之意見 (選填)..." : "請先從上方清單選擇申請單"}
-              className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all h-24"
-              value={opinion}
-              onChange={(e) => setOpinion(e.target.value)}
-              disabled={!selectedId}
-            />
+            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm"><MessageSquare size={18} /> 主管簽核意見</div>
+            <textarea placeholder={selectedId ? "請輸入核准或駁回之意見 (選填)..." : "請先從上方清單選擇申請單"} className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all h-24" value={opinion} onChange={(e) => setOpinion(e.target.value)} disabled={!selectedId} />
           </div>
-          
           <div className="w-full md:w-72 flex flex-col justify-end gap-3">
-            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-1">
-              目前選取：<span className="text-indigo-600 font-black">{selectedRecord ? selectedRecord.serialId : '無'}</span>
-            </div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-1">目前選取：<span className="text-indigo-600 font-black">{selectedRecord ? selectedRecord.serialId : '無'}</span></div>
             <div className="grid grid-cols-2 gap-3">
-              <button 
-                disabled={!selectedId || updating}
-                onClick={() => updateStatus('rejected')}
-                className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 hover:text-white transition-all group active:scale-95"
-              >
-                <XCircle size={24} className="group-hover:scale-110 transition-transform"/>
-                <span className="font-black text-xs">駁回申請</span>
-              </button>
-              
-              <button 
-                disabled={!selectedId || updating}
-                onClick={() => updateStatus('approved')}
-                className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all group active:scale-95"
-              >
-                {updating ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle2 size={24} className="group-hover:scale-110 transition-transform" />}
-                <span className="font-black text-xs">核准加班</span>
-              </button>
+              <button disabled={!selectedId || updating} onClick={() => updateStatus('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 hover:text-white transition-all group active:scale-95"><XCircle size={24} className="group-hover:scale-110 transition-transform"/><span className="font-black text-xs">駁回申請</span></button>
+              <button disabled={!selectedId || updating} onClick={() => updateStatus('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all group active:scale-95">{updating ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle2 size={24} className="group-hover:scale-110 transition-transform" />}<span className="font-black text-xs">核准加班</span></button>
             </div>
           </div>
         </div>
@@ -468,10 +462,7 @@ const App = () => {
       setEmployees(Array.isArray(resEmp) ? resEmp : []);
       setRecords(Array.isArray(resRec) ? resRec : []);
       setLoading(false);
-    } catch (err) { 
-      console.error("Fetch error:", err);
-      setLoading(false);
-    }
+    } catch (err) { console.error("Fetch error:", err); setLoading(false); }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -486,30 +477,14 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex text-left font-sans text-slate-900">
       <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col sticky top-0 h-screen shadow-sm">
-        <div className="flex items-center gap-4 mb-10">
-          <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
-            <LayoutDashboard className="text-white" size={24} />
-          </div>
-          <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
-        </div>
-        
+        <div className="flex items-center gap-4 mb-10"><div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100"><LayoutDashboard className="text-white" size={24} /></div><h2 className="font-black text-lg tracking-tight">員工服務平台</h2></div>
         <nav className="space-y-2 flex-grow">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2">服務項目</p>
-          
-          <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'overtime' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-            <Clock size={20} /> 加班申請
-          </button>
-          
-          <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'approval' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-            <ShieldCheck size={20} /> 主管簽核
-          </button>
-
-          <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'personnel' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-            <Users size={20} /> 人員管理
-          </button>
+          <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'overtime' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
+          <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'approval' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
+          <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'personnel' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
         </nav>
       </aside>
-
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-12">
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} employees={employees} />}
