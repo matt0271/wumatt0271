@@ -7,8 +7,10 @@ import {
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
+// 請確保此處的網址與您目前的 ngrok 隧道一致
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
+// 建立一個統一的 fetch 標頭，包含跳過 ngrok 警告頁面的設定
 const fetchOptions = {
   headers: {
     'Content-Type': 'application/json',
@@ -27,6 +29,7 @@ const OT_CATEGORIES = [
   { id: 'business', label: '出差加班' },
 ];
 
+// --- Helper: Status Badge ---
 const StatusBadge = ({ status }) => {
   const styles = {
     approved: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -41,11 +44,13 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// --- View: Overtime Application ---
 const OvertimeView = ({ currentSerialId, onRefresh }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [formData, setFormData] = useState({
+  
+  const initialFormState = {
     name: '', empId: '',
     category: 'regular', compensationType: 'leave',
     startDate: '', 
@@ -55,8 +60,11 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
     endHour: '',   
     endMin: '',    
     reason: '',
-  });
+  };
 
+  const [formData, setFormData] = useState(initialFormState);
+
+  // 處理開始日期變動，同步更新結束日期
   const handleStartDateChange = (e) => {
     const newDate = e.target.value;
     setFormData(prev => ({
@@ -66,6 +74,7 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
     }));
   };
 
+  // 計算總時數
   const totalHours = useMemo(() => {
     if (!formData.startDate || !formData.endDate || !formData.startHour || !formData.startMin || !formData.endHour || !formData.endMin) {
       return "";
@@ -79,8 +88,10 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (totalHours === "" || totalHours <= 0 || submitting) return;
+    
     setSubmitting(true);
     setSubmitError(null);
+
     try {
       const response = await fetch(`${NGROK_URL}/api/records`, {
         method: 'POST',
@@ -94,16 +105,13 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           status: 'pending'
         })
       });
+
       if (response.ok) {
-        setFormData(prev => ({ 
-          ...prev, 
-          startDate: '', endDate: '',
-          startHour: '', startMin: '', 
-          endHour: '', endMin: '', 
-          reason: '' 
-        }));
+        // 提交成功後，將所有欄位變回初始狀態
+        setFormData(initialFormState);
         onRefresh();
       } else {
+        const errorText = await response.text();
         setSubmitError(`提交失敗 (HTTP ${response.status})`);
       }
     } catch (err) { 
@@ -134,6 +142,7 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           </div>
         )}
 
+        {/* 姓名、員編、加班類別、補償方式放在同一行 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
@@ -145,20 +154,36 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label>
-            <select className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+            <select 
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+              value={formData.category} 
+              onChange={e => setFormData({...formData, category: e.target.value})}
+            >
               {OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">補償方式</label>
             <div className="flex bg-slate-100 p-1 rounded-xl h-[46px] items-center">
-              <button type="button" onClick={() => setFormData({...formData, compensationType: 'leave'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'leave' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>換補休</button>
-              <button type="button" onClick={() => setFormData({...formData, compensationType: 'pay'})} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'pay' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>計薪</button>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, compensationType: 'leave'})}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'leave' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                換補休
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, compensationType: 'pay'})}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${formData.compensationType === 'pay' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                計薪
+              </button>
             </div>
           </div>
         </div>
 
-        {/* 時間選擇區塊：優化比例 4.5:4.5:1 以避免重疊 */}
+        {/* 時間選擇區塊 */}
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-10 gap-4 items-end">
           <div className="space-y-2 lg:col-span-4">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
@@ -208,6 +233,7 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           <textarea required rows="3" placeholder="請描述加班內容..." className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm focus:bg-white" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} />
         </div>
 
+        {/* 備註區塊 */}
         <div className="mt-6 p-6 bg-amber-50 rounded-2xl border border-amber-100 space-y-3">
           <div className="flex items-center gap-2 text-amber-800 font-black text-sm"><Info size={18} /> 備註 ：</div>
           <ul className="space-y-2 text-xs text-amber-700 leading-relaxed font-medium">
@@ -336,7 +362,7 @@ const App = () => {
   if (errorState) return (
     <div className="h-screen flex items-center justify-center p-6 bg-slate-50 text-center">
       <div className="bg-white p-10 rounded-3xl shadow-2xl border border-rose-100 max-w-xl w-full">
-        <div className="flex items-center gap-4 mb-6 text-rose-500 justify-center"><AlertTriangle size={48} /><h2 className="text-2xl font-black">{errorState.title}</h2></div>
+        <div className="flex items-center gap-4 mb-6 text-rose-500 justify-center"><AlertTriangle size={48} /> <h2 className="text-2xl font-black">{errorState.title}</h2></div>
         <p className="text-rose-700 text-sm mb-8 leading-relaxed">{errorState.message}</p>
         <button onClick={() => { setLoading(true); fetchData(); }} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all">重新嘗試</button>
       </div>
