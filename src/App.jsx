@@ -128,13 +128,25 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
           {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
-              <input 
-                type="text" 
-                required 
-                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-sm"
-                value={formData[f]} 
-                onChange={e => setFormData({...formData, [f]: e.target.value})} 
-              />
+              {f === 'dept' ? (
+                <select 
+                  required 
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-sm font-bold"
+                  value={formData.dept} 
+                  onChange={e => setFormData({...formData, dept: e.target.value})} 
+                >
+                  <option value="">請選擇單位</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              ) : (
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-100 transition-all outline-none text-sm"
+                  value={formData[f]} 
+                  onChange={e => setFormData({...formData, [f]: e.target.value})} 
+                />
+              )}
             </div>
           ))}
         </div>
@@ -267,13 +279,25 @@ const LeaveView = ({ user, currentSerialId, today }) => {
           {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
-              <input 
-                type="text" 
-                required 
-                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                value={formData[f]} 
-                onChange={e => setFormData({...formData, [f]: e.target.value})} 
-              />
+              {f === 'dept' ? (
+                <select 
+                  required 
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-teal-100 transition-all outline-none text-sm font-bold"
+                  value={formData.dept} 
+                  onChange={e => setFormData({...formData, dept: e.target.value})} 
+                >
+                  <option value="">請選擇單位</option>
+                  {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              ) : (
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  value={formData[f]} 
+                  onChange={e => setFormData({...formData, [f]: e.target.value})} 
+                />
+              )}
             </div>
           ))}
         </div>
