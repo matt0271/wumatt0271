@@ -139,23 +139,11 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
-            <input 
-              type="text" 
-              required 
-              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
-              value={formData.name} 
-              onChange={handleNameChange}
-            />
+            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.name} onChange={handleNameChange} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">員編</label>
-            <input 
-              type="text" 
-              required 
-              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
-              value={formData.empId} 
-              onChange={handleEmpIdChange}
-            />
+            <input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.empId} onChange={handleEmpIdChange} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label>
@@ -343,8 +331,9 @@ const ApprovalView = ({ records, onRefresh }) => {
                 <th className="px-8 py-4">選擇</th>
                 <th className="px-4 py-4">單號</th>
                 <th className="px-4 py-4">申請人/員編</th>
-                <th className="px-4 py-4">加班時間/時數</th>
-                <th className="px-4 py-4">補償方式</th>
+                <th className="px-4 py-4">加班起迄時間</th>
+                <th className="px-4 py-4 text-center">時數</th>
+                <th className="px-4 py-4 text-center">補償</th>
                 <th className="px-4 py-4 min-w-[200px]">事由</th>
                 <th className="px-8 py-4 text-right">狀態</th>
               </tr>
@@ -369,7 +358,7 @@ const ApprovalView = ({ records, onRefresh }) => {
                   <td className="px-4 py-5">
                     <div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div>
                     <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>
-                      {record.appType === 'pre' ? '事前加班' : '事後補報'}
+                      {record.appType === 'pre' ? '事前' : '補報'}
                     </div>
                   </td>
                   <td className="px-4 py-5">
@@ -377,19 +366,29 @@ const ApprovalView = ({ records, onRefresh }) => {
                     <div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div>
                   </td>
                   <td className="px-4 py-5">
-                    <div className="text-xs font-bold text-slate-600">{record.startDate} {record.startHour}:{record.startMin}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">{record.totalHours} HR</span>
+                    <div className="text-xs font-bold text-slate-700 whitespace-nowrap">
+                      起：{record.startDate} {record.startHour}:{record.startMin}
+                    </div>
+                    <div className="text-xs font-bold text-slate-700 whitespace-nowrap mt-1">
+                      迄：{record.endDate} {record.endHour}:{record.endMin}
                     </div>
                   </td>
-                  <td className="px-4 py-5">
-                    <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded-lg border border-slate-200">
-                      {record.compensationType === 'leave' ? '換補休' : '計薪'}
+                  <td className="px-4 py-5 text-center">
+                    <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-black border border-indigo-100 whitespace-nowrap">
+                      {record.totalHours} HR
+                    </span>
+                  </td>
+                  <td className="px-4 py-5 text-center">
+                    <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                      {record.compensationType === 'leave' ? '補' : '薪'}
                     </span>
                   </td>
                   <td className="px-4 py-5">
-                    {/* 秀出 3 行資料，調整 max-w 以適應內容 */}
-                    <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed max-w-[250px]">
+                    {/* 更新：事由標籤加入 title 屬性，滑鼠移入時顯示完整內容 */}
+                    <p 
+                      className="text-xs text-slate-500 line-clamp-3 leading-relaxed max-w-[200px] cursor-help"
+                      title={record.reason}
+                    >
                       {record.reason}
                     </p>
                   </td>
@@ -398,7 +397,7 @@ const ApprovalView = ({ records, onRefresh }) => {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan="7" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
+                <tr><td colSpan="8" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
               )}
             </tbody>
           </table>
@@ -415,7 +414,7 @@ const ApprovalView = ({ records, onRefresh }) => {
               <MessageSquare size={18} /> 主管簽核意見
             </div>
             <textarea 
-              placeholder={selectedId ? "請輸入核准或駁回之意見 (選填，駁回時建議填寫)..." : "請先從上方清單選擇申請單"}
+              placeholder={selectedId ? "請輸入核准或駁回之意見 (選填)..." : "請先從上方清單選擇申請單"}
               className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all h-24"
               value={opinion}
               onChange={(e) => setOpinion(e.target.value)}
