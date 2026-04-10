@@ -183,18 +183,21 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           </div>
         </div>
 
-        {/* 時間選擇區塊 */}
-        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-10 gap-4 items-end">
-          <div className="space-y-2 lg:col-span-4">
+        {/* 時間選擇區塊：優化比例 5:5:2 */}
+        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
+          {/* 開始時間 */}
+          <div className="space-y-2 lg:col-span-5">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
-            <div className="flex gap-1.5">
-              <input type="date" required className="flex-grow min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500" value={formData.startDate} onChange={handleStartDateChange} />
+            <div className="flex gap-2">
+              {/* 年月日欄位縮小，使用 flex-1 */}
+              <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500" value={formData.startDate} onChange={handleStartDateChange} />
               <div className="flex gap-1 shrink-0">
-                <select required className="p-3 w-[64px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>
+                {/* 時與分欄位加大，寬度設為 85px */}
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>
                   <option value="">時</option>
                   {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
-                <select required className="p-3 w-[64px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>
                   <option value="">分</option>
                   {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
@@ -202,16 +205,17 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
             </div>
           </div>
 
-          <div className="space-y-2 lg:col-span-4">
+          {/* 結束時間 */}
+          <div className="space-y-2 lg:col-span-5">
             <label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
-            <div className="flex gap-1.5">
-              <input type="date" required className="flex-grow min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+            <div className="flex gap-2">
+              <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
               <div className="flex gap-1 shrink-0">
-                <select required className="p-3 w-[64px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>
                   <option value="">時</option>
                   {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
-                <select required className="p-3 w-[64px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>
                   <option value="">分</option>
                   {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
@@ -219,6 +223,7 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
             </div>
           </div>
 
+          {/* 總時數 */}
           <div className="bg-indigo-600 rounded-2xl p-3 text-white flex flex-col justify-center items-center shadow-lg shadow-indigo-100 lg:col-span-2 min-h-[66px]">
             <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">總時數</span>
             <div className="flex items-baseline gap-1">
@@ -237,10 +242,22 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
         <div className="mt-6 p-6 bg-amber-50 rounded-2xl border border-amber-100 space-y-3">
           <div className="flex items-center gap-2 text-amber-800 font-black text-sm"><Info size={18} /> 備註 ：</div>
           <ul className="space-y-2 text-xs text-amber-700 leading-relaxed font-medium">
-            <li className="flex gap-2"><span className="font-bold">A.</span><span>加班申請須事前由直屬主管核准，始得進行加班，並於事後呈主管審核確認。</span></li>
-            <li className="flex gap-2"><span className="font-bold">B.</span><span>此單由各部門編序號並於加班後七個工作日內交至財務行政部辦理，逾期不受理。</span></li>
-            <li className="flex gap-2"><span className="font-bold">C.</span><span>此加班工時將依比率換算為補休時數或薪資。</span></li>
-            <li className="flex gap-2"><span className="font-bold">D.</span><span>每月加班時數上限不得超過46小時。</span></li>
+            <li className="flex gap-2">
+              <span className="font-bold">A.</span>
+              <span>加班申請須事前由直屬主管核准，始得進行加班，並於事後呈主管審核確認。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">B.</span>
+              <span>此單由各部門編序號並於加班後七個工作日內交至財務行政部辦理，逾期不受理。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">C.</span>
+              <span>此加班工時將依比率換算為補休時數或薪資。</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold">D.</span>
+              <span>每月加班時數上限不得超過46小時。</span>
+            </li>
           </ul>
         </div>
 
