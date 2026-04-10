@@ -66,7 +66,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', dept: '', jobTitle: '',
+    name: '', empId: '', jobTitle: '', dept: '',
     category: 'regular', compensationType: 'leave',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -121,9 +121,9 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
+          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
               <input 
                 type="text" 
                 required 
@@ -214,7 +214,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 const LeaveView = ({ user, currentSerialId, today }) => {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', dept: '', jobTitle: '',
+    name: '', empId: '', jobTitle: '', dept: '',
     type: 'annual', proxy: '',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -265,9 +265,9 @@ const LeaveView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
+          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
               <input 
                 type="text" 
                 required 
@@ -419,7 +419,7 @@ const ApprovalCenter = ({ records, user }) => {
                       <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase">{item.totalHours} HR</span>
                     </div>
                     <div className="font-black text-slate-800">{item.name}</div>
-                    <div className="text-xs text-slate-400">{item.dept} / {item.jobTitle}</div>
+                    <div className="text-xs text-slate-400">{item.jobTitle} / {item.dept}</div>
                     <div className="mt-2 text-xs text-slate-500 line-clamp-1 italic">"{item.reason}"</div>
                   </button>
                 )) : (
@@ -488,7 +488,7 @@ const ApprovalCenter = ({ records, user }) => {
 
 // --- View: Personnel Management ---
 const PersonnelManagement = ({ employees, refresh, user }) => {
-  const [formData, setFormData] = useState({ name: '', empId: '', dept: '', jobTitle: '' });
+  const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -506,7 +506,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
           createdAt: new Date().toISOString()
         });
       }
-      setFormData({ name: '', empId: '', dept: '', jobTitle: '' });
+      setFormData({ name: '', empId: '', jobTitle: '', dept: '' });
       setEditingId(null);
       refresh();
     } catch (err) {
@@ -537,9 +537,9 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {['name', 'empId', 'dept', 'jobTitle'].map(f => (
+            {['name', 'empId', 'jobTitle', 'dept'].map(f => (
               <div key={f} className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
                 <input 
                   type="text" 
                   required 
@@ -559,7 +559,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               {editingId ? '更新資料' : '新增人員'}
             </button>
             {editingId && (
-              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',dept:'',jobTitle:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
+              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
             )}
           </div>
         </form>
@@ -570,8 +570,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th className="px-8 py-4">員編</th>
                 <th className="px-4 py-4">姓名</th>
-                <th className="px-4 py-4">單位</th>
                 <th className="px-4 py-4">職稱</th>
+                <th className="px-4 py-4">單位</th>
                 <th className="px-8 py-4 text-right">操作</th>
               </tr>
             </thead>
@@ -580,8 +580,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
                 <tr key={emp.id} className="hover:bg-slate-50 transition-all">
                   <td className="px-8 py-5 font-mono font-bold text-sky-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
-                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                   <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
+                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2">
                     <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg"><Edit2 size={16}/></button>
                     <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
@@ -645,7 +645,7 @@ const FormQueryView = ({ records }) => {
                   </td>
                   <td className="px-4 py-5">
                     <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-[10px] text-slate-400 uppercase">{r.empId}</div>
+                    <div className="text-[10px] text-slate-400 uppercase">{r.jobTitle} / {r.dept}</div>
                   </td>
                   <td className="px-4 py-5 max-w-[200px] truncate italic text-slate-500">"{r.reason}"</td>
                   <td className="px-4 py-5 text-center font-black text-slate-700">{r.totalHours} HR</td>
