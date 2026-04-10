@@ -27,12 +27,7 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'employee-portal-v1';
 
 // --- Constants ---
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-const MINUTES = ['00', '30']; // 更新為只有 00 與 30
-
-const DEPARTMENTS = [
-  '工程組', '系統組', '財務行政部', '產品組', '客服組', 
-  '北區營業組', '中區營業組', '南區營業組', '總經理室'
-];
+const MINUTES = ['00', '15', '30', '45'];
 
 const LEAVE_TYPES = [
   { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
@@ -71,7 +66,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', jobTitle: '', dept: '',
+    name: '', empId: '', dept: '', jobTitle: '',
     category: 'regular', compensationType: 'leave',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -102,6 +97,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
         createdAt: new Date().toISOString()
       });
       setFormData(prev => ({ ...prev, reason: '' }));
+      alert('加班申請已提交');
     } catch (err) {
       console.error(err);
     } finally {
@@ -125,9 +121,9 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
+          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
               <input 
                 type="text" 
                 required 
@@ -166,18 +162,16 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}時</option>)}</select>
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}分</option>)}</select>
+              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}時</option>)}</select>
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}分</option>)}</select>
+              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
             </div>
           </div>
           <div className="bg-indigo-600 rounded-xl p-4 text-white flex justify-between items-center shadow-lg shadow-indigo-100">
@@ -214,7 +208,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 const LeaveView = ({ user, currentSerialId, today }) => {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', jobTitle: '', dept: '',
+    name: '', empId: '', dept: '', jobTitle: '',
     type: 'annual', proxy: '',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -244,6 +238,7 @@ const LeaveView = ({ user, currentSerialId, today }) => {
         createdAt: new Date().toISOString()
       });
       setFormData(prev => ({ ...prev, reason: '', proxy: '' }));
+      alert('請假申請已提交');
     } catch (err) {
       console.error(err);
     } finally {
@@ -264,9 +259,9 @@ const LeaveView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
+          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
               <input 
                 type="text" 
                 required 
@@ -284,7 +279,7 @@ const LeaveView = ({ user, currentSerialId, today }) => {
             <select 
               className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold"
               value={formData.type} 
-              onChange={e => setFormData({...formData, type: e.target.value})} 
+              onChange={e => setFormData({...formData, type: e.target.value})}
             >
               {LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
@@ -304,19 +299,17 @@ const LeaveView = ({ user, currentSerialId, today }) => {
 
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
-            <label className="text-xs font-bold text-emerald-600">開始時間</label>
-            <div className="flex gap-1">
+            <label className="text-xs font-bold text-emerald-600">開始日期</label>
+            <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}時</option>)}</select>
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}分</option>)}</select>
+              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-rose-600">結束時間</label>
-            <div className="flex gap-1">
+            <label className="text-xs font-bold text-rose-600">結束日期</label>
+            <div className="flex gap-2">
               <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}時</option>)}</select>
-              <select className="p-2 rounded-lg border border-slate-200 text-sm w-16" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>{MINUTES.map(m => <option key={m} value={m}>{m}分</option>)}</select>
+              <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{HOURS.map(h => <option key={h} value={h}>{h}:00</option>)}</select>
             </div>
           </div>
           <div className="bg-teal-600 rounded-xl p-4 text-white flex justify-between items-center">
@@ -414,7 +407,7 @@ const ApprovalCenter = ({ records, user }) => {
                       <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase">{item.totalHours} HR</span>
                     </div>
                     <div className="font-black text-slate-800">{item.name}</div>
-                    <div className="text-xs text-slate-400">{item.jobTitle} / {item.dept}</div>
+                    <div className="text-xs text-slate-400">{item.dept} / {item.jobTitle}</div>
                     <div className="mt-2 text-xs text-slate-500 line-clamp-1 italic">"{item.reason}"</div>
                   </button>
                 )) : (
@@ -483,25 +476,13 @@ const ApprovalCenter = ({ records, user }) => {
 
 // --- View: Personnel Management ---
 const PersonnelManagement = ({ employees, refresh, user }) => {
-  const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
+  const [formData, setFormData] = useState({ name: '', empId: '', dept: '', jobTitle: '' });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user || loading) return;
-
-    // 員編重複檢查
-    const isDuplicate = employees.some(emp => 
-      emp.empId === formData.empId && emp.id !== editingId
-    );
-
-    if (isDuplicate) {
-      setShowDuplicateWarning(true);
-      return;
-    }
-
     setLoading(true);
     try {
       if (editingId) {
@@ -513,7 +494,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
           createdAt: new Date().toISOString()
         });
       }
-      setFormData({ name: '', empId: '', jobTitle: '', dept: '' });
+      setFormData({ name: '', empId: '', dept: '', jobTitle: '' });
       setEditingId(null);
       refresh();
     } catch (err) {
@@ -544,30 +525,16 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {['name', 'empId', 'jobTitle', 'dept'].map(f => (
+            {['name', 'empId', 'dept', 'jobTitle'].map(f => (
               <div key={f} className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
-                {f === 'dept' ? (
-                  <select 
-                    required 
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm font-bold"
-                    value={formData.dept} 
-                    onChange={e => setFormData({...formData, dept: e.target.value})} 
-                  >
-                    <option value="">請選擇單位</option>
-                    {DEPARTMENTS.map(deptName => (
-                      <option key={deptName} value={deptName}>{deptName}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input 
-                    type="text" 
-                    required 
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm"
-                    value={formData[f]} 
-                    onChange={e => setFormData({...formData, [f]: e.target.value})} 
-                  />
-                )}
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+                <input 
+                  type="text" 
+                  required 
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm"
+                  value={formData[f]} 
+                  onChange={e => setFormData({...formData, [f]: e.target.value})} 
+                />
               </div>
             ))}
           </div>
@@ -580,7 +547,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               {editingId ? '更新資料' : '新增人員'}
             </button>
             {editingId && (
-              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
+              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',dept:'',jobTitle:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
             )}
           </div>
         </form>
@@ -591,8 +558,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th className="px-8 py-4">員編</th>
                 <th className="px-4 py-4">姓名</th>
-                <th className="px-4 py-4">職稱</th>
                 <th className="px-4 py-4">單位</th>
+                <th className="px-4 py-4">職稱</th>
                 <th className="px-8 py-4 text-right">操作</th>
               </tr>
             </thead>
@@ -601,8 +568,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
                 <tr key={emp.id} className="hover:bg-slate-50 transition-all">
                   <td className="px-8 py-5 font-mono font-bold text-sky-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
-                  <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
                   <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
+                  <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2">
                     <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg"><Edit2 size={16}/></button>
                     <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
@@ -613,27 +580,6 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
           </table>
         </div>
       </div>
-
-      {/* Duplicate Warning Modal */}
-      {showDuplicateWarning && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center">
-            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertTriangle className="text-rose-500" size={40} />
-            </div>
-            <h3 className="text-2xl font-black mb-4 text-slate-800">員編重複警告</h3>
-            <p className="text-slate-500 mb-8 leading-relaxed">
-              員工編號 <span className="font-bold text-rose-600 font-mono">[{formData.empId}]</span> 已被其他員工使用。請輸入不重複的編號。
-            </p>
-            <button 
-              onClick={() => setShowDuplicateWarning(false)} 
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-            >
-              我知道了
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -673,6 +619,7 @@ const FormQueryView = ({ records }) => {
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th className="px-6 py-4">單號/類別</th>
                 <th className="px-4 py-4">申請人</th>
+                <th className="px-4 py-4">事由</th>
                 <th className="px-4 py-4 text-center">時數</th>
                 <th className="px-6 py-4 text-right">狀態</th>
               </tr>
@@ -686,8 +633,9 @@ const FormQueryView = ({ records }) => {
                   </td>
                   <td className="px-4 py-5">
                     <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-[10px] text-slate-400 uppercase">{r.jobTitle} / {r.dept}</div>
+                    <div className="text-[10px] text-slate-400 uppercase">{r.empId}</div>
                   </td>
+                  <td className="px-4 py-5 max-w-[200px] truncate italic text-slate-500">"{r.reason}"</td>
                   <td className="px-4 py-5 text-center font-black text-slate-700">{r.totalHours} HR</td>
                   <td className="px-6 py-5 text-right"><StatusBadge status={r.status} /></td>
                 </tr>
