@@ -44,12 +44,12 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- View: Overtime Application ---
-const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
+// 修正：接收來自父元件的 lastSubmitted 狀態與 setter
+const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, setLastSubmitted }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [lastSubmitted, setLastSubmitted] = useState(null); 
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   
   const initialFormState = {
@@ -124,7 +124,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
       const result = await response.json();
       if (response.ok) {
         setLastSubmitted({
-          id: result.id, // 確保後端有回傳插入的 id
+          id: result.id, 
           serialId: currentSerialId,
           name: formData.name,
           changeTime: submitTime,
@@ -143,12 +143,10 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
     }
   };
 
-  // 抽單執行函式
   const handleWithdrawAction = async () => {
     if (!lastSubmitted || !lastSubmitted.id) return;
     setWithdrawing(true);
     try {
-      // 假設後端支援 DELETE /api/records/:id 作為撤回
       const response = await fetch(`${NGROK_URL}/api/records/${lastSubmitted.id}`, {
         method: 'DELETE',
         headers: fetchOptions.headers
@@ -170,7 +168,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
-      {/* 抽單確認視窗 */}
       {showWithdrawModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 animate-in zoom-in-95 duration-300">
@@ -275,7 +272,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
         </form>
       </div>
 
-      {/* 提交後的單據資訊顯示 + 抽單功能 */}
       {lastSubmitted && (
         <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-8 animate-in slide-in-from-bottom duration-700 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -309,7 +305,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees }) => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">狀態</p>
               <div className="flex items-center gap-4">
                 <StatusBadge status={lastSubmitted.status} />
-                {/* 抽單按鈕 */}
                 <button 
                   onClick={() => setShowWithdrawModal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-rose-500 border border-rose-200 rounded-xl text-[10px] font-black hover:bg-rose-50 hover:border-rose-300 transition-all shadow-sm active:scale-95"
@@ -526,6 +521,9 @@ const App = () => {
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // 新增：將 lastSubmitted 提升至 App 層級，確保切換畫面不消失
+  const [lastSubmitted, setLastSubmitted] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -562,7 +560,15 @@ const App = () => {
       </aside>
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-12">
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} employees={employees} />}
+          {activeMenu === 'overtime' && (
+            <OvertimeView 
+              currentSerialId={otSerialId} 
+              onRefresh={fetchData} 
+              employees={employees} 
+              lastSubmitted={lastSubmitted}
+              setLastSubmitted={setLastSubmitted}
+            />
+          )}
           {activeMenu === 'approval' && <ApprovalView records={records} onRefresh={fetchData} />}
           {activeMenu === 'personnel' && <PersonnelManagement employees={employees} onRefresh={fetchData} />}
         </div>
