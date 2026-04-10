@@ -535,7 +535,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {['name', 'empId', 'dept', 'jobTitle'].map(f => (
+            {/* 更新順序：姓名 -> 員編 -> 職稱 -> 單位 */}
+            {['name', 'empId', 'jobTitle', 'dept'].map(f => (
               <div key={f} className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
                 <input 
@@ -568,8 +569,9 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th className="px-8 py-4">員編</th>
                 <th className="px-4 py-4">姓名</th>
-                <th className="px-4 py-4">單位</th>
+                {/* 欄位對換 */}
                 <th className="px-4 py-4">職稱</th>
+                <th className="px-4 py-4">單位</th>
                 <th className="px-8 py-4 text-right">操作</th>
               </tr>
             </thead>
@@ -578,8 +580,9 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
                 <tr key={emp.id} className="hover:bg-slate-50 transition-all">
                   <td className="px-8 py-5 font-mono font-bold text-sky-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
-                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
+                  {/* 欄位內容對換 */}
                   <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
+                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2">
                     <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg"><Edit2 size={16}/></button>
                     <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
