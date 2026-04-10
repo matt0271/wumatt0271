@@ -3,7 +3,7 @@ import {
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
-  Info, Briefcase, Building2
+  Info, Briefcase, Building2, CheckCircle2, XCircle
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
@@ -27,6 +27,21 @@ const OT_CATEGORIES = [
   { id: 'business', label: '出差加班' },
 ];
 
+// --- Helper: Status Badge ---
+const StatusBadge = ({ status }) => {
+  const styles = {
+    approved: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    rejected: "bg-rose-100 text-rose-700 border-rose-200",
+    pending: "bg-amber-100 text-amber-700 border-amber-200"
+  };
+  const labels = { approved: "已核准", rejected: "已駁回", pending: "待簽核" };
+  return (
+    <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${styles[status] || styles.pending}`}>
+      {labels[status] || labels.pending}
+    </span>
+  );
+};
+
 // --- View: Overtime Application ---
 const OvertimeView = ({ currentSerialId, onRefresh }) => {
   const [appType, setAppType] = useState('pre'); 
@@ -43,13 +58,11 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
 
   const [formData, setFormData] = useState(initialFormState);
 
-  // 開始日期連動結束日期
   const handleStartDateChange = (e) => {
     const newDate = e.target.value;
     setFormData(prev => ({ ...prev, startDate: newDate, endDate: newDate }));
   };
 
-  // 計算總時數
   const totalHours = useMemo(() => {
     if (!formData.startDate || !formData.endDate || !formData.startHour || !formData.startMin || !formData.endHour || !formData.endMin) {
       return "";
@@ -63,26 +76,15 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (totalHours === "" || totalHours <= 0 || submitting) return;
-    
     setSubmitting(true);
     setSubmitError(null);
-
     try {
       const response = await fetch(`${NGROK_URL}/api/records`, {
         method: 'POST',
         headers: fetchOptions.headers,
-        body: JSON.stringify({
-          ...formData,
-          serialId: currentSerialId,
-          formType: '加班',
-          appType,
-          totalHours,
-          status: 'pending'
-        })
+        body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending', createdAt: new Date().toISOString() })
       });
-
       if (response.ok) {
-        // 成功後重置所有欄位
         setFormData(initialFormState);
         onRefresh();
       } else {
@@ -112,7 +114,6 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         {submitError && <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3 text-rose-600 text-sm font-bold"><AlertTriangle size={18} /> {submitError}</div>}
 
-        {/* 第一排併排欄位 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
@@ -124,9 +125,7 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label>
-            <select className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-              {OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
+            <select className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>{OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">補償方式</label>
@@ -137,60 +136,39 @@ const OvertimeView = ({ currentSerialId, onRefresh }) => {
           </div>
         </div>
 
-        {/* 時間欄位比例調整：5:5:2 */}
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
           <div className="space-y-2 lg:col-span-5">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
             <div className="flex gap-2">
               <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-emerald-500" value={formData.startDate} onChange={handleStartDateChange} />
               <div className="flex gap-1 shrink-0">
-                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>
-                  <option value="">時</option>
-                  {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>
-                  <option value="">分</option>
-                  {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
             </div>
           </div>
-
           <div className="space-y-2 lg:col-span-5">
             <label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
             <div className="flex gap-2">
               <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
               <div className="flex gap-1 shrink-0">
-                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>
-                  <option value="">時</option>
-                  {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>
-                  <option value="">分</option>
-                  {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
               </div>
             </div>
           </div>
-
           <div className="bg-indigo-600 rounded-2xl p-3 text-white flex flex-col justify-center items-center shadow-lg shadow-indigo-100 lg:col-span-2 min-h-[66px]">
             <span className="text-[9px] font-black uppercase opacity-70 mb-0.5">總時數</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-black">{totalHours || "0"}</span>
-              {totalHours !== "" && <span className="text-[9px] font-bold opacity-60">HR</span>}
-            </div>
+            <div className="flex items-baseline gap-1"><span className="text-xl font-black">{totalHours || "0"}</span>{totalHours !== "" && <span className="text-[9px] font-bold opacity-60">HR</span>}</div>
           </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班詳細事由</label>
-          <textarea required rows="3" placeholder="請填寫具體加班原因..." className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm focus:bg-white" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} />
+          <textarea required rows="3" placeholder="請描述具體加班原因..." className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm focus:bg-white" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} />
         </div>
 
-        <button disabled={totalHours === "" || totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 ${totalHours === "" || totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
-          {submitting ? <Loader2 className="animate-spin" /> : <ClipboardCheck />}
-          {submitting ? '提交中...' : '提交申請'}
-        </button>
+        <button disabled={totalHours === "" || totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 ${totalHours === "" || totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>{submitting ? <Loader2 className="animate-spin" /> : <ClipboardCheck />} {submitting ? '提交中...' : '提交申請'}</button>
       </form>
     </div>
   );
@@ -208,11 +186,7 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
     try {
       const url = editingId ? `${NGROK_URL}/api/employees/${editingId}` : `${NGROK_URL}/api/employees`;
       const method = editingId ? 'PUT' : 'POST';
-      const res = await fetch(url, { 
-        method, 
-        headers: fetchOptions.headers, 
-        body: JSON.stringify(formData) 
-      });
+      const res = await fetch(url, { method, headers: fetchOptions.headers, body: JSON.stringify(formData) });
       if (res.ok) {
         setFormData({ name: '', empId: '', jobTitle: '', dept: '' });
         setEditingId(null);
@@ -248,7 +222,7 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
           {loading ? <Loader2 className="animate-spin" /> : editingId ? <Edit2 size={18}/> : <UserPlus size={18} />}
           {editingId ? '確認更新資料' : '新增人員'}
         </button>
-        {editingId && <button type="button" onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="w-full text-xs text-slate-400 font-bold hover:text-rose-500 underline mt-2">取消編輯</button>}
+        {editingId && <button type="button" onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="w-full text-xs text-slate-400 font-bold hover:text-rose-500 underline mt-2 text-center">取消編輯</button>}
       </form>
       <div className="overflow-x-auto border-t">
         <table className="w-full text-left">
@@ -268,6 +242,120 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// --- View: Supervisor Approval ---
+const ApprovalView = ({ records, onRefresh }) => {
+  const [updatingId, setUpdatingId] = useState(null);
+
+  const updateStatus = async (id, newStatus) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`${NGROK_URL}/api/records/${id}/status`, {
+        method: 'PUT',
+        headers: fetchOptions.headers,
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        onRefresh();
+      } else {
+        console.error("更新狀態失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
+
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left animate-in fade-in duration-500">
+      <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-black">主管簽核</h1>
+          <p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p>
+        </div>
+        <ShieldCheck size={40} className="opacity-40" />
+      </div>
+
+      <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請</span>
+          <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <tr>
+              {/* 簡化為「單號」 */}
+              <th className="px-8 py-4">單號</th>
+              <th className="px-4 py-4">申請人</th>
+              <th className="px-4 py-4">加班時間/時數</th>
+              <th className="px-4 py-4">事由</th>
+              <th className="px-8 py-4 text-right">簽核動作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 text-sm">
+            {records.length > 0 ? records.map(record => (
+              <tr key={record.id} className={`hover:bg-slate-50/50 transition-all ${record.status !== 'pending' ? 'opacity-60' : ''}`}>
+                <td className="px-8 py-5">
+                  <div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div>
+                  {/* 下方顯示事前/事後註解 */}
+                  <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>
+                    {record.appType === 'pre' ? '事前加班' : '事後補報'}
+                  </div>
+                </td>
+                <td className="px-4 py-5">
+                  <div className="font-black text-slate-800">{record.name}</div>
+                  <div className="text-[10px] text-slate-400 font-medium">{record.empId}</div>
+                </td>
+                <td className="px-4 py-5">
+                  <div className="text-xs font-bold text-slate-600">{record.startDate} {record.startHour}:{record.startMin}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">{record.totalHours} HR</span>
+                    <StatusBadge status={record.status} />
+                  </div>
+                </td>
+                <td className="px-4 py-5">
+                  <p className="text-xs text-slate-500 line-clamp-2 max-w-[200px]">{record.reason}</p>
+                </td>
+                <td className="px-8 py-5 text-right">
+                  {record.status === 'pending' ? (
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        disabled={updatingId === record.id}
+                        onClick={() => updateStatus(record.id, 'approved')}
+                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
+                        title="核准"
+                      >
+                        {updatingId === record.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16}/>}
+                      </button>
+                      <button 
+                        disabled={updatingId === record.id}
+                        onClick={() => updateStatus(record.id, 'rejected')}
+                        className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100"
+                        title="駁回"
+                      >
+                        <XCircle size={16}/>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] font-black text-slate-300 italic uppercase">結案</div>
+                  )}
+                </td>
+              </tr>
+            )) : (
+              <tr><td colSpan="5" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -308,7 +396,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex text-left font-sans text-slate-900">
-      {/* Sidebar */}
       <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col sticky top-0 h-screen shadow-sm">
         <div className="flex items-center gap-4 mb-10">
           <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
@@ -318,19 +405,26 @@ const App = () => {
         </div>
         
         <nav className="space-y-2 flex-grow">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2">服務項目</p>
+          
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'overtime' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
             <Clock size={20} /> 加班申請
           </button>
+          
+          <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'approval' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+            <ShieldCheck size={20} /> 主管簽核
+          </button>
+
           <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'personnel' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
             <Users size={20} /> 人員管理
           </button>
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-5xl mx-auto space-y-12 pb-20">
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} />}
+          {activeMenu === 'approval' && <ApprovalView records={records} onRefresh={fetchData} />}
           {activeMenu === 'personnel' && <PersonnelManagement employees={employees} onRefresh={fetchData} />}
         </div>
       </main>
