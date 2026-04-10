@@ -3,7 +3,7 @@ import {
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
-  Info, Briefcase, Building2, CheckCircle2, XCircle
+  Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
@@ -251,17 +251,25 @@ const PersonnelManagement = ({ employees, onRefresh }) => {
 
 // --- View: Supervisor Approval ---
 const ApprovalView = ({ records, onRefresh }) => {
-  const [updatingId, setUpdatingId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [opinion, setOpinion] = useState('');
+  const [updating, setUpdating] = useState(false);
 
-  const updateStatus = async (id, newStatus) => {
-    setUpdatingId(id);
+  const updateStatus = async (newStatus) => {
+    if (!selectedId) return;
+    setUpdating(true);
     try {
-      const res = await fetch(`${NGROK_URL}/api/records/${id}/status`, {
+      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, {
         method: 'PUT',
         headers: fetchOptions.headers,
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ 
+          status: newStatus,
+          opinion: opinion 
+        })
       });
       if (res.ok) {
+        setSelectedId(null);
+        setOpinion('');
         onRefresh();
       } else {
         console.error("更新狀態失敗");
@@ -269,95 +277,142 @@ const ApprovalView = ({ records, onRefresh }) => {
     } catch (err) {
       console.error(err);
     } finally {
-      setUpdatingId(null);
+      setUpdating(false);
     }
   };
 
   const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
+  const selectedRecord = useMemo(() => records.find(r => r.id === selectedId), [records, selectedId]);
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left animate-in fade-in duration-500">
-      <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black">主管簽核</h1>
-          <p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p>
+    <div className="space-y-6 pb-20">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left animate-in fade-in duration-500">
+        <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black">主管簽核</h1>
+            <p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p>
+          </div>
+          <ShieldCheck size={40} className="opacity-40" />
         </div>
-        <ShieldCheck size={40} className="opacity-40" />
-      </div>
 
-      <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請</span>
-          <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span>
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請 (請點選單筆進行簽核)</span>
+            <span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span>
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <tr>
-              {/* 簡化為「單號」 */}
-              <th className="px-8 py-4">單號</th>
-              <th className="px-4 py-4">申請人</th>
-              <th className="px-4 py-4">加班時間/時數</th>
-              <th className="px-4 py-4">事由</th>
-              <th className="px-8 py-4 text-right">簽核動作</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 text-sm">
-            {records.length > 0 ? records.map(record => (
-              <tr key={record.id} className={`hover:bg-slate-50/50 transition-all ${record.status !== 'pending' ? 'opacity-60' : ''}`}>
-                <td className="px-8 py-5">
-                  <div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div>
-                  {/* 下方顯示事前/事後註解 */}
-                  <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>
-                    {record.appType === 'pre' ? '事前加班' : '事後補報'}
-                  </div>
-                </td>
-                <td className="px-4 py-5">
-                  <div className="font-black text-slate-800">{record.name}</div>
-                  <div className="text-[10px] text-slate-400 font-medium">{record.empId}</div>
-                </td>
-                <td className="px-4 py-5">
-                  <div className="text-xs font-bold text-slate-600">{record.startDate} {record.startHour}:{record.startMin}</div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">{record.totalHours} HR</span>
-                    <StatusBadge status={record.status} />
-                  </div>
-                </td>
-                <td className="px-4 py-5">
-                  <p className="text-xs text-slate-500 line-clamp-2 max-w-[200px]">{record.reason}</p>
-                </td>
-                <td className="px-8 py-5 text-right">
-                  {record.status === 'pending' ? (
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        disabled={updatingId === record.id}
-                        onClick={() => updateStatus(record.id, 'approved')}
-                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
-                        title="核准"
-                      >
-                        {updatingId === record.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16}/>}
-                      </button>
-                      <button 
-                        disabled={updatingId === record.id}
-                        onClick={() => updateStatus(record.id, 'rejected')}
-                        className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all shadow-sm border border-rose-100"
-                        title="駁回"
-                      >
-                        <XCircle size={16}/>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] font-black text-slate-300 italic uppercase">結案</div>
-                  )}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <tr>
+                <th className="px-8 py-4">選擇</th>
+                <th className="px-4 py-4">單號</th>
+                {/* 標題調整為 申請人/員編 */}
+                <th className="px-4 py-4">申請人/員編</th>
+                <th className="px-4 py-4">加班時間/時數</th>
+                <th className="px-4 py-4">補償方式</th>
+                <th className="px-4 py-4">事由</th>
+                <th className="px-8 py-4 text-right">狀態</th>
               </tr>
-            )) : (
-              <tr><td colSpan="5" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm">
+              {records.length > 0 ? records.map(record => (
+                <tr 
+                  key={record.id} 
+                  onClick={() => record.status === 'pending' && setSelectedId(record.id)}
+                  className={`transition-all cursor-pointer ${
+                    record.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-50/30' : 
+                    selectedId === record.id ? 'bg-indigo-50/50 ring-2 ring-inset ring-indigo-500/20' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <td className="px-8 py-5">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      selectedId === record.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'
+                    }`}>
+                      {selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </td>
+                  <td className="px-4 py-5">
+                    <div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div>
+                    <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded w-fit ${record.appType === 'pre' ? 'bg-indigo-50 text-indigo-500' : 'bg-amber-50 text-amber-600'}`}>
+                      {record.appType === 'pre' ? '事前加班' : '事後補報'}
+                    </div>
+                  </td>
+                  <td className="px-4 py-5">
+                    {/* 申請人與員編呈現優化 */}
+                    <div className="font-black text-slate-800 text-sm">{record.name}</div>
+                    <div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div>
+                  </td>
+                  <td className="px-4 py-5">
+                    <div className="text-xs font-bold text-slate-600">{record.startDate} {record.startHour}:{record.startMin}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold">{record.totalHours} HR</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-5">
+                    <span className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded-lg border border-slate-200">
+                      {record.compensationType === 'leave' ? '換補休' : '計薪'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-5">
+                    <p className="text-xs text-slate-500 line-clamp-1 max-w-[150px]">{record.reason}</p>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <StatusBadge status={record.status} />
+                  </td>
+                </tr>
+              )) : (
+                <tr><td colSpan="7" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 簽核動作面板 */}
+      <div className={`bg-white rounded-3xl shadow-xl border p-8 transition-all duration-500 ${
+        selectedId ? 'border-indigo-200 translate-y-0 opacity-100' : 'border-slate-100 translate-y-4 opacity-50 grayscale pointer-events-none'
+      }`}>
+        <div className="flex flex-col md:flex-row gap-8">
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm">
+              <MessageSquare size={18} /> 主管簽核意見
+            </div>
+            <textarea 
+              placeholder={selectedId ? "請輸入核准或駁回之意見 (選填，駁回時建議填寫)..." : "請先從上方清單選擇申請單"}
+              className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all h-24"
+              value={opinion}
+              onChange={(e) => setOpinion(e.target.value)}
+              disabled={!selectedId}
+            />
+          </div>
+          
+          <div className="w-full md:w-72 flex flex-col justify-end gap-3">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-1">
+              目前選取：<span className="text-indigo-600 font-black">{selectedRecord ? selectedRecord.serialId : '無'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                disabled={!selectedId || updating}
+                onClick={() => updateStatus('rejected')}
+                className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 hover:text-white transition-all group active:scale-95"
+              >
+                <XCircle size={24} className="group-hover:scale-110 transition-transform"/>
+                <span className="font-black text-xs">駁回申請</span>
+              </button>
+              
+              <button 
+                disabled={!selectedId || updating}
+                onClick={() => updateStatus('approved')}
+                className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all group active:scale-95"
+              >
+                {updating ? <Loader2 size={24} className="animate-spin" /> : <CheckCircle2 size={24} className="group-hover:scale-110 transition-transform" />}
+                <span className="font-black text-xs">核准加班</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -422,7 +477,7 @@ const App = () => {
       </aside>
 
       <main className="flex-grow p-10 overflow-y-auto">
-        <div className="max-w-5xl mx-auto space-y-12 pb-20">
+        <div className="max-w-7xl mx-auto space-y-12">
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} />}
           {activeMenu === 'approval' && <ApprovalView records={records} onRefresh={fetchData} />}
           {activeMenu === 'personnel' && <PersonnelManagement employees={employees} onRefresh={fetchData} />}
