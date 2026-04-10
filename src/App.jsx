@@ -66,7 +66,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', dept: '', jobTitle: '',
+    name: '', empId: '', jobTitle: '', dept: '',
     category: 'regular', compensationType: 'leave',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -97,6 +97,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
         createdAt: new Date().toISOString()
       });
       setFormData(prev => ({ ...prev, reason: '' }));
+      alert('加班申請已提交');
     } catch (err) {
       console.error(err);
     } finally {
@@ -120,9 +121,10 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
+          {/* 這裡已將 dept 與 jobTitle 位置互換 */}
+          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
               <input 
                 type="text" 
                 required 
@@ -243,6 +245,7 @@ const LeaveView = ({ user, currentSerialId, today }) => {
         createdAt: new Date().toISOString()
       });
       setFormData(prev => ({ ...prev, reason: '', proxy: '' }));
+      alert('請假申請已提交');
     } catch (err) {
       console.error(err);
     } finally {
@@ -535,8 +538,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* 更新順序：姓名 -> 員編 -> 職稱 -> 單位 */}
-            {['name', 'empId', 'jobTitle', 'dept'].map(f => (
+            {['name', 'empId', 'dept', 'jobTitle'].map(f => (
               <div key={f} className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
                 <input 
@@ -569,9 +571,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <th className="px-8 py-4">員編</th>
                 <th className="px-4 py-4">姓名</th>
-                {/* 欄位對換 */}
-                <th className="px-4 py-4">職稱</th>
                 <th className="px-4 py-4">單位</th>
+                <th className="px-4 py-4">職稱</th>
                 <th className="px-8 py-4 text-right">操作</th>
               </tr>
             </thead>
@@ -580,9 +581,8 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
                 <tr key={emp.id} className="hover:bg-slate-50 transition-all">
                   <td className="px-8 py-5 font-mono font-bold text-sky-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
-                  {/* 欄位內容對換 */}
-                  <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
                   <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
+                  <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2">
                     <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg"><Edit2 size={16}/></button>
                     <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
@@ -727,7 +727,7 @@ const App = () => {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-4">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-50 gap-4 text-left">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className="font-black text-slate-400 uppercase tracking-widest text-xs">正在連線至雲端資料庫...</p>
       </div>
@@ -737,7 +737,7 @@ const App = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900 text-left">
       {/* Mobile Nav Header */}
-      <div className="lg:hidden fixed top-0 inset-x-0 h-16 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-6">
+      <div className="lg:hidden fixed top-0 inset-x-0 h-16 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-6 text-left">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="text-indigo-600" />
           <span className="font-black">員工服務平台</span>
@@ -748,12 +748,12 @@ const App = () => {
       </div>
 
       <aside className={`fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-slate-200 z-[60] transform transition-transform duration-300 shadow-2xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="p-8 h-full flex flex-col">
+        <div className="p-8 h-full flex flex-col text-left">
           <div className="hidden lg:flex items-center gap-4 mb-10">
-            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
+            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 text-left">
               <LayoutDashboard className="text-white" size={24} />
             </div>
-            <div>
+            <div className="text-left">
               <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
               <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -762,13 +762,13 @@ const App = () => {
             </div>
           </div>
 
-          <nav className="flex-grow space-y-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 mb-4">主選單</p>
+          <nav className="flex-grow space-y-2 text-left">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 mb-4 text-left">主選單</p>
             {navItems.map(item => (
               <button 
                 key={item.id} 
                 onClick={() => { setActiveMenu(item.id); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === item.id ? `${item.activeBg} ${item.color} ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === item.id ? `${item.activeBg} ${item.color} ${item.activeBorder}` : 'text-slate-400 hover:bg-slate-50 border-transparent'} text-left`}
               >
                 <item.icon size={20} />
                 <span className="flex-grow text-left">{item.label}</span>
@@ -781,12 +781,12 @@ const App = () => {
             ))}
           </nav>
 
-          <div className="mt-auto p-6 bg-slate-50 rounded-2xl">
-            <div className="flex items-center gap-3 mb-2">
+          <div className="mt-auto p-6 bg-slate-50 rounded-2xl text-left">
+            <div className="flex items-center gap-3 mb-2 text-left">
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
                 <User size={20} />
               </div>
-              <div className="truncate">
+              <div className="truncate text-left">
                 <p className="text-xs font-black text-slate-800">當前存取帳號</p>
                 <p className="text-[10px] text-slate-400 font-mono truncate">{user?.uid}</p>
               </div>
@@ -795,8 +795,8 @@ const App = () => {
         </div>
       </aside>
 
-      <main className="flex-grow pt-24 lg:pt-10 p-4 md:p-10 overflow-y-auto">
-        <div className="max-w-5xl mx-auto space-y-12">
+      <main className="flex-grow pt-24 lg:pt-10 p-4 md:p-10 overflow-y-auto text-left">
+        <div className="max-w-5xl mx-auto space-y-12 text-left">
           {activeMenu === 'overtime' && <OvertimeView user={user} currentSerialId={otSerialId} today={today} />}
           {activeMenu === 'leave' && <LeaveView user={user} currentSerialId={leaveSerialId} today={today} />}
           {activeMenu === 'approval' && <ApprovalCenter records={records} user={user} />}
@@ -806,13 +806,13 @@ const App = () => {
           {/* Quick History List (Shared for Overtime and Leave) */}
           {(activeMenu === 'overtime' || activeMenu === 'leave') && (
             <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200 text-left">
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-8 text-left">
                 <h3 className="text-xl font-black flex items-center gap-3"><History className="text-slate-400" /> 近期申請紀錄</h3>
                 <button onClick={() => setActiveMenu('query')} className="text-xs font-bold text-indigo-600 hover:underline">查看全部單據</button>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto text-left">
                 <table className="w-full text-left">
-                  <thead className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                  <thead className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 text-left">
                     <tr>
                       <th className="py-4">單號</th>
                       <th className="py-4">姓名</th>
@@ -820,9 +820,9 @@ const App = () => {
                       <th className="py-4 text-right">處理狀態</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-50 text-left">
                     {records.filter(r => (activeMenu === 'overtime' ? r.formType === '加班' : r.formType === '請假')).slice(0, 5).map(r => (
-                      <tr key={r.id} className="text-sm font-medium">
+                      <tr key={r.id} className="text-sm font-medium text-left">
                         <td className="py-5">
                           <div className="font-mono font-bold text-slate-700">{r.serialId}</div>
                           <div className="text-[10px] text-slate-400">{r.startDate}</div>
