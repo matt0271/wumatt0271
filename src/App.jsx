@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
-// 重要：請將下方的網址替換為您執行 ngrok http 5000 後產生的 https 網址
+// 請確保此處的網址與您目前的 ngrok 隧道一致
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
 // 建立一個統一的 fetch 標頭，包含跳過 ngrok 警告頁面的設定
@@ -19,6 +19,9 @@ const fetchOptions = {
 };
 
 // --- Constants ---
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES = ['00', '30']; 
+
 const OT_CATEGORIES = [
   { id: 'regular', label: '一般上班日' },
   { id: 'holiday', label: '國定假日' },
@@ -42,18 +45,37 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- View: Overtime Application ---
-const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
+const OvertimeView = ({ currentSerialId, onRefresh }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   const [formData, setFormData] = useState({
     name: '', empId: '',
     category: 'regular', compensationType: 'leave',
-    startDate: today, startHour: '09', startMin: '00',
-    endDate: today, endHour: '18', endMin: '00',
+    startDate: '', 
+    startHour: '', 
+    startMin: '',  
+    endDate: '',   
+    endHour: '',   
+    endMin: '',    
     reason: '',
   });
 
+  // 處理開始日期變動，同步更新結束日期
+  const handleStartDateChange = (e) => {
+    const newDate = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      startDate: newDate,
+      endDate: newDate 
+    }));
+  };
+
+  // 計算總時數，若未填滿則回傳空字串
   const totalHours = useMemo(() => {
+    if (!formData.startDate || !formData.endDate || !formData.startHour || !formData.startMin || !formData.endHour || !formData.endMin) {
+      return "";
+    }
     const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
     const end = new Date(`${formData.endDate}T${formData.endHour}:${formData.endMin}:00`);
     if (isNaN(start.getTime()) || end <= start) return 0;
@@ -62,10 +84,13 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (totalHours <= 0 || submitting) return;
+    if (totalHours === "" || totalHours <= 0 || submitting) return;
+    
     setSubmitting(true);
+    setSubmitError(null);
+
     try {
-      const res = await fetch(`${NGROK_URL}/api/records`, {
+      const response = await fetch(`${NGROK_URL}/api/records`, {
         method: 'POST',
         headers: fetchOptions.headers,
         body: JSON.stringify({
@@ -77,14 +102,22 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
           status: 'pending'
         })
       });
-      if (res.ok) {
-        setFormData(prev => ({ ...prev, reason: '' }));
+
+      if (response.ok) {
+        setFormData(prev => ({ 
+          ...prev, 
+          startDate: '', endDate: '',
+          startHour: '', startMin: '', 
+          endHour: '', endMin: '', 
+          reason: '' 
+        }));
         onRefresh();
       } else {
-        console.error("提交失敗，伺服器回傳錯誤");
+        const errorText = await response.text();
+        setSubmitError(`提交失敗 (HTTP ${response.status})`);
       }
     } catch (err) { 
-      console.error("提交失敗，請檢查網路連線:", err); 
+      setSubmitError("提交失敗，請檢查後端伺服器與 ngrok 狀態");
     } finally { 
       setSubmitting(false); 
     }
@@ -104,7 +137,14 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
         </div>
       </div>
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
-        {/* 四個欄位放在同一行 */}
+        {submitError && (
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3 text-rose-600 text-sm font-bold">
+            <AlertTriangle size={18} />
+            {submitError}
+          </div>
+        )}
+
+        {/* 姓名、員編、加班類別、補償方式放在同一行 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label>
@@ -145,32 +185,47 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
           </div>
         </div>
 
+        {/* 時間選擇區塊 */}
         <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
             <div className="flex gap-2">
-              <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+              <input type="date" required className="flex-grow p-3 rounded-xl border border-slate-200 text-base" value={formData.startDate} onChange={handleStartDateChange} />
               <div className="flex gap-1">
-                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h => <option key={h} value={h}>{h}:</option>)}</select>
-                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>{['00','30'].map(m => <option key={m} value={m}>{m}</option>)}</select>
+                <select required className="p-3 w-20 rounded-xl border border-slate-200 text-base font-bold bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}>
+                  <option value="">-</option>
+                  {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <select required className="p-3 w-20 rounded-xl border border-slate-200 text-base font-bold bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}>
+                  <option value="">-</option>
+                  {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
             <div className="flex gap-2">
-              <input type="date" className="flex-grow p-2 rounded-lg border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+              <input type="date" required className="flex-grow p-3 rounded-xl border border-slate-200 text-base" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
               <div className="flex gap-1">
-                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>{Array.from({length:24},(_,i)=>i.toString().padStart(2,'0')).map(h => <option key={h} value={h}>{h}:</option>)}</select>
-                <select className="p-2 rounded-lg border border-slate-200 text-sm" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>{['00','30'].map(m => <option key={m} value={m}>{m}</option>)}</select>
+                <select required className="p-3 w-20 rounded-xl border border-slate-200 text-base font-bold bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}>
+                  <option value="">-</option>
+                  {HOURS.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+                <select required className="p-3 w-20 rounded-xl border border-slate-200 text-base font-bold bg-white focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}>
+                  <option value="">-</option>
+                  {MINUTES.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
               </div>
             </div>
           </div>
-          <div className="bg-indigo-600 rounded-xl p-4 text-white flex justify-between items-center shadow-lg shadow-indigo-100">
-            <span className="text-[10px] font-bold uppercase">總時數</span>
-            <span className="text-2xl font-black">{totalHours} <span className="text-xs">HR</span></span>
+          {/* 總時數顯示 */}
+          <div className="bg-indigo-600 rounded-2xl p-5 text-white flex justify-between items-center shadow-lg shadow-indigo-100 min-h-[74px]">
+            <span className="text-[10px] font-black uppercase opacity-80">總時數</span>
+            <span className="text-3xl font-black tracking-tighter">{totalHours} {totalHours !== "" && <span className="text-xs opacity-70">HR</span>}</span>
           </div>
         </div>
+
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班詳細事由</label>
           <textarea required rows="3" placeholder="請描述加班內容..." className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm focus:bg-white" value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})} />
@@ -202,7 +257,7 @@ const OvertimeView = ({ currentSerialId, today, onRefresh }) => {
           </ul>
         </div>
 
-        <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+        <button disabled={totalHours === "" || totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl flex items-center justify-center gap-3 transition-all active:scale-95 ${totalHours === "" || totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
           {submitting ? <Loader2 className="animate-spin" /> : <ClipboardCheck />}
           {submitting ? '提交中...' : '提交申請'}
         </button>
@@ -308,63 +363,26 @@ const App = () => {
   const today = new Date().toISOString().split('T')[0];
 
   const fetchData = async () => {
-    if (NGROK_URL.includes('您的-ngrok-網址')) {
-      setErrorState({
-        title: "尚未設定 ngrok 網址",
-        message: "請在程式碼第 11 行將預設網址替換為您啟動 ngrok 後產生的網址。",
-        code: "NGROK_URL_PLACEHOLDER"
-      });
-      setLoading(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-        controller.abort();
-    }, 15000); 
-
     try {
-      const employeePromise = fetch(`${NGROK_URL}/api/employees`, { ...fetchOptions, signal: controller.signal })
-        .then(res => res.ok ? res.json() : Promise.reject(`Employee API Error: ${res.status}`))
-        .catch(err => {
-            if (err.name === 'AbortError') throw err;
-            console.warn("無法取得員工資料:", err);
-            return null;
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
-      const recordsPromise = fetch(`${NGROK_URL}/api/records`, { ...fetchOptions, signal: controller.signal })
-        .then(res => res.ok ? res.json() : Promise.reject(`Records API Error: ${res.status}`))
-        .catch(err => {
-            if (err.name === 'AbortError') throw err;
-            console.warn("無法取得紀錄資料:", err);
-            return null;
-        });
-
-      const [dataEmployees, dataRecords] = await Promise.all([employeePromise, recordsPromise]);
+      // 同步抓取員工與紀錄
+      const [resEmployees, resRecords] = await Promise.all([
+        fetch(`${NGROK_URL}/api/employees`, { ...fetchOptions, signal: controller.signal })
+          .then(r => r.ok ? r.json() : []),
+        fetch(`${NGROK_URL}/api/records`, { ...fetchOptions, signal: controller.signal })
+          .then(r => r.ok ? r.json() : [])
+      ]);
 
       clearTimeout(timeoutId);
-
-      if (dataEmployees) setEmployees(dataEmployees);
-      if (dataRecords) setRecords(dataRecords);
-
-      if (!dataEmployees && !employees.length) {
-          throw new Error("無法連線至 API 伺服器獲取基礎資料。");
-      }
-      
+      setEmployees(Array.isArray(resEmployees) ? resEmployees : []);
+      setRecords(Array.isArray(resRecords) ? resRecords : []);
       setErrorState(null);
       setLoading(false);
     } catch (err) { 
-      clearTimeout(timeoutId);
       console.error("Fetch failed:", err); 
-      
-      const isTimeout = err.name === 'AbortError';
-      setErrorState({
-        title: isTimeout ? "連線逾時 (Timeout)" : "連線失敗 (Network Error)",
-        message: isTimeout 
-            ? "伺服器回應時間過長（超過 15 秒）。這通常是因為您的電腦休眠中、ngrok 斷線或網路環境不穩定。" 
-            : "前端無法連線至您的後端 API。請檢查以下事項：\n1. Node.js 伺服器是否正在運行 (node server.js)\n2. ngrok 隧道是否已啟動 (ngrok http 5000)\n3. 網址是否填寫正確且沒有重複字元。",
-        code: err.name
-      });
+      setErrorState({ title: "連線失敗", message: "無法存取後端 API。請檢查 ngrok 是否正常啟動。", code: err.name });
       setLoading(false);
     }
   };
@@ -377,40 +395,26 @@ const App = () => {
 
   const otSerialId = useMemo(() => {
     const dateStr = today.replace(/-/g, '');
-    const todaysCount = records.filter(r => r.formType === '加班' && r.serialId && r.serialId.startsWith(dateStr)).length;
+    const todaysCount = records.filter(r => r.formType === '加班' && r.serialId?.startsWith(dateStr)).length;
     return `${dateStr}-OT${String(todaysCount + 1).padStart(3, '0')}`;
   }, [records, today]);
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
+    <div className="h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
       <Loader2 className="animate-spin text-indigo-600 w-12 h-12" />
-      <div className="text-sm font-black text-slate-400 uppercase tracking-widest">正在連線至後端服務...</div>
+      <p className="text-xs font-black text-slate-400 uppercase tracking-widest">載入中...</p>
     </div>
   );
 
   if (errorState) return (
-    <div className="h-screen flex items-center justify-center p-6 bg-slate-50 text-left">
+    <div className="h-screen flex items-center justify-center p-6 bg-slate-50 text-center">
       <div className="bg-white p-10 rounded-3xl shadow-2xl border border-rose-100 max-w-xl w-full">
-        <div className="flex items-center gap-4 mb-6 text-rose-500">
+        <div className="flex items-center gap-4 mb-6 text-rose-500 justify-center">
           <AlertTriangle size={48} />
           <h2 className="text-2xl font-black">{errorState.title}</h2>
         </div>
-        <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100 mb-8">
-          <p className="text-rose-700 text-sm whitespace-pre-wrap leading-relaxed">
-            {errorState.message}
-          </p>
-        </div>
-        <div className="space-y-4">
-          <button 
-            onClick={() => { setLoading(true); fetchData(); }}
-            className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-          >
-            <RefreshCw size={20} /> 重新嘗試連線
-          </button>
-          <div className="text-center text-[10px] text-slate-300 font-mono uppercase">
-            Error Type: {errorState.code}
-          </div>
-        </div>
+        <p className="text-rose-700 text-sm mb-8 leading-relaxed">{errorState.message}</p>
+        <button onClick={() => { setLoading(true); fetchData(); }} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all">重新嘗試</button>
       </div>
     </div>
   );
@@ -422,17 +426,10 @@ const App = () => {
           <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
             <LayoutDashboard className="text-white" size={24} />
           </div>
-          <div>
-            <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
-            <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              雲端同步正常
-            </div>
-          </div>
+          <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
         </div>
         
         <nav className="space-y-2 flex-grow">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 mb-4">主選單</p>
           <button 
             onClick={() => setActiveMenu('overtime')} 
             className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'overtime' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}
@@ -450,7 +447,7 @@ const App = () => {
 
       <main className="flex-grow p-10 overflow-y-auto">
         <div className="max-w-5xl mx-auto space-y-12 pb-20">
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} today={today} onRefresh={fetchData} />}
+          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} />}
           {activeMenu === 'personnel' && <PersonnelManagement employees={employees} onRefresh={fetchData} />}
         </div>
       </main>
