@@ -284,7 +284,7 @@ const LeaveView = ({ user, currentSerialId, today }) => {
             <select 
               className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold"
               value={formData.type} 
-              onChange={e => setFormData({...formData, type: e.target.value})}
+              onChange={e => setFormData({...formData, type: e.target.value})} 
             >
               {LEAVE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
             </select>
