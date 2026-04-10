@@ -44,7 +44,6 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- View: Overtime Application ---
-// 修正：接收來自父元件的 lastSubmitted 狀態與 setter
 const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, setLastSubmitted }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
@@ -252,7 +251,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
               <div className="flex gap-2">
                 <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                 <div className="flex gap-1 shrink-0">
-                  <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                  <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
                 </div>
               </div>
@@ -274,10 +273,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
 
       {lastSubmitted && (
         <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-8 animate-in slide-in-from-bottom duration-700 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-            <FileText size={120} />
-          </div>
-          
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3 text-indigo-600">
               <FileText size={24} />
