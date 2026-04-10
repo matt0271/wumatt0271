@@ -44,12 +44,12 @@ const StatusBadge = ({ status }) => {
 };
 
 // --- View: Overtime Application ---
-const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, setLastSubmitted }) => {
+const OvertimeView = ({ currentSerialId, onRefresh, employees, records }) => {
   const [appType, setAppType] = useState('pre'); 
   const [submitting, setSubmitting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState(null); 
   
   const initialFormState = {
     name: '', empId: '',
@@ -60,6 +60,22 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  // 獲取最近 30 天送出的所有加班單據
+  const recentSubmissions = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30); // 計算 30 天前的時間點
+
+    return records
+      .filter(r => {
+        if (r.formType !== '加班' || !r.createdAt) return false;
+        const recordDate = new Date(r.createdAt);
+        // 過濾出 30 天內的單據
+        return recordDate >= thirtyDaysAgo;
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [records]);
 
   const handleNameChange = (e) => {
     const value = e.target.value;
@@ -103,7 +119,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
     setSubmitError(null);
     
     const now = new Date();
-    const submitTime = now.toLocaleString('zh-TW', { hour12: false });
     
     try {
       const response = await fetch(`${NGROK_URL}/api/records`, {
@@ -120,16 +135,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
         })
       });
       
-      const result = await response.json();
       if (response.ok) {
-        setLastSubmitted({
-          id: result.id, 
-          serialId: currentSerialId,
-          name: formData.name,
-          changeTime: submitTime,
-          status: 'pending'
-        });
-        
         setFormData(initialFormState);
         onRefresh();
       } else {
@@ -143,16 +149,15 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
   };
 
   const handleWithdrawAction = async () => {
-    if (!lastSubmitted || !lastSubmitted.id) return;
+    if (!withdrawTarget) return;
     setWithdrawing(true);
     try {
-      const response = await fetch(`${NGROK_URL}/api/records/${lastSubmitted.id}`, {
+      const response = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, {
         method: 'DELETE',
         headers: fetchOptions.headers
       });
       if (response.ok) {
-        setLastSubmitted(null);
-        setShowWithdrawModal(false);
+        setWithdrawTarget(null);
         onRefresh();
       } else {
         alert("抽單失敗，請稍後再試");
@@ -167,7 +172,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
-      {showWithdrawModal && (
+      {/* 抽單確認視窗 */}
+      {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 animate-in zoom-in-95 duration-300">
             <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mb-6 mx-auto">
@@ -175,11 +181,11 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
             </div>
             <h3 className="text-xl font-black text-slate-800 text-center mb-2">確定要抽單嗎？</h3>
             <p className="text-sm text-slate-500 text-center mb-8 leading-relaxed">
-              抽單後該筆申請單（<span className="font-mono font-bold text-indigo-600">{lastSubmitted?.serialId}</span>）將會被移除，且無法復原。
+              抽單後該筆申請單（<span className="font-mono font-bold text-indigo-600">{withdrawTarget.serialId}</span>）將會被移除，且無法復原。
             </p>
             <div className="flex gap-3">
               <button 
-                onClick={() => setShowWithdrawModal(false)}
+                onClick={() => setWithdrawTarget(null)}
                 className="flex-1 py-3 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all"
               >
                 取消
@@ -251,7 +257,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
               <div className="flex gap-2">
                 <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-rose-500" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                 <div className="flex gap-1 shrink-0">
-                  <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-emerald-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                  <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-rose-500 text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
                 </div>
               </div>
@@ -271,44 +277,49 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, lastSubmitted, se
         </form>
       </div>
 
-      {lastSubmitted && (
-        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-8 animate-in slide-in-from-bottom duration-700 relative overflow-hidden group">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3 text-indigo-600">
-              <FileText size={24} />
-              <h3 className="font-black text-lg">最近提交單據資訊</h3>
-            </div>
+      {/* 顯示最近 30 天提交單據 */}
+      {recentSubmissions.length > 0 && (
+        <div className="bg-indigo-50/50 border-2 border-indigo-100 rounded-3xl p-8 animate-in slide-in-from-bottom duration-700 overflow-hidden">
+          <div className="flex items-center gap-3 mb-8 text-indigo-600">
+            <FileText size={24} />
+            <h3 className="font-black text-lg">最近 30 天提交的加班單據 ({recentSubmissions.length})</h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">單號</p>
-              <p className="font-mono font-black text-indigo-600">{lastSubmitted.serialId}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">姓名</p>
-              <p className="font-black text-slate-800">{lastSubmitted.name}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">異動時間</p>
-              <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">
-                <Clock size={14} className="text-slate-400" />
-                {lastSubmitted.changeTime}
+          <div className="space-y-6">
+            {recentSubmissions.map((record, idx) => (
+              <div key={record.id || idx} className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-indigo-100/50 last:border-0 last:pb-0 relative group">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">單號</p>
+                  <p className="font-mono font-black text-indigo-600">{record.serialId}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">姓名</p>
+                  <p className="font-black text-slate-800">{record.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">提交日期/時間</p>
+                  <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">
+                    <Calendar size={14} className="text-slate-400" />
+                    {new Date(record.createdAt).toLocaleDateString('zh-TW')} {new Date(record.createdAt).toLocaleTimeString('zh-TW', { hour12: false })}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">狀態</p>
+                  <div className="flex items-center gap-4">
+                    <StatusBadge status={record.status} />
+                    {record.status === 'pending' && (
+                      <button 
+                        onClick={() => setWithdrawTarget(record)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-rose-500 border border-rose-200 rounded-xl text-[10px] font-black hover:bg-rose-50 hover:border-rose-300 transition-all shadow-sm active:scale-95"
+                      >
+                        <Undo2 size={12} />
+                        抽單
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">狀態</p>
-              <div className="flex items-center gap-4">
-                <StatusBadge status={lastSubmitted.status} />
-                <button 
-                  onClick={() => setShowWithdrawModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-rose-500 border border-rose-200 rounded-xl text-[10px] font-black hover:bg-rose-50 hover:border-rose-300 transition-all shadow-sm active:scale-95"
-                >
-                  <Undo2 size={12} />
-                  抽單
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
@@ -516,9 +527,6 @@ const App = () => {
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // 新增：將 lastSubmitted 提升至 App 層級，確保切換畫面不消失
-  const [lastSubmitted, setLastSubmitted] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -560,8 +568,7 @@ const App = () => {
               currentSerialId={otSerialId} 
               onRefresh={fetchData} 
               employees={employees} 
-              lastSubmitted={lastSubmitted}
-              setLastSubmitted={setLastSubmitted}
+              records={records}
             />
           )}
           {activeMenu === 'approval' && <ApprovalView records={records} onRefresh={fetchData} />}
