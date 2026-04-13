@@ -121,7 +121,6 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* 這裡已將 dept 與 jobTitle 位置互換 */}
           {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
@@ -215,7 +214,7 @@ const OvertimeView = ({ user, currentSerialId, today }) => {
 const LeaveView = ({ user, currentSerialId, today }) => {
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', empId: '', dept: '', jobTitle: '',
+    name: '', empId: '', jobTitle: '', dept: '',
     type: 'annual', proxy: '',
     startDate: today, startHour: '09', startMin: '00',
     endDate: today, endHour: '18', endMin: '00',
@@ -266,9 +265,9 @@ const LeaveView = ({ user, currentSerialId, today }) => {
 
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {['name', 'empId', 'dept', 'jobTitle'].map((f) => (
+          {['name', 'empId', 'jobTitle', 'dept'].map((f) => (
             <div key={f} className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
               <input 
                 type="text" 
                 required 
@@ -420,7 +419,7 @@ const ApprovalCenter = ({ records, user }) => {
                       <span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500 uppercase">{item.totalHours} HR</span>
                     </div>
                     <div className="font-black text-slate-800">{item.name}</div>
-                    <div className="text-xs text-slate-400">{item.dept} / {item.jobTitle}</div>
+                    <div className="text-xs text-slate-400">{item.jobTitle} / {item.dept}</div>
                     <div className="mt-2 text-xs text-slate-500 line-clamp-1 italic">"{item.reason}"</div>
                   </button>
                 )) : (
@@ -432,7 +431,7 @@ const ApprovalCenter = ({ records, user }) => {
             <div className={`space-y-6 transition-opacity duration-300 ${!selectedId ? 'opacity-20 pointer-events-none' : ''}`}>
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">案件詳情與處理 <Edit2 size={14}/></h3>
               {selectedItem && (
-                <div className="space-y-6 animate-in slide-in-from-right duration-300">
+                <div className="space-y-6 animate-in slide-in-from-right duration-300 text-left">
                   <div className="bg-slate-50 p-6 rounded-2xl space-y-4 text-sm">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -450,7 +449,7 @@ const ApprovalCenter = ({ records, user }) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 text-left">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">審核意見 / 駁回理由</label>
                     <textarea 
                       rows="3" 
@@ -489,7 +488,7 @@ const ApprovalCenter = ({ records, user }) => {
 
 // --- View: Personnel Management ---
 const PersonnelManagement = ({ employees, refresh, user }) => {
-  const [formData, setFormData] = useState({ name: '', empId: '', dept: '', jobTitle: '' });
+  const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -507,7 +506,7 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
           createdAt: new Date().toISOString()
         });
       }
-      setFormData({ name: '', empId: '', dept: '', jobTitle: '' });
+      setFormData({ name: '', empId: '', jobTitle: '', dept: '' });
       setEditingId(null);
       refresh();
     } catch (err) {
@@ -538,9 +537,9 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {['name', 'empId', 'dept', 'jobTitle'].map(f => (
+            {['name', 'empId', 'jobTitle', 'dept'].map(f => (
               <div key={f} className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='dept'?'單位':'職稱'}</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
                 <input 
                   type="text" 
                   required 
@@ -560,29 +559,29 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
               {editingId ? '更新資料' : '新增人員'}
             </button>
             {editingId && (
-              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',dept:'',jobTitle:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
+              <button onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''}); }} className="px-8 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
             )}
           </div>
         </form>
 
-        <div className="overflow-x-auto border-t border-slate-100">
+        <div className="overflow-x-auto border-t border-slate-100 text-left">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-8 py-4">員編</th>
-                <th className="px-4 py-4">姓名</th>
-                <th className="px-4 py-4">單位</th>
-                <th className="px-4 py-4">職稱</th>
+                <th className="px-8 py-4 text-left">員編</th>
+                <th className="px-4 py-4 text-left">姓名</th>
+                <th className="px-4 py-4 text-left">職稱</th>
+                <th className="px-4 py-4 text-left">單位</th>
                 <th className="px-8 py-4 text-right">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {employees.map(emp => (
-                <tr key={emp.id} className="hover:bg-slate-50 transition-all">
+                <tr key={emp.id} className="hover:bg-slate-50 transition-all text-left">
                   <td className="px-8 py-5 font-mono font-bold text-sky-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
-                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                   <td className="px-4 py-5 text-slate-500">{emp.jobTitle}</td>
+                  <td className="px-4 py-5 text-slate-500">{emp.dept}</td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2">
                     <button onClick={() => { setEditingId(emp.id); setFormData(emp); }} className="p-2 text-slate-300 hover:text-sky-600 hover:bg-sky-50 rounded-lg"><Edit2 size={16}/></button>
                     <button onClick={() => deleteEmp(emp.id)} className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 size={16}/></button>
@@ -616,7 +615,7 @@ const FormQueryView = ({ records }) => {
         <Search size={40} className="opacity-40" />
       </div>
       <div className="p-6">
-        <div className="relative mb-6">
+        <div className="relative mb-6 text-left">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
@@ -626,27 +625,27 @@ const FormQueryView = ({ records }) => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+        <div className="overflow-x-auto rounded-2xl border border-slate-100 text-left">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                <th className="px-6 py-4">單號/類別</th>
-                <th className="px-4 py-4">申請人</th>
-                <th className="px-4 py-4">事由</th>
+              <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
+                <th className="px-6 py-4 text-left">單號/類別</th>
+                <th className="px-4 py-4 text-left">申請人</th>
+                <th className="px-4 py-4 text-left">事由</th>
                 <th className="px-4 py-4 text-center">時數</th>
                 <th className="px-6 py-4 text-right">狀態</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {filtered.map(r => (
-                <tr key={r.id} className="hover:bg-slate-50 transition-all">
+                <tr key={r.id} className="hover:bg-slate-50 transition-all text-left">
                   <td className="px-6 py-5">
                     <div className="font-mono font-black text-slate-700">{r.serialId}</div>
                     <div className={`text-[10px] font-black uppercase inline-block px-2 py-0.5 rounded mt-1 ${r.formType === '加班' ? 'bg-indigo-100 text-indigo-600' : 'bg-teal-100 text-teal-600'}`}>{r.formType}</div>
                   </td>
                   <td className="px-4 py-5">
                     <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-[10px] text-slate-400 uppercase">{r.empId}</div>
+                    <div className="text-[10px] text-slate-400 uppercase">{r.jobTitle} / {r.dept}</div>
                   </td>
                   <td className="px-4 py-5 max-w-[200px] truncate italic text-slate-500">"{r.reason}"</td>
                   <td className="px-4 py-5 text-center font-black text-slate-700">{r.totalHours} HR</td>
@@ -749,11 +748,11 @@ const App = () => {
 
       <aside className={`fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-slate-200 z-[60] transform transition-transform duration-300 shadow-2xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-8 h-full flex flex-col text-left">
-          <div className="hidden lg:flex items-center gap-4 mb-10">
-            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 text-left">
+          <div className="hidden lg:flex items-center gap-4 mb-10 text-left">
+            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
               <LayoutDashboard className="text-white" size={24} />
             </div>
-            <div className="text-left">
+            <div>
               <h2 className="font-black text-lg tracking-tight">員工服務平台</h2>
               <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 uppercase">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -773,7 +772,7 @@ const App = () => {
                 <item.icon size={20} />
                 <span className="flex-grow text-left">{item.label}</span>
                 {item.badge > 0 && (
-                  <span className="w-6 h-6 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full shadow-lg shadow-rose-100 animate-bounce">
+                  <span className="w-6 h-6 flex items-center justify-center bg-rose-500 text-white text-[10px] rounded-full shadow-lg shadow-rose-100 animate-bounce text-left">
                     {item.badge}
                   </span>
                 )}
