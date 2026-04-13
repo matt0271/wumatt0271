@@ -1,21 +1,20 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
-  Clock, User, Hash, FileText, Calendar, CheckCircle2, 
-  AlertCircle, ChevronRight, Timer, Coins, Info, ListChecks, 
-  Loader2, Trash2, History, ClipboardCheck, Fingerprint,
-  CalendarDays, UserCheck, LayoutDashboard, LogOut, Menu, X,
-  ShieldCheck, Check, XCircle, MessageSquare, AlertTriangle,
-  Search, Filter, BarChart3, MousePointerClick, Building2, Briefcase,
-  Users, UserPlus, Wifi, WifiOff, HelpCircle, Edit2, CalendarSearch,
-  Download, Upload, FileSpreadsheet, Plus, ArrowRight
+  Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
+  CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
+  BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
+  Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
+  FileText, Calendar, Undo2
 } from 'lucide-react';
 
-// --- XAMPP / 本地 API 設定區 ---
-// 請確保您的 XAMPP PHP 檔案路徑正確，且已設定 CORS Header
-const API_BASE_URL = 'http://localhost/api'; 
+// --- ngrok API 設定 ---
+const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
-const API_HEADERS = {
-  'Content-Type': 'application/json'
+const fetchOptions = {
+  headers: {
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true' 
+  }
 };
 
 // --- Constants ---
