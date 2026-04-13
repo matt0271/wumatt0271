@@ -4,7 +4,7 @@ import {
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
-  FileText, Calendar, Undo2, Bell
+  FileText, Calendar, Undo2, Bell, CheckCircle
 } from 'lucide-react';
 
 // --- ngrok API 設定 ---
@@ -63,7 +63,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
 
   // 獲取最近 30 天送出的所有加班單據
   const recentSubmissions = useMemo(() => {
-    // 修正：將 now 的定義移到 thirtyDaysAgo 使用之前
     const now = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(now.getDate() - 30);
@@ -114,16 +113,28 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
       const response = await fetch(`${NGROK_URL}/api/records`, {
         method: 'POST',
         headers: fetchOptions.headers,
-        body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending', createdAt: now.toISOString() })
+        body: JSON.stringify({ 
+          ...formData, 
+          serialId: currentSerialId, 
+          formType: '加班', 
+          appType, 
+          totalHours, 
+          status: 'pending', 
+          createdAt: now.toISOString() 
+        })
       });
       if (response.ok) {
         setFormData(initialFormState);
-        setNotification({ type: 'success', text: '申請單提交成功' });
+        setNotification({ type: 'success', text: '加班申請提交成功' });
         onRefresh();
       } else {
         setSubmitError(`提交失敗 (HTTP ${response.status})`);
       }
-    } catch (err) { setSubmitError("提交失敗，請檢查後端連線"); } finally { setSubmitting(false); }
+    } catch (err) { 
+      setSubmitError("提交失敗，請檢查網路連線或伺服器"); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleWithdrawAction = async () => {
@@ -133,18 +144,21 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
       const response = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers });
       if (response.ok) {
         setWithdrawTarget(null);
-        setNotification({ type: 'success', text: '抽單成功' });
+        setNotification({ type: 'success', text: '單據已成功抽單移除' });
         onRefresh();
       } else {
-        setNotification({ type: 'error', text: '抽單失敗，請稍後再試' });
+        setNotification({ type: 'error', text: '抽單失敗，後端可能未正確設定' });
       }
     } catch (err) {
-      setNotification({ type: 'error', text: '連線錯誤，請檢查伺服器狀態' });
-    } finally { setWithdrawing(false); }
+      setNotification({ type: 'error', text: '連線錯誤' });
+    } finally { 
+      setWithdrawing(false); 
+    }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
+      {/* 抽單確認視窗 */}
       {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 animate-in zoom-in-95 duration-300 text-left">
@@ -174,7 +188,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {submitError && <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3 text-rose-600 text-sm font-bold"><AlertTriangle size={18} /> {submitError}</div>}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* 員編在前，姓名在後 */}
             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">員編</label><input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.empId} onChange={handleEmpIdChange} /></div>
             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">姓名</label><input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={formData.name} onChange={handleNameChange} /></div>
             <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">加班類別</label><select className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>{OT_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
@@ -188,7 +201,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
           </div>
           <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
             <div className="space-y-2 lg:col-span-5"><label className="text-xs font-bold text-emerald-600 flex items-center gap-2"><Plus size={14}/> 開始時間</label>
-              <div className="flex gap-2"><input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm" value={formData.startDate} onChange={handleStartDateChange} />
+              <div className="flex gap-2">
+                <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm" value={formData.startDate} onChange={handleStartDateChange} />
                 <div className="flex gap-1 shrink-0">
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold text-center" value={formData.startHour} onChange={e => setFormData({...formData, startHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold text-center" value={formData.startMin} onChange={e => setFormData({...formData, startMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
@@ -196,7 +210,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, employees, records, setNotif
               </div>
             </div>
             <div className="space-y-2 lg:col-span-5"><label className="text-xs font-bold text-rose-600 flex items-center gap-2"><ArrowRight size={14}/> 結束時間</label>
-              <div className="flex gap-2"><input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+              <div className="flex gap-2">
+                <input type="date" required className="flex-1 min-w-0 p-3 rounded-xl border border-slate-200 text-sm" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                 <div className="flex gap-1 shrink-0">
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold text-center" value={formData.endHour} onChange={e => setFormData({...formData, endHour: e.target.value})}><option value="">時</option>{HOURS.map(h => <option key={h} value={h}>{h}</option>)}</select>
                   <select required className="p-3 w-[85px] rounded-xl border border-slate-200 text-sm font-bold text-center" value={formData.endMin} onChange={e => setFormData({...formData, endMin: e.target.value})}><option value="">分</option>{MINUTES.map(m => <option key={m} value={m}>{m}</option>)}</select>
@@ -274,6 +289,21 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
   const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
   const selectedRecord = useMemo(() => pendingRecords.find(r => r.id === selectedId), [pendingRecords, selectedId]);
 
+  // 獲取主管最近 30 天已處理(核准/駁回)的單據
+  const recentProcessed = useMemo(() => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(now.getDate() - 30);
+
+    return records
+      .filter(r => {
+        if (r.status === 'pending' || !r.createdAt) return false;
+        const recordDate = new Date(r.createdAt);
+        return recordDate >= thirtyDaysAgo;
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [records]);
+
   return (
     <div className="space-y-6 pb-20 text-left">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
@@ -282,9 +312,16 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
           <ShieldCheck size={40} className="opacity-40" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
-              <tr><th className="px-8 py-4">選擇</th><th className="px-4 py-4">單號</th><th className="px-4 py-4">申請人/員編</th><th className="px-4 py-4">加班時間</th><th className="px-4 py-4 text-center">時數</th><th className="px-8 py-4 text-right">狀態</th></tr>
+              <tr>
+                <th className="px-8 py-4">選擇</th>
+                <th className="px-4 py-4">單號</th>
+                <th className="px-4 py-4">申請人/員編</th>
+                <th className="px-4 py-4">加班時間</th>
+                <th className="px-4 py-4 text-center">時數</th>
+                <th className="px-8 py-4 text-right">狀態</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {pendingRecords.length > 0 ? pendingRecords.map(record => (
@@ -301,6 +338,7 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
           </table>
         </div>
       </div>
+
       <div className={`bg-white rounded-3xl shadow-xl border p-8 transition-all duration-500 ${selectedId ? 'border-indigo-200 opacity-100 translate-y-0' : 'border-slate-100 opacity-50 grayscale pointer-events-none translate-y-4'}`}>
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-1 space-y-4 text-left">
@@ -316,6 +354,43 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
           </div>
         </div>
       </div>
+
+      {/* 最近 30 天已處理單據資訊欄 */}
+      {recentProcessed.length > 0 && (
+        <div className="bg-slate-50/50 border-2 border-slate-200 rounded-3xl p-8 animate-in slide-in-from-bottom duration-700 overflow-hidden text-left">
+          <div className="flex items-center gap-3 mb-8 text-slate-600 border-b border-slate-200 pb-4">
+            <History size={24} />
+            <h3 className="font-black text-lg">最近 30 天已簽核之單據 ({recentProcessed.length})</h3>
+          </div>
+          <div className="space-y-6">
+            {recentProcessed.map((record, index) => (
+              <div key={record.id || index} className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-slate-200/50 last:border-0 last:pb-0 relative group text-left">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">單號</p>
+                  <p className="font-mono font-black text-slate-600">{record.serialId}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">申請人</p>
+                  <p className="font-black text-slate-800">{record.name} <span className="text-[10px] text-slate-400 font-mono ml-1">{record.empId}</span></p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">申請日期</p>
+                  <div className="flex items-center gap-2 text-slate-600 font-bold text-sm">
+                    <Calendar size={14} className="text-slate-400" />
+                    {new Date(record.createdAt).toLocaleDateString('zh-TW')}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">簽核結果</p>
+                  <div className="flex items-center gap-4">
+                    <StatusBadge status={record.status} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -348,15 +423,24 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
         setEditingId(null);
         onRefresh();
       }
-    } catch (err) { setNotification({ type: 'error', text: '操作失敗' }); } finally { setLoading(false); }
+    } catch (err) { 
+      setNotification({ type: 'error', text: '操作失敗' }); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const deleteEmp = async (id) => {
     if (!window.confirm("確認刪除此員工？")) return;
     try {
       const res = await fetch(`${NGROK_URL}/api/employees/${id}`, { method: 'DELETE', headers: fetchOptions.headers });
-      if (res.ok) { setNotification({ type: 'success', text: '員工已刪除' }); onRefresh(); }
-    } catch (err) { console.error(err); }
+      if (res.ok) { 
+        setNotification({ type: 'success', text: '員工資料已刪除' }); 
+        onRefresh(); 
+      }
+    } catch (err) { 
+      console.error(err); 
+    }
   };
 
   const handleExport = () => {
@@ -382,8 +466,14 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
           const name = row["姓名"]; const empId = row["員編"];
           if (name && empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ name, empId, jobTitle: row["職稱"]||"", dept: row["單位"]||"" }) });
         }
-        onRefresh(); setNotification({ type: 'success', text: 'Excel 匯入成功' });
-      } catch (err) { setNotification({ type: 'error', text: '匯入失敗' }); } finally { setLoading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+        onRefresh(); 
+        setNotification({ type: 'success', text: 'Excel 匯入成功' });
+      } catch (err) { 
+        setNotification({ type: 'error', text: '匯入失敗' }); 
+      } finally { 
+        setLoading(false); 
+        if (fileInputRef.current) fileInputRef.current.value = ""; 
+      }
     };
     reader.readAsBinaryString(file);
   };
@@ -394,12 +484,12 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
         <div><h1 className="text-2xl font-black">人員管理</h1><p className="text-sm opacity-80 italic">維護企業員工基本資料庫</p></div><Users size={40} className="opacity-40" />
       </div>
       <div className="px-8 pt-6 flex gap-3 text-left">
-        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-100 border border-emerald-100"><FileSpreadsheet size={14} /> 匯出</button>
-        <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl text-xs font-bold hover:bg-sky-100 border border-sky-100"><Upload size={14} /> 匯入</button>
+        <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-100 border border-emerald-100"><FileSpreadsheet size={14} /> 匯出 Excel</button>
+        <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl text-xs font-bold hover:bg-sky-100 border border-sky-100"><Upload size={14} /> 匯入 Excel</button>
         <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" className="hidden" />
       </div>
       <form onSubmit={handleSubmit} className="p-8 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
           <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">員編</label><input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-sky-500 outline-none" value={formData.empId} onChange={e => setFormData({...formData, empId: e.target.value})} /></div>
           <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">姓名</label><input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-sky-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
           <div className="space-y-1"><label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">職稱</label><input type="text" required className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-sky-500 outline-none" value={formData.jobTitle} onChange={e => setFormData({...formData, jobTitle: e.target.value})} /></div>
@@ -411,9 +501,9 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
         </div>
       </form>
       <div className="overflow-x-auto border-t text-left">
-        <table className="w-full text-left">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
-            <tr><th className="px-8 py-4 text-left">員編</th><th className="px-4 py-4 text-left">姓名</th><th className="px-4 py-4 text-left">職稱</th><th className="px-4 py-4 text-left">單位</th><th className="px-8 py-4 text-right">操作</th></tr>
+            <tr><th className="px-8 py-4">員編</th><th className="px-4 py-4">姓名</th><th className="px-4 py-4">職稱</th><th className="px-4 py-4">單位</th><th className="px-8 py-4 text-right">操作</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {employees.map(emp => (
@@ -457,7 +547,10 @@ const App = () => {
       setEmployees(Array.isArray(resEmp) ? resEmp : []);
       setRecords(Array.isArray(resRec) ? resRec : []);
       setLoading(false);
-    } catch (err) { console.error("Fetch error:", err); setLoading(false); }
+    } catch (err) { 
+      console.error("Fetch error:", err); 
+      setLoading(false); 
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -477,7 +570,7 @@ const App = () => {
         <div className={`fixed top-10 right-10 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 border ${
           notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700'
         }`}>
-          {notification.type === 'success' ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
           <span className="font-bold text-sm">{notification.text}</span>
         </div>
       )}
