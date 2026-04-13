@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 // --- Firebase Configuration ---
+// 注意：若在 Vercel 部署，請確保此處的 firebaseConfig 有正確的值
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -28,6 +29,11 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'employee-portal-v1';
 // --- Constants ---
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = ['00', '30']; 
+
+const DEPARTMENTS = [
+  '工程組', '系統組', '財務行政部', '產品組', '客服組', 
+  '北區營業組', '中區營業組', '南區營業組', '總經理室'
+];
 
 const LEAVE_TYPES = [
   { id: 'annual', label: '特休假' }, { id: 'compensatory', label: '補休' },
@@ -540,13 +546,25 @@ const PersonnelManagement = ({ employees, refresh, user }) => {
             {['name', 'empId', 'jobTitle', 'dept'].map(f => (
               <div key={f} className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f==='name'?'姓名':f==='empId'?'員編':f==='jobTitle'?'職稱':'單位'}</label>
-                <input 
-                  type="text" 
-                  required 
-                  className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm"
-                  value={formData[f]} 
-                  onChange={e => setFormData({...formData, [f]: e.target.value})} 
-                />
+                {f === 'dept' ? (
+                  <select 
+                    required 
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm font-bold"
+                    value={formData.dept} 
+                    onChange={e => setFormData({...formData, dept: e.target.value})} 
+                  >
+                    <option value="">請選擇單位</option>
+                    {DEPARTMENTS.map(deptName => <option key={deptName} value={deptName}>{deptName}</option>)}
+                  </select>
+                ) : (
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 outline-none text-sm"
+                    value={formData[f]} 
+                    onChange={e => setFormData({...formData, [f]: e.target.value})} 
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -749,7 +767,7 @@ const App = () => {
       <aside className={`fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-slate-200 z-[60] transform transition-transform duration-300 shadow-2xl lg:shadow-none ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-8 h-full flex flex-col text-left">
           <div className="hidden lg:flex items-center gap-4 mb-10 text-left">
-            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100">
+            <div className="p-3 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 text-left">
               <LayoutDashboard className="text-white" size={24} />
             </div>
             <div>
@@ -814,7 +832,7 @@ const App = () => {
                   <thead className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 text-left">
                     <tr>
                       <th className="py-4">單號</th>
-                      <th className="py-4">姓名</th>
+                      <th className="py-4 text-left">姓名</th>
                       <th className="py-4 text-center">數量</th>
                       <th className="py-4 text-right">處理狀態</th>
                     </tr>
@@ -826,7 +844,7 @@ const App = () => {
                           <div className="font-mono font-bold text-slate-700">{r.serialId}</div>
                           <div className="text-[10px] text-slate-400">{r.startDate}</div>
                         </td>
-                        <td className="py-5 font-black">{r.name}</td>
+                        <td className="py-5 font-black text-left">{r.name}</td>
                         <td className="py-5 text-center">{r.totalHours} HR</td>
                         <td className="py-5 text-right"><StatusBadge status={r.status} /></td>
                       </tr>
