@@ -486,27 +486,28 @@ const ApprovalView = ({ records, onRefresh }) => {
     } catch (err) { console.error(err); } finally { setUpdating(false); }
   };
 
+  // 核心修改：使用 useMemo 僅過濾出待處理 (pending) 的單據
   const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
-  const selectedRecord = useMemo(() => records.find(r => r.id === selectedId), [records, selectedId]);
+  const selectedRecord = useMemo(() => pendingRecords.find(r => r.id === selectedId), [pendingRecords, selectedId]);
 
   return (
     <div className="space-y-6 pb-20 text-left">
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
-        <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in duration-500 text-left">
+        <div className="bg-emerald-600 px-8 py-8 text-white flex justify-between items-center text-left">
           <div><h1 className="text-2xl font-black">主管簽核</h1><p className="text-sm opacity-80 italic">審核員工加班申請紀錄</p></div>
           <ShieldCheck size={40} className="opacity-40" />
         </div>
-        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <div className="flex items-center gap-2"><span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請 (請點選單筆進行簽核)</span><span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span></div>
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center text-left">
+          <div className="flex items-center gap-2"><span className="text-xs font-black text-slate-400 uppercase tracking-widest">待處理申請 (點選後即可簽核)</span><span className="bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-md text-[10px] font-black">{pendingRecords.length}</span></div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto text-left">
           <table className="w-full text-left">
             <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <tr><th className="px-8 py-4">選擇</th><th className="px-4 py-4">單號</th><th className="px-4 py-4">申請人/員編</th><th className="px-4 py-4">加班起迄時間</th><th className="px-4 py-4 text-center">時數</th><th className="px-8 py-4 text-right">狀態</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {records.length > 0 ? records.map(record => (
-                <tr key={record.id} onClick={() => record.status === 'pending' && setSelectedId(record.id)} className={`transition-all cursor-pointer ${record.status !== 'pending' ? 'opacity-50 cursor-not-allowed bg-slate-50/30' : selectedId === record.id ? 'bg-indigo-50/50 ring-2 ring-inset ring-indigo-500/20' : 'hover:bg-slate-50'}`}>
+              {pendingRecords.length > 0 ? pendingRecords.map(record => (
+                <tr key={record.id} onClick={() => setSelectedId(record.id)} className={`transition-all cursor-pointer ${selectedId === record.id ? 'bg-indigo-50/50 ring-2 ring-inset ring-indigo-500/20' : 'hover:bg-slate-50'}`}>
                   <td className="px-8 py-5"><div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${selectedId === record.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>{selectedId === record.id && <div className="w-2 h-2 rounded-full bg-white" />}</div></td>
                   <td className="px-4 py-5"><div className="font-mono font-bold text-indigo-600 text-xs mb-1">{record.serialId}</div></td>
                   <td className="px-4 py-5"><div className="font-black text-slate-800 text-sm">{record.name}</div><div className="text-[10px] text-indigo-600 font-bold font-mono tracking-tight">{record.empId}</div></td>
@@ -514,7 +515,7 @@ const ApprovalView = ({ records, onRefresh }) => {
                   <td className="px-4 py-5 text-center font-black">{record.totalHours} HR</td>
                   <td className="px-8 py-5 text-right"><StatusBadge status={record.status} /></td>
                 </tr>
-              )) : (<tr><td colSpan="6" className="px-8 py-10 text-center text-slate-400 italic">目前尚無申請紀錄</td></tr>)}
+              )) : (<tr><td colSpan="6" className="px-8 py-10 text-center text-slate-400 italic">目前尚無待處理的申請</td></tr>)}
             </tbody>
           </table>
         </div>
@@ -525,7 +526,7 @@ const ApprovalView = ({ records, onRefresh }) => {
             <div className="flex items-center gap-2 text-indigo-600 font-black text-sm"><MessageSquare size={18} /> 主管簽核意見</div>
             <textarea placeholder={selectedId ? "請輸入核准或駁回之意見 (選填)..." : "請先從上方清單選擇申請單"} className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 outline-none text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all h-24" value={opinion} onChange={(e) => setOpinion(e.target.value)} disabled={!selectedId} />
           </div>
-          <div className="w-full md:w-72 flex flex-col justify-end gap-3">
+          <div className="w-full md:w-72 flex flex-col justify-end gap-3 text-left">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-1">目前選取：<span className="text-indigo-600 font-black">{selectedRecord ? selectedRecord.serialId : '無'}</span></div>
             <div className="grid grid-cols-2 gap-3">
               <button disabled={!selectedId || updating} onClick={() => updateStatus('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 hover:text-white transition-all group active:scale-95"><XCircle size={24} className="group-hover:scale-110 transition-transform"/><span className="font-black text-xs">駁回申請</span></button>
