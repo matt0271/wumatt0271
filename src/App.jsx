@@ -256,25 +256,29 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} /><h3>最近 30 天個人加班紀錄</h3></div>
         {recentSubmissions.length > 0 ? (
           <div className="space-y-4">{recentSubmissions.map(r => (
-            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white transition-all text-slate-900 text-left">
-              <div className="flex items-center gap-6 text-left text-slate-900 flex-wrap">
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 text-left">{r.serialId}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 text-left">類型</p><p className={`font-black text-xs text-left ${r.appType === 'pre' ? 'text-sky-600' : 'text-rose-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 text-left">類別</p><p className="font-black text-xs text-slate-700 text-left">{OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
+            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border hover:bg-white transition-all text-slate-900">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><p className={`font-black text-xs ${r.appType === 'pre' ? 'text-sky-600' : 'text-rose-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">類別</p><p className="font-black text-xs text-slate-700 truncate">{OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 text-left">時間</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
                   {r.startDate === r.endDate ? (
-                    <p className="font-bold text-xs text-slate-600 text-left">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                    <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
                   ) : (
-                    <div className="font-bold text-xs text-slate-600 text-left flex flex-col leading-tight mt-0.5 gap-0.5">
+                    <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
                       <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
                       <span>{r.endDate} {r.endHour}:{r.endMin}</span>
                     </div>
                   )}
                 </div>
-                <div><p className="text-[10px] font-black text-slate-400 text-left">時數</p><p className="font-black text-left">{r.totalHours} HR</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                  {r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                </div>
               </div>
-              <div className="flex items-center gap-3 self-end md:self-auto"><StatusBadge status={r.status} />{r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}</div>
             </div>
           ))}</div>
         ) : (
@@ -285,8 +289,9 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   );
 };
 
-const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession }) => {
+const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
@@ -311,6 +316,12 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept }));
   };
 
+  const recentSubmissions = useMemo(() => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return records.filter(r => r.formType === '請假' && r.empId === userSession.empId && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [records, userSession.empId]);
+
   const totalHours = useMemo(() => {
     if (!formData.startDate || !formData.endDate || !formData.startHour || !formData.endHour) return "";
     const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
@@ -334,6 +345,17 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
+      {withdrawTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要撤回申請？</h3>
+            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認</button></div>
+          </div>
+        </div>
+      )}
+      
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left text-slate-900">
         <div className="bg-emerald-500 px-8 py-10 text-white relative flex justify-between items-center">
           <div><h1 className="text-2xl font-black text-white text-left">請假申請單</h1><p className="text-sm opacity-80 text-left">填寫申請時段與具體理由</p></div>
@@ -360,6 +382,39 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.95] ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
         </form>
       </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm text-left">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} /><h3>最近 30 天個人請假紀錄</h3></div>
+        {recentSubmissions.length > 0 ? (
+          <div className="space-y-4">{recentSubmissions.map(r => (
+            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border hover:bg-white transition-all text-slate-900">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">假別</p><p className="font-black text-xs text-slate-700 truncate">{LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                  ) : (
+                    <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                  {r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                </div>
+              </div>
+            </div>
+          ))}</div>
+        ) : (
+          <div className="py-12 text-center text-slate-300 italic font-bold">目前無近期的請假紀錄</div>
+        )}
+      </div>
     </div>
   );
 };
@@ -378,13 +433,27 @@ const InquiryView = ({ records, userSession }) => {
         </div>
         <div className="p-8 space-y-4 text-left">
           {myRecords.length > 0 ? myRecords.map(r => (
-            <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border flex items-center justify-between hover:border-amber-300 transition-all shadow-sm">
-              <div className="flex items-center gap-8 text-left">
+            <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-amber-300 transition-all shadow-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-amber-600">{r.serialId}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                  ) : (
+                    <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
+                <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                </div>
               </div>
-              <StatusBadge status={r.status} />
             </div>
           )) : <div className="py-24 text-center text-slate-300 italic font-bold">目前無單據紀錄</div>}
         </div>
@@ -470,7 +539,7 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
                   <td className="px-8 py-5"><div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div></td>
                   <td className="px-4 py-5"><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></td>
                   <td className="px-4 py-5 font-mono font-bold text-slate-900">{r.serialId}</td>
-                  <td className="px-4 py-5 font-black text-slate-800">{r.name}<div className="text-[10px] text-slate-400 font-bold">{r.empId}</div></td>
+                  <td className="px-4 py-5 font-black text-slate-800">{r.name}<div className="text-[10px] text-slate-400 font-bold">{r.dept || '部門未設定'} / {r.empId}</div></td>
                   <td className="px-4 py-5 text-center font-bold text-slate-900">{r.totalHours}</td>
                   <td className="px-4 py-5 text-slate-900 text-xs"><p className="line-clamp-2" title={r.reason}>{r.reason}</p></td>
                   <td className="px-8 py-5 text-right text-slate-900"><StatusBadge status={r.status} /></td>
@@ -490,7 +559,7 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
             <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-indigo-600 font-bold">{selectedRecord?.serialId}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
               <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回</span></button>
-              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" />}<span className="text-center">核准</span></button>
+              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">核准</span></button>
             </div>
           </div>
         </div>
@@ -688,7 +757,7 @@ const App = () => {
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
-          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} />}
+          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
