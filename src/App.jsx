@@ -932,12 +932,26 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   const fileInputRef = useRef(null);
   const [pwdTarget, setPwdTarget] = useState(null); 
 
-  // 權限過濾：判斷是否為最高權限(root)或總經理，否則只顯示同部門員工
+  // 權限過濾：判斷是否為最高權限(root)或總經理，否則依照特定職稱與部門規則顯示
   const filteredEmployees = useMemo(() => {
     if (!userSession) return [];
+    
+    // 1. 最高管理員與總經理：看全部
     if (userSession.empId === 'root' || userSession.jobTitle === '總經理') {
       return employees;
     }
+
+    // 2. 特殊協理檢視權限
+    if (userSession.jobTitle === '協理') {
+      if (userSession.dept === '工程組') {
+        return employees.filter(emp => ['工程組', '系統組'].includes(emp.dept));
+      }
+      if (userSession.dept === '北區營業組') {
+        return employees.filter(emp => ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept));
+      }
+    }
+
+    // 3. 預設：只顯示同部門員工
     return employees.filter(emp => emp.dept === userSession.dept);
   }, [employees, userSession]);
 
