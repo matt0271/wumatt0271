@@ -36,9 +36,17 @@ const LEAVE_CATEGORIES = [
   { id: 'comp', label: '補休' }, // 新增補休類別
   { id: 'personal', label: '事假' },
   { id: 'sick', label: '病假' },
+  { id: 'sick_hospital', label: '病假(連續住院)' },
   { id: 'marriage', label: '婚假' },
   { id: 'bereavement', label: '喪假' },
-  { id: 'maternity', label: '產假 / 陪產假' },
+  { id: 'official', label: '公假' },
+  { id: 'occupational_sickness', label: '公傷假' },
+  { id: 'maternity_leave', label: '產假' },
+  { id: 'paternity_leave', label: '陪產假' },
+  { id: 'prenatal_checkup', label: '產檢假' },
+  { id: 'welfare', label: '福利假' },
+  { id: 'family_care', label: '家庭照顧假' },
+  { id: 'parental_leave', label: '育嬰留停假' },
 ];
 
 // --- Helper Components ---
@@ -541,12 +549,11 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           </div>
         </div>
         <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left text-slate-900">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-left">
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="bg-emerald-500 rounded-2xl p-4 text-white flex flex-col justify-center items-center shadow-lg font-black"><span className="text-[10px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-2xl">{totalHours || "0"}</span><span className="text-[10px]">HR</span></div></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
           </div>
           
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
