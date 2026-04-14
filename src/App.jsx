@@ -77,13 +77,32 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 
 // --- View Components ---
 
-const WelcomeView = ({ userSession, setActiveMenu }) => {
+const WelcomeView = ({ userSession, records, onRefresh }) => {
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+
   const currentDate = new Date().toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
 
+  const myPendingRecords = useMemo(() => {
+    return records
+      .filter(r => r.empId === userSession.empId && r.status === 'pending')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [records, userSession.empId]);
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
+      {withdrawTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要撤回申請？</h3>
+            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認</button></div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-sky-500 to-indigo-600 rounded-3xl shadow-xl overflow-hidden text-white relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
@@ -107,6 +126,45 @@ const WelcomeView = ({ userSession, setActiveMenu }) => {
             <div className="text-xs font-mono mt-2 bg-white/20 px-3 py-1 rounded-full text-white">{userSession.empId}</div>
           </div>
         </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm text-left">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4">
+          <Clock size={24} className="text-amber-500" />
+          <h3>處理中單據 (待主管簽核)</h3>
+        </div>
+        {myPendingRecords.length > 0 ? (
+          <div className="space-y-4">{myPendingRecords.map(r => (
+            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border hover:bg-white transition-all text-slate-900">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><p className={`font-black text-xs ${r.formType === '請假' ? 'text-emerald-600' : 'text-sky-600'}`}>{r.formType}{r.appType ? (r.appType === 'pre' ? '(事前)' : '(事後)') : ''}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">類別</p><p className="font-black text-xs text-slate-700 truncate">{r.formType === '加班' ? (OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定')}</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                  ) : (
+                    <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                  <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>
+                </div>
+              </div>
+            </div>
+          ))}</div>
+        ) : (
+          <div className="py-16 flex flex-col items-center justify-center text-center text-slate-300">
+            <CheckCircle2 size={48} className="mb-4 opacity-20" />
+            <p className="italic font-bold">太棒了！目前沒有待處理的單據</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -885,7 +943,7 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} setActiveMenu={setActiveMenu} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
