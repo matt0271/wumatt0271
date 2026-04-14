@@ -138,16 +138,29 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [appType, setAppType] = useState('pre'); // pre=事前(Sky), post=事後(Rose)
-  const [formData, setFormData] = useState({ name: userSession.name, empId: userSession.empId, category: 'regular', compensationType: 'leave', startDate: '', startHour: '', startMin: '00', endDate: '', endHour: '', endMin: '00', reason: '' });
+  const [formData, setFormData] = useState({ 
+    name: userSession.name, 
+    empId: userSession.empId, 
+    dept: userSession.dept || '', // 新增部門欄位
+    category: 'regular', 
+    compensationType: 'leave', 
+    startDate: '', 
+    startHour: '', 
+    startMin: '00', 
+    endDate: '', 
+    endHour: '', 
+    endMin: '00', 
+    reason: '' 
+  });
 
   const handleEmpIdChange = (id) => {
     const matched = employees.find(e => e.empId === id);
-    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name }));
+    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept }));
   };
 
   const handleNameChange = (name) => {
     const matched = employees.find(e => e.name === name);
-    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId }));
+    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept }));
   };
 
   const recentSubmissions = useMemo(() => {
@@ -210,17 +223,18 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <button type="button" onClick={() => setAppType('post')} className={`flex items-center justify-center gap-3 py-4 rounded-xl text-sm font-black transition-all duration-300 ${appType === 'post' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}><History size={20} />事後補報</button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
-            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full p-3 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
-            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
-            <div className="space-y-1 text-slate-900 text-left"><label className="text-[10px] font-black text-slate-400">類別</label><select className="w-full p-3 rounded-xl border bg-white font-bold text-slate-900 text-left" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1 text-slate-900 text-left"><label className="text-[10px] font-black text-slate-400">補償方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-[46px]"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='leave'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500'}`}>換補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='pay'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500'}`}>計薪</button></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end text-left">
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">類別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">補償方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='leave'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>換補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='pay'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>計薪</button></div></div>
           </div>
 
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left text-slate-900">
-            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 p-3 rounded-xl border" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="p-3 w-20 rounded-xl border font-bold bg-white text-slate-900" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="p-3 w-20 rounded-xl border font-bold bg-white text-slate-900" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 p-3 rounded-xl border" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="p-3 w-20 rounded-xl border font-bold bg-white text-slate-900" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="p-3 w-20 rounded-xl border font-bold bg-white text-slate-900" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className={`${appType === 'pre' ? 'bg-sky-500' : 'bg-rose-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 min-h-[66px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-sky-500 bg-white" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-sky-500 bg-white" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className={`${appType === 'pre' ? 'bg-sky-500' : 'bg-rose-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
           </div>
 
           <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
@@ -273,15 +287,30 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
 const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession }) => {
   const [submitting, setSubmitting] = useState(false);
-  const [formData, setFormData] = useState({ name: userSession.name, empId: userSession.empId, category: 'annual', startDate: '', startHour: '', startMin: '00', endDate: '', endHour: '', endMin: '00', reason: '' });
+  const [formData, setFormData] = useState({ 
+    name: userSession.name, 
+    empId: userSession.empId, 
+    dept: userSession.dept || '', // 新增部門欄位
+    category: 'annual', 
+    startDate: '', 
+    startHour: '', 
+    startMin: '00', 
+    endDate: '', 
+    endHour: '', 
+    endMin: '00', 
+    reason: '' 
+  });
+
   const handleEmpIdChange = (id) => {
     const matched = employees.find(e => e.empId === id);
-    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name }));
+    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept }));
   };
+
   const handleNameChange = (name) => {
     const matched = employees.find(e => e.name === name);
-    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId }));
+    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept }));
   };
+
   const totalHours = useMemo(() => {
     if (!formData.startDate || !formData.endDate || !formData.startHour || !formData.endHour) return "";
     const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
@@ -289,6 +318,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     if (isNaN(start.getTime()) || end <= start) return 0;
     return Math.round(((end - start) / (1000 * 60 * 60)) * 10) / 10;
   }, [formData]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (totalHours <= 0 || submitting) return;
@@ -301,6 +331,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '提交失敗' }); } finally { setSubmitting(false); }
   };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left text-slate-900">
@@ -311,16 +342,20 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           </div>
         </div>
         <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left text-slate-900">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-left">
-            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full p-3 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
-            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
-            <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">假別</label><select className="w-full p-3 rounded-xl border bg-white font-bold text-slate-900" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 text-left">
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
             <div className="bg-emerald-500 rounded-2xl p-4 text-white flex flex-col justify-center items-center shadow-lg font-black"><span className="text-[10px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-2xl">{totalHours || "0"}</span><span className="text-[10px]">HR</span></div></div>
           </div>
-          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-2 gap-8 items-end text-left">
-            <div><label className="text-xs font-bold text-emerald-600 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2"><input type="date" required className="flex-1 p-3 rounded-xl border bg-white" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="p-3 w-20 rounded-xl border font-bold bg-white" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="p-3 w-20 rounded-xl border font-bold bg-white" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div><label className="text-xs font-bold text-rose-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2"><input type="date" required className="flex-1 p-3 rounded-xl border bg-white" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="p-3 w-20 rounded-xl border font-bold bg-white" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="p-3 w-20 rounded-xl border font-bold bg-white" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+          
+          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-emerald-600 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-rose-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black shadow-lg"><span className="text-[9px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
           </div>
+          
           <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
           <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.95] ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
         </form>
