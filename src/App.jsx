@@ -141,7 +141,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
-    dept: userSession.dept || '', // 新增部門欄位
+    dept: userSession.dept || '', 
     category: 'regular', 
     compensationType: 'leave', 
     startDate: '', 
@@ -528,25 +528,26 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
           </div>
           <ShieldCheck size={40} className="opacity-40 text-white" />
         </div>
-        <div className="overflow-x-auto text-left">
-          <table className="w-full border-collapse text-sm text-left">
-            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b">
-              <tr><th className="px-8 py-4 text-left">選擇</th><th className="px-4 py-4 text-left">類型</th><th className="px-4 py-4 text-left">單號</th><th className="px-4 py-4 text-left">申請人</th><th className="px-4 py-4 text-center">時數</th><th className="px-4 py-4 min-w-[200px] text-left">事由</th><th className="px-8 py-4 text-right">狀態</th></tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {pendingRecords.length > 0 ? pendingRecords.map(r => (
-                <tr key={r.id} onClick={() => setSelectedId(r.id)} className={`transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 ring-2 ring-inset ring-indigo-200' : 'hover:bg-slate-50'}`}>
-                  <td className="px-8 py-5"><div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div></td>
-                  <td className="px-4 py-5"><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></td>
-                  <td className="px-4 py-5 font-mono font-bold text-slate-900">{r.serialId}</td>
-                  <td className="px-4 py-5 font-black text-slate-800">{r.name}<div className="text-[10px] text-slate-400 font-bold">{r.dept || '部門未設定'} / {r.empId}</div></td>
-                  <td className="px-4 py-5 text-center font-bold text-slate-900">{r.totalHours}</td>
-                  <td className="px-4 py-5 text-slate-900 text-xs"><p className="line-clamp-2" title={r.reason}>{r.reason}</p></td>
-                  <td className="px-8 py-5 text-right text-slate-900"><StatusBadge status={r.status} /></td>
-                </tr>
-              )) : (<tr><td colSpan="7" className="px-8 py-24 text-center text-slate-300 italic font-bold">目前無待簽核申請單</td></tr>)}
-            </tbody>
-          </table>
+        <div className="p-8 space-y-4 text-left">
+          {pendingRecords.length > 0 ? pendingRecords.map(r => (
+            <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-200' : 'bg-slate-50 hover:bg-white hover:border-indigo-200 border-slate-100'}`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1fr_1.5fr_1.5fr_3fr_1fr_auto] gap-4 items-center w-full">
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
+                </div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">申請人</p><p className="font-black text-slate-800 truncate">{r.name}</p><p className="text-[10px] text-slate-400 font-bold truncate">{r.dept || '未設定'} / {r.empId}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase">事由</p><p className="font-bold text-xs text-slate-700 line-clamp-3" title={r.reason}>{r.reason}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                </div>
+              </div>
+            </div>
+          )) : (
+            <div className="py-12 text-center text-slate-300 italic font-bold">目前無待簽核申請單</div>
+          )}
         </div>
       </div>
       {selectedId && (
