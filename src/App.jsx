@@ -200,27 +200,29 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div 
-          onClick={() => setActiveMenu && setActiveMenu(isAdmin ? 'approval' : 'integrated-query')}
-          className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full"
-        >
-          <div className="flex items-center gap-5">
-            <div className="p-4 bg-amber-50 text-amber-500 rounded-2xl">
-              <Clock size={28} />
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待簽核申請</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-slate-800">{pendingCount}</span>
-                <span className="text-sm font-bold text-slate-500">件</span>
+      <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-6`}>
+        {isAdmin && (
+          <div 
+            onClick={() => setActiveMenu && setActiveMenu('approval')}
+            className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full"
+          >
+            <div className="flex items-center gap-5">
+              <div className="p-4 bg-amber-50 text-amber-500 rounded-2xl">
+                <Clock size={28} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待簽核申請</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black text-slate-800">{pendingCount}</span>
+                  <span className="text-sm font-bold text-slate-500">件</span>
+                </div>
               </div>
             </div>
+            <div className="text-right flex flex-col gap-1.5">
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 查看進度</span>
+            </div>
           </div>
-          <div className="text-right flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 查看進度</span>
-          </div>
-        </div>
+        )}
 
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow h-full">
           <div className="flex flex-col items-center justify-center gap-3 shrink-0 sm:pr-6 sm:border-r border-slate-100">
@@ -481,6 +483,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     name: userSession.name, 
     empId: userSession.empId, 
     dept: userSession.dept || '', // 新增部門欄位
+    jobTitle: userSession.jobTitle || '', // 新增職稱欄位
+    substitute: '', // 新增代理人欄位
     category: 'annual', 
     startDate: '', 
     startHour: '', 
@@ -493,12 +497,12 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 
   const handleEmpIdChange = (id) => {
     const matched = employees.find(e => e.empId === id);
-    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept }));
+    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle }));
   };
 
   const handleNameChange = (name) => {
     const matched = employees.find(e => e.name === name);
-    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept }));
+    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle }));
   };
 
   const recentSubmissions = useMemo(() => {
@@ -549,11 +553,13 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           </div>
         </div>
         <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left text-slate-900">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end text-left">
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">職稱 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">代理人 <span className="text-rose-500">*</span></label><input type="text" required placeholder="職務代理人姓名" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})} /></div>
           </div>
           
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
@@ -563,6 +569,27 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           </div>
           
           <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+          
+          <div className="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-2xl text-[11px] font-bold text-emerald-800 space-y-3 text-left shadow-sm">
+            <div>
+              <h4 className="flex items-center gap-2 text-emerald-900 font-black mb-1 text-sm"><Info size={16} className="text-emerald-600"/> 簽核流程：</h4>
+              <p className="leading-relaxed">申請人 → 經副理(請假天數3日(含)以下) → 協理(請假天數5日(含)以下) → 總經理(請假天數5日以上) → 交辦(財務行政部)。單位主管一天(含)以上由總經理核定。</p>
+            </div>
+            <div className="pt-3 border-t border-emerald-200">
+              <p className="font-black text-emerald-900 mb-2">連續日期之請假單不可分開簽核，並均須檢附相關證明文件或說明事項：</p>
+              <ul className="space-y-1.5">
+                <li>一. 婚假：以日為單位，可分次或連續實施，於結婚之日前10日起三個月內休完。檢附結婚證明。</li>
+                <li>二. 喪假：以日為單位，可分次或連續實施。檢附訃文。</li>
+                <li>三. 普通傷病假：以日或時為單位，請假日數超過一日以上，檢附健保醫院或公立醫院或公司特約醫院診斷證明(附醫囑建議休息天數)。</li>
+                <li>四. 事假：以日或時為單位。</li>
+                <li>五. 分娩假：以日為單位。檢附診斷證明或出生證明。</li>
+                <li>六. 陪產假：以日為單位，於配偶分娩之當日及其前後合計十五日期間內，擇其中之五日請假。檢附診斷證明或出生證明。</li>
+                <li>七. 產檢假：以半日或小時為單位，一經選定不得更改。檢附診斷證明或媽媽手冊。</li>
+                <li>八. 給假天數均依勞基法辦理。</li>
+              </ul>
+            </div>
+          </div>
+
           <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.95] ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
         </form>
       </div>
