@@ -926,7 +926,8 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
 };
 
 const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession }) => {
-  const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
+  const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '', gender: '', birthDate: '', hireDate: '' });
+  const [showDetails, setShowDetails] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -966,8 +967,8 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   }, [employees]);
 
   useEffect(() => { if (!window.XLSX) { const script = document.createElement('script'); script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"; script.async = true; document.head.appendChild(script); } }, []);
-  const handleExport = () => { if (!window.XLSX) return; const data = filteredEmployees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
-  const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "" }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
+  const handleExport = () => { if (!window.XLSX) return; const data = filteredEmployees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept, "性別": emp.gender || '', "出生年月日": emp.birthDate || '', "到職日": emp.hireDate || '' })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
+  const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "", gender: row["性別"] || "", birthDate: row["出生年月日"] || "", hireDate: row["到職日"] || "" }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-900">
       {pwdTarget && (
@@ -992,24 +993,40 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
           <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 rounded-xl text-xs font-bold border border-sky-100 transition-colors"><Upload size={16}/> 匯入 Excel</button>
           <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" className="hidden" />
         </div>
-        <form onSubmit={e=>{e.preventDefault(); const url=editingId?`${NGROK_URL}/api/employees/${editingId}`:`${NGROK_URL}/api/employees`; fetch(url,{method:editingId?'PUT':'POST',headers:fetchOptions.headers,body:JSON.stringify(formData)}).then(()=>{onRefresh(); setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:''});});}} className="p-8 space-y-6 text-left">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
-            <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
-            <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-            
-            <div>
-              <input type="text" list="titles-list" placeholder="職稱" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
-              <datalist id="titles-list">
-                {availableTitles.map(t=><option key={t} value={t} />)}
-              </datalist>
+        <form onSubmit={e=>{e.preventDefault(); const url=editingId?`${NGROK_URL}/api/employees/${editingId}`:`${NGROK_URL}/api/employees`; fetch(url,{method:editingId?'PUT':'POST',headers:fetchOptions.headers,body:JSON.stringify(formData)}).then(()=>{onRefresh(); setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:'', gender:'', birthDate:'', hireDate:''}); setShowDetails(false);});}} className="p-8 space-y-6 text-left">
+          <div className="space-y-4 text-left">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
+              <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
+              <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
+              
+              <div>
+                <input type="text" list="titles-list" placeholder="職稱" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
+                <datalist id="titles-list">
+                  {availableTitles.map(t=><option key={t} value={t} />)}
+                </datalist>
+              </div>
+
+              <div>
+                <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
+                <datalist id="depts-list">
+                  {availableDepts.map(d=><option key={d} value={d} />)}
+                </datalist>
+              </div>
             </div>
 
-            <div>
-              <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
-              <datalist id="depts-list">
-                {availableDepts.map(d=><option key={d} value={d} />)}
-              </datalist>
+            <div className="text-left pt-2">
+              <button type="button" onClick={() => setShowDetails(!showDetails)} className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1.5 transition-colors bg-sky-50 px-3 py-2 rounded-lg">
+                {showDetails ? <EyeOff size={14} /> : <Eye size={14} />} {showDetails ? '隱藏進階人事資料' : '填寫進階人事資料 (性別 / 生日 / 到職日)'}
+              </button>
             </div>
+
+            {showDetails && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left p-5 bg-slate-100/50 rounded-2xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">性別</label><select className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">出生年月日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.birthDate} onChange={e=>setFormData({...formData, birthDate:e.target.value})} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">到職日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.hireDate} onChange={e=>setFormData({...formData, hireDate:e.target.value})} /></div>
+              </div>
+            )}
           </div>
           <button className="w-full py-4 bg-slate-600 text-white rounded-2xl font-black text-center hover:bg-slate-700 transition-colors"> {editingId ? '更新資料' : '新增人員'} </button>
         </form>
@@ -1022,11 +1039,14 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
               {filteredEmployees.map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-8 py-5 font-mono font-bold text-slate-600">{emp.empId}</td>
-                  <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
+                  <td className="px-4 py-5">
+                    <div className="font-black text-slate-800">{emp.name} {emp.gender && <span className="text-[10px] text-slate-400 font-bold ml-1">({emp.gender})</span>}</div>
+                    {(emp.birthDate || emp.hireDate) && <div className="text-[10px] text-slate-400 font-bold mt-1">到職: {emp.hireDate || '-'} | 生日: {emp.birthDate || '-'}</div>}
+                  </td>
                   <td className="px-4 py-5 text-left"><div className="font-bold text-slate-900">{emp.jobTitle}</div><div className="text-[10px] text-slate-400 font-bold">{emp.dept}</div></td>
                   <td className="px-4 py-5 text-left"><div className="flex items-center gap-3">{(emp.password && emp.password !== emp.empId) && (<span className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold bg-emerald-100 text-emerald-700">已自訂</span>)}<button onClick={()=>setPwdTarget(emp)} className="text-[10px] font-black text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><RotateCcw size={12}/>還原</button></div></td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2 text-slate-900">
-                    <button onClick={()=>{setEditingId(emp.id);setFormData(emp); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={()=>{setEditingId(emp.id);setFormData({ ...emp, gender: emp.gender || '', birthDate: emp.birthDate || '', hireDate: emp.hireDate || '' }); setShowDetails(!!(emp.gender || emp.birthDate || emp.hireDate)); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
                     <button onClick={() => { if(window.confirm("確定刪除？")) fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers }).then(onRefresh); }} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
                   </td>
                 </tr>
