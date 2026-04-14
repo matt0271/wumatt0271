@@ -420,42 +420,128 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 };
 
 const InquiryView = ({ records, userSession }) => {
-  const myRecords = useMemo(() => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return records.filter(r => r.empId === userSession.empId && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [records, userSession.empId]);
+  const [filters, setFilters] = useState({
+    formType: '',
+    serialId: '',
+    status: '',
+    startDate: '',
+    endDate: ''
+  });
+  const [searchResults, setSearchResults] = useState([]);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const handleSearch = (e) => {
+    if (e) e.preventDefault();
+    
+    const results = records.filter(r => {
+      // 1. 僅顯示當前登入者的單據
+      if (r.empId !== userSession.empId) return false;
+      
+      // 2. 類型篩選
+      if (filters.formType && r.formType !== filters.formType) return false;
+      
+      // 3. 單號模糊篩選 (忽略大小寫)
+      if (filters.serialId && r.serialId && !r.serialId.toLowerCase().includes(filters.serialId.toLowerCase())) return false;
+      
+      // 4. 狀態篩選
+      if (filters.status && r.status !== filters.status) return false;
+      
+      // 5. 日期區間篩選 (以單據起始日為主)
+      if (filters.startDate && r.startDate < filters.startDate) return false;
+      if (filters.endDate && r.startDate > filters.endDate) return false;
+      
+      return true;
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    setSearchResults(results);
+    setHasSearched(true);
+  };
+
+  const handleReset = () => {
+    setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
+    setSearchResults([]);
+    setHasSearched(false);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-amber-400 px-8 py-10 text-white flex justify-between items-center">
-          <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">查看近 30 天內所有單據狀態</p></div><ClipboardList size={40} className="opacity-30" />
+          <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據</p></div><Search size={40} className="opacity-30" />
         </div>
+        
+        <form onSubmit={handleSearch} className="p-8 border-b border-slate-100 bg-slate-50/50 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">單據類型</label>
+              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.formType} onChange={e => setFilters({...filters, formType: e.target.value})}>
+                <option value="">全部</option>
+                <option value="加班">加班申請</option>
+                <option value="請假">請假申請</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">單號包含 (模糊搜尋)</label>
+              <input type="text" placeholder="例如: OT001" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.serialId} onChange={e => setFilters({...filters, serialId: e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">簽核狀態</label>
+              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+                <option value="">全部</option>
+                <option value="pending">待簽核</option>
+                <option value="approved">已核准</option>
+                <option value="rejected">已駁回</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">起始日期 (從)</label>
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">結束日期 (至)</label>
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} />
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end pt-2">
+            <button type="button" onClick={handleReset} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">清除重設</button>
+            <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-amber-500 hover:bg-amber-600 shadow-md transition-colors flex items-center gap-2"><Search size={18}/> 執行查詢</button>
+          </div>
+        </form>
+
         <div className="p-8 space-y-4 text-left">
-          {myRecords.length > 0 ? myRecords.map(r => (
-            <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-amber-300 transition-all shadow-sm">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-amber-600">{r.serialId}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
-                  {r.startDate === r.endDate ? (
-                    <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
-                  ) : (
-                    <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
-                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
-                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
-                    </div>
-                  )}
-                </div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
-                <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1">
-                  <StatusBadge status={r.status} />
+          {!hasSearched ? (
+            <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3">
+              <Search size={48} className="opacity-20 mb-2" />
+              <p>請設定上方查詢條件，並點擊「執行查詢」查看單據</p>
+            </div>
+          ) : searchResults.length > 0 ? (
+            searchResults.map(r => (
+              <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-amber-300 transition-all shadow-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-amber-600">{r.serialId}</p></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
+                    {r.startDate === r.endDate ? (
+                      <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                    ) : (
+                      <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
+                        <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                        <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
+                  <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1">
+                    <StatusBadge status={r.status} />
+                  </div>
                 </div>
               </div>
-            </div>
-          )) : <div className="py-24 text-center text-slate-300 italic font-bold">目前無單據紀錄</div>}
+            ))
+          ) : (
+            <div className="py-24 text-center text-slate-400 italic font-bold">查無符合條件的單據</div>
+          )}
         </div>
       </div>
     </div>
