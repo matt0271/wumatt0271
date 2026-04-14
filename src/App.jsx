@@ -238,9 +238,9 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         </form>
       </div>
 
-      {recentSubmissions.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm text-left">
-          <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} /><h3>最近 30 天個人加班紀錄</h3></div>
+      <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm text-left">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} /><h3>最近 30 天個人加班紀錄</h3></div>
+        {recentSubmissions.length > 0 ? (
           <div className="space-y-4">{recentSubmissions.map(r => (
             <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border flex items-center justify-between hover:bg-white transition-all text-slate-900 text-left">
               <div className="flex items-center gap-8 text-left text-slate-900">
@@ -248,11 +248,13 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                 <div><p className="text-[10px] font-black text-slate-400 text-left">類型</p><p className={`font-black text-xs text-left ${r.appType === 'pre' ? 'text-sky-600' : 'text-rose-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 text-left">時數</p><p className="font-black text-left">{r.totalHours} HR</p></div>
               </div>
-              <div className="flex items-center gap-3"><StatusBadge status={r.status} />{r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Undo2 size={16}/></button>}</div>
+              <div className="flex items-center gap-3"><StatusBadge status={r.status} />{r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}</div>
             </div>
           ))}</div>
-        </div>
-      )}
+        ) : (
+          <div className="py-12 text-center text-slate-300 italic font-bold">目前無近期的加班紀錄</div>
+        )}
+      </div>
     </div>
   );
 };
