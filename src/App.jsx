@@ -242,13 +242,25 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} /><h3>最近 30 天個人加班紀錄</h3></div>
         {recentSubmissions.length > 0 ? (
           <div className="space-y-4">{recentSubmissions.map(r => (
-            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border flex items-center justify-between hover:bg-white transition-all text-slate-900 text-left">
-              <div className="flex items-center gap-8 text-left text-slate-900">
+            <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white transition-all text-slate-900 text-left">
+              <div className="flex items-center gap-6 text-left text-slate-900 flex-wrap">
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 text-left">{r.serialId}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 text-left">類型</p><p className={`font-black text-xs text-left ${r.appType === 'pre' ? 'text-sky-600' : 'text-rose-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 text-left">類別</p><p className="font-black text-xs text-slate-700 text-left">{OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 text-left">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-600 text-left">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                  ) : (
+                    <div className="font-bold text-xs text-slate-600 text-left flex flex-col leading-tight mt-0.5 gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
                 <div><p className="text-[10px] font-black text-slate-400 text-left">時數</p><p className="font-black text-left">{r.totalHours} HR</p></div>
               </div>
-              <div className="flex items-center gap-3"><StatusBadge status={r.status} />{r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}</div>
+              <div className="flex items-center gap-3 self-end md:self-auto"><StatusBadge status={r.status} />{r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}</div>
             </div>
           ))}</div>
         ) : (
