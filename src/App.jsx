@@ -200,7 +200,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
           </div>
           <h1 className="text-2xl font-black text-white">加班申請單</h1>
           <p className="mt-1 text-sm opacity-90 font-medium text-white">
-            {appType === 'pre' ? '模式：事前申請 (Blue)' : '模式：事後補報 (Rose)'}
+            {appType === 'pre' ? '事前申請' : '事後補報'}
           </p>
         </div>
 
@@ -225,8 +225,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
           <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
           
-          <div className="bg-slate-50 border-l-4 border-slate-300 p-5 rounded-r-2xl text-[11px] font-bold text-slate-600 space-y-1 text-left">
-            <h4 className="flex items-center gap-2 text-slate-700 font-black mb-1 text-sm"><Info size={14}/> 備註：</h4>
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-2xl text-[11px] font-bold text-amber-800 space-y-1 text-left shadow-sm">
+            <h4 className="flex items-center gap-2 text-amber-900 font-black mb-1 text-sm"><Info size={16} className="text-amber-600"/> 備註：</h4>
             <p>A. 加班申請須事前由直屬主管核准，始得進行加班。</p>
             <p>B. 此單於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
             <p>C. 此加班工時將依比率換算為補休時數或薪資。</p>
