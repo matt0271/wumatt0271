@@ -649,14 +649,14 @@ const App = () => {
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{setUserSession(u);setNotification({type:'success',text:`${u.name} 登入成功`});}} />;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex text-left font-sans text-slate-900 overflow-hidden">
+    <div className="h-screen w-full bg-slate-50 flex text-left font-sans text-slate-900 overflow-hidden">
       {notification && (
         <div className={`fixed top-10 right-10 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 border text-slate-900 ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>
           {notification.type === 'success' ? <CheckCircle size={20} className="text-emerald-600" /> : <AlertTriangle size={20} className="text-rose-600" />}
           <span className="font-bold text-sm text-slate-700">{notification.text}</span>
         </div>
       )}
-      <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col sticky top-0 h-screen shadow-sm shrink-0 text-left">
+      <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col h-full shadow-sm shrink-0 text-left z-20">
         <div className="flex items-center gap-4 mb-10 text-sky-500"><div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white"><LayoutDashboard size={24} /></div><h2 className="font-black text-xl tracking-tight text-sky-600">員工服務平台</h2></div>
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
@@ -685,7 +685,7 @@ const App = () => {
           </button>
         </div>
       </aside>
-      <main className="flex-grow p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
+      <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} />}
