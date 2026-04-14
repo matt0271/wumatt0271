@@ -931,6 +931,17 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [pwdTarget, setPwdTarget] = useState(null); 
+
+  const availableDepts = useMemo(() => {
+    const depts = employees.map(e => e.dept).filter(Boolean);
+    return [...new Set(depts)];
+  }, [employees]);
+
+  const availableTitles = useMemo(() => {
+    const titles = employees.map(e => e.jobTitle).filter(Boolean);
+    return [...new Set(titles)];
+  }, [employees]);
+
   useEffect(() => { if (!window.XLSX) { const script = document.createElement('script'); script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"; script.async = true; document.head.appendChild(script); } }, []);
   const handleExport = () => { if (!window.XLSX) return; const data = employees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
   const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "" }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
@@ -962,8 +973,20 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
             <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
             <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-            <input type="text" placeholder="職稱" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
-            <input type="text" placeholder="單位" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
+            
+            <div>
+              <input type="text" list="titles-list" placeholder="職稱" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
+              <datalist id="titles-list">
+                {availableTitles.map(t=><option key={t} value={t} />)}
+              </datalist>
+            </div>
+
+            <div>
+              <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
+              <datalist id="depts-list">
+                {availableDepts.map(d=><option key={d} value={d} />)}
+              </datalist>
+            </div>
           </div>
           <button className="w-full py-4 bg-slate-600 text-white rounded-2xl font-black text-center hover:bg-slate-700 transition-colors"> {editingId ? '更新資料' : '新增人員'} </button>
         </form>
@@ -980,7 +1003,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
                   <td className="px-4 py-5 text-left"><div className="font-bold text-slate-900">{emp.jobTitle}</div><div className="text-[10px] text-slate-400 font-bold">{emp.dept}</div></td>
                   <td className="px-4 py-5 text-left"><div className="flex items-center gap-3">{(emp.password && emp.password !== emp.empId) && (<span className="px-2 py-1 rounded-lg text-[10px] font-mono font-bold bg-emerald-100 text-emerald-700">已自訂</span>)}<button onClick={()=>setPwdTarget(emp)} className="text-[10px] font-black text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><RotateCcw size={12}/>還原</button></div></td>
                   <td className="px-8 py-5 text-right flex justify-end gap-2 text-slate-900">
-                    <button onClick={()=>{setEditingId(emp.id);setFormData(emp);window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={()=>{setEditingId(emp.id);setFormData(emp); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
                     <button onClick={() => { if(window.confirm("確定刪除？")) fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers }).then(onRefresh); }} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
                   </td>
                 </tr>
