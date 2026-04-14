@@ -925,12 +925,21 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
   );
 };
 
-const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
+const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '' });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [pwdTarget, setPwdTarget] = useState(null); 
+
+  // 權限過濾：判斷是否為最高權限(root)或總經理，否則只顯示同部門員工
+  const filteredEmployees = useMemo(() => {
+    if (!userSession) return [];
+    if (userSession.empId === 'root' || userSession.jobTitle === '總經理') {
+      return employees;
+    }
+    return employees.filter(emp => emp.dept === userSession.dept);
+  }, [employees, userSession]);
 
   const availableDepts = useMemo(() => {
     const depts = employees.map(e => e.dept).filter(Boolean);
@@ -943,7 +952,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
   }, [employees]);
 
   useEffect(() => { if (!window.XLSX) { const script = document.createElement('script'); script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"; script.async = true; document.head.appendChild(script); } }, []);
-  const handleExport = () => { if (!window.XLSX) return; const data = employees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
+  const handleExport = () => { if (!window.XLSX) return; const data = filteredEmployees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
   const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "" }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-900">
@@ -996,7 +1005,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
               <tr><th className="px-8 py-4 text-left">員編</th><th className="px-4 py-4 text-left">姓名</th><th className="px-4 py-4 text-left">職稱 / 單位</th><th className="px-4 py-4 text-left">登入密碼</th><th className="px-8 py-4 text-right">操作</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {employees.map(emp => (
+              {filteredEmployees.map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-8 py-5 font-mono font-bold text-slate-600">{emp.empId}</td>
                   <td className="px-4 py-5 font-black text-slate-800">{emp.name}</td>
@@ -1151,7 +1160,7 @@ const App = () => {
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
-          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} />}
+          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
         </div>
       </main>
     </div>
