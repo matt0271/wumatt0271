@@ -580,14 +580,34 @@ const App = () => {
 
   const otSerialId = useMemo(() => {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const todaysCount = records.filter(r => r.serialId?.startsWith(dateStr) && r.formType === '加班').length;
-    return `${dateStr}-OT${String(todaysCount + 1).padStart(3, '0')}`;
+    const todaysRecords = records.filter(r => r.serialId?.startsWith(dateStr) && r.formType === '加班');
+    let maxCount = 0;
+    todaysRecords.forEach(r => {
+      if (r.serialId) {
+        const match = r.serialId.match(/-OT(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxCount) maxCount = num;
+        }
+      }
+    });
+    return `${dateStr}-OT${String(maxCount + 1).padStart(3, '0')}`;
   }, [records]);
 
   const leaveSerialId = useMemo(() => {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const todaysCount = records.filter(r => r.serialId?.startsWith(dateStr) && r.formType === '請假').length;
-    return `${dateStr}-LV${String(todaysCount + 1).padStart(3, '0')}`;
+    const todaysRecords = records.filter(r => r.serialId?.startsWith(dateStr) && r.formType === '請假');
+    let maxCount = 0;
+    todaysRecords.forEach(r => {
+      if (r.serialId) {
+        const match = r.serialId.match(/-LV(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxCount) maxCount = num;
+        }
+      }
+    });
+    return `${dateStr}-LV${String(maxCount + 1).padStart(3, '0')}`;
   }, [records]);
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
