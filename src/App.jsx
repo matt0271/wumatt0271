@@ -33,6 +33,7 @@ const OT_CATEGORIES = [
 
 const LEAVE_CATEGORIES = [
   { id: 'annual', label: '特別休假' },
+  { id: 'comp', label: '補休' }, // 新增補休類別
   { id: 'personal', label: '事假' },
   { id: 'sick', label: '病假' },
   { id: 'marriage', label: '婚假' },
@@ -90,6 +91,42 @@ const WelcomeView = ({ userSession, records, onRefresh }) => {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [records, userSession.empId]);
 
+  // 計算休假餘額
+  const { remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
+    let usedAnn = 0;
+    let earnedCmp = 0;
+    let usedCmp = 0;
+    
+    records.forEach(r => {
+      // 只有已核准的單據才會影響餘額計算
+      if (r.empId === userSession.empId && r.status === 'approved') {
+        // 計算已用特休
+        if (r.formType === '請假' && r.category === 'annual') {
+          usedAnn += (parseFloat(r.totalHours) || 0);
+        }
+        // 計算累計補休 (來自加班單，且選擇換補休)
+        if (r.formType === '加班' && r.compensationType === 'leave') {
+          earnedCmp += (parseFloat(r.totalHours) || 0);
+        }
+        // 計算已用補休
+        if (r.formType === '請假' && r.category === 'comp') {
+          usedCmp += (parseFloat(r.totalHours) || 0);
+        }
+      }
+    });
+
+    // 暫定年度特休總額為 80 小時 (10天)
+    const totalAnnual = 80;
+
+    return {
+      usedAnnual: usedAnn,
+      remainAnnual: Math.max(0, totalAnnual - usedAnn),
+      earnedComp: earnedCmp,
+      usedComp: usedCmp,
+      remainComp: Math.max(0, earnedCmp - usedCmp)
+    };
+  }, [records, userSession.empId]);
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
       {withdrawTarget && (
@@ -124,6 +161,46 @@ const WelcomeView = ({ userSession, records, onRefresh }) => {
             <div className="text-sm font-bold text-sky-100 mb-1">{userSession.dept || '所屬部門'}</div>
             <div className="text-2xl font-black">{userSession.jobTitle || '員工'}</div>
             <div className="text-xs font-mono mt-2 bg-white/20 px-3 py-1 rounded-full text-white">{userSession.empId}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+              <CalendarDays size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">特休餘額</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-slate-800">{remainAnnual}</span>
+                <span className="text-sm font-bold text-slate-500">HR</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">總額度 80 HR</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 {usedAnnual} HR</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-sky-50 text-sky-600 rounded-2xl">
+              <Timer size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">補休餘額</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-slate-800">{remainComp}</span>
+                <span className="text-sm font-bold text-slate-500">HR</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">總累計 {earnedComp} HR</span>
+            <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-1 rounded-lg">已用 {usedComp} HR</span>
           </div>
         </div>
       </div>
