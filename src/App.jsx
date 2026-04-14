@@ -5,7 +5,7 @@ import {
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
-  CalendarPlus, ClipboardList, HelpCircle, Timer
+  CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles
 } from 'lucide-react';
 
 // --- API 設定 ---
@@ -76,6 +76,41 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 );
 
 // --- View Components ---
+
+const WelcomeView = ({ userSession, setActiveMenu }) => {
+  const currentDate = new Date().toLocaleDateString('zh-TW', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  });
+
+  return (
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
+      <div className="bg-gradient-to-br from-sky-500 to-indigo-600 rounded-3xl shadow-xl overflow-hidden text-white relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+        
+        <div className="p-10 md:p-14 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-xs font-bold text-sky-50 border border-white/10">
+              <Sparkles size={14} /> 今天是 {currentDate}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight">
+              歡迎回來，{userSession.name}！
+            </h1>
+            <p className="text-sky-100 text-sm md:text-base font-medium opacity-90 max-w-lg leading-relaxed">
+              這裡是您的專屬員工服務中心。您可以在此快速進行各項表單申請、進度查詢與資料管理。祝您有美好的一天！
+            </p>
+          </div>
+          
+          <div className="hidden md:flex flex-col items-center justify-center p-6 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-inner min-w-[200px]">
+            <div className="text-sm font-bold text-sky-100 mb-1">{userSession.dept || '所屬部門'}</div>
+            <div className="text-2xl font-black">{userSession.jobTitle || '員工'}</div>
+            <div className="text-xs font-mono mt-2 bg-white/20 px-3 py-1 rounded-full text-white">{userSession.empId}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const LoginView = ({ employees, onLogin, apiError }) => {
   const [identifier, setIdentifier] = useState('');
@@ -726,7 +761,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification }) => {
 // --- App Component ---
 
 const App = () => {
-  const [activeMenu, setActiveMenu] = useState('overtime');
+  const [activeMenu, setActiveMenu] = useState('welcome');
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -813,9 +848,16 @@ const App = () => {
         </div>
       )}
       <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col h-full shadow-sm shrink-0 text-left z-20">
-        <div className="flex items-center gap-4 mb-10 text-sky-500"><div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white"><LayoutDashboard size={24} /></div><h2 className="font-black text-xl tracking-tight text-sky-600">員工服務平台</h2></div>
+        <div 
+          onClick={() => setActiveMenu('welcome')} 
+          className="flex items-center gap-4 mb-10 text-sky-500 cursor-pointer hover:opacity-80 transition-opacity"
+        >
+          <div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white"><LayoutDashboard size={24} /></div>
+          <h2 className="font-black text-xl tracking-tight text-sky-600">員工服務平台</h2>
+        </div>
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
+          <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
@@ -843,6 +885,7 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} setActiveMenu={setActiveMenu} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
