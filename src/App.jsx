@@ -92,9 +92,12 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
     return records.filter(r => r.empId === userSession.empId && r.status === 'pending').length;
   }, [records, userSession.empId, isAdmin]);
 
-  const draftCount = useMemo(() => {
-    // 將被退回的表單作為需要待處理/完成的單據數量
-    return records.filter(r => r.empId === userSession.empId && r.status === 'rejected').length;
+  const processingOtCount = useMemo(() => {
+    return records.filter(r => r.empId === userSession.empId && r.formType === '加班' && r.status === 'pending').length;
+  }, [records, userSession.empId]);
+
+  const processingLvCount = useMemo(() => {
+    return records.filter(r => r.empId === userSession.empId && r.formType === '請假' && r.status === 'pending').length;
   }, [records, userSession.empId]);
 
   // 計算休假餘額
@@ -192,7 +195,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div 
           onClick={() => setActiveMenu && setActiveMenu(isAdmin ? 'approval' : 'integrated-query')}
-          className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98]"
+          className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full"
         >
           <div className="flex items-center gap-5">
             <div className="p-4 bg-amber-50 text-amber-500 rounded-2xl">
@@ -211,24 +214,39 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
           </div>
         </div>
 
-        <div 
-          onClick={() => setActiveMenu && setActiveMenu('integrated-query')}
-          className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-sky-300 transition-all cursor-pointer active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-5">
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow h-full">
+          <div className="flex flex-col items-center justify-center gap-3 shrink-0 sm:pr-6 sm:border-r border-slate-100">
             <div className="p-4 bg-sky-50 text-sky-500 rounded-2xl">
               <FileText size={28} />
             </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待完成表單</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">流程處理中</p>
+          </div>
+          
+          <div className="flex flex-col gap-3 flex-1 w-full">
+            <div 
+              onClick={() => setActiveMenu && setActiveMenu('overtime')}
+              className="bg-slate-50 hover:bg-sky-50 border border-slate-100 hover:border-sky-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98]"
+            >
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-sky-600">
+                加班申請 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
+              </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-slate-800">{draftCount}</span>
-                <span className="text-sm font-bold text-slate-500">件</span>
+                <span className="text-2xl font-black text-slate-800 group-hover:text-sky-600">{processingOtCount}</span>
+                <span className="text-[10px] font-bold text-slate-500 group-hover:text-sky-500">件</span>
               </div>
             </div>
-          </div>
-          <div className="text-right flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 前往處理</span>
+            <div 
+              onClick={() => setActiveMenu && setActiveMenu('leave-apply')}
+              className="bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98]"
+            >
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-emerald-600">
+                請假申請 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-black text-slate-800 group-hover:text-emerald-600">{processingLvCount}</span>
+                <span className="text-[10px] font-bold text-slate-500 group-hover:text-emerald-500">件</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
