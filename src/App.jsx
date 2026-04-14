@@ -525,7 +525,33 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     const start = new Date(`${formData.startDate}T${formData.startHour}:${formData.startMin}:00`);
     const end = new Date(`${formData.endDate}T${formData.endHour}:${formData.endMin}:00`);
     if (isNaN(start.getTime()) || end <= start) return 0;
-    return Math.round(((end - start) / (1000 * 60 * 60)) * 10) / 10;
+    
+    let totalMs = end.getTime() - start.getTime();
+    
+    // 計算跨越的天數並扣除每日 12:30 ~ 13:30 的午休時間 (1小時)
+    let currentDay = new Date(start);
+    currentDay.setHours(0, 0, 0, 0);
+    const endDay = new Date(end);
+    endDay.setHours(0, 0, 0, 0);
+
+    let deductMs = 0;
+    while (currentDay <= endDay) {
+      const lunchStart = new Date(currentDay);
+      lunchStart.setHours(12, 30, 0, 0);
+      const lunchEnd = new Date(currentDay);
+      lunchEnd.setHours(13, 30, 0, 0);
+
+      // 計算請假區間與當日午休時間的重疊部分
+      const overlapStart = Math.max(start.getTime(), lunchStart.getTime());
+      const overlapEnd = Math.min(end.getTime(), lunchEnd.getTime());
+
+      if (overlapEnd > overlapStart) {
+        deductMs += (overlapEnd - overlapStart);
+      }
+      currentDay.setDate(currentDay.getDate() + 1);
+    }
+
+    return Math.max(0, Math.round(((totalMs - deductMs) / (1000 * 60 * 60)) * 10) / 10);
   }, [formData]);
 
   const handleSubmit = async (e) => {
