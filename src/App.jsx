@@ -197,6 +197,9 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return announcements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
   }, [announcements]);
 
+  // 限制首頁最多顯示 5 筆
+  const displayAnnouncements = activeAnnouncements.slice(0, 5);
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans relative">
       
@@ -251,12 +254,19 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden text-left">
-        <div className="bg-slate-50/80 border-b border-slate-100 p-5 sm:px-8 flex items-center gap-3">
-          <Bell size={20} className="text-rose-500" />
-          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">最新公告</h2>
+        <div className="bg-slate-50/80 border-b border-slate-100 p-5 sm:px-8 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Bell size={20} className="text-rose-500" />
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">最新公告</h2>
+          </div>
+          {activeAnnouncements.length > 5 && (
+            <button onClick={() => setActiveMenu('announcement-list')} className="text-[10px] font-bold text-yellow-600 hover:text-yellow-700 flex items-center gap-1 transition-colors">
+              查看全部 <ArrowRight size={12} />
+            </button>
+          )}
         </div>
         <div className="divide-y divide-slate-100">
-          {activeAnnouncements.length > 0 ? activeAnnouncements.map(ann => {
+          {displayAnnouncements.length > 0 ? displayAnnouncements.map(ann => {
             const typeInfo = ANNOUNCEMENT_TYPES.find(t => t.id === ann.type) || ANNOUNCEMENT_TYPES[0];
             return (
             <div 
@@ -276,6 +286,16 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
             );
           }) : (
             <div className="p-8 text-center text-slate-400 text-sm font-bold italic">目前無最新公告</div>
+          )}
+          {activeAnnouncements.length > 5 && (
+            <div 
+              onClick={() => setActiveMenu('announcement-list')} 
+              className="p-4 bg-slate-50/50 hover:bg-yellow-50 transition-colors cursor-pointer text-center group border-t border-slate-100"
+            >
+              <span className="text-xs font-bold text-slate-500 group-hover:text-yellow-600 flex items-center justify-center gap-1.5">
+                前往佈告欄查看全部 {activeAnnouncements.length} 則公告 <ArrowRight size={14} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all"/>
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -380,6 +400,80 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 新增：公告佈告欄元件 (供員工查詢所有公告)
+const AnnouncementListView = ({ announcements }) => {
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+
+  const activeAnnouncements = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return announcements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
+  }, [announcements]);
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans relative">
+      
+      {/* 公告詳細視窗 Modal */}
+      {selectedAnnouncement && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${ANNOUNCEMENT_TYPES.find(t => t.id === selectedAnnouncement.type)?.colorClass || ANNOUNCEMENT_TYPES[0].colorClass}`}>
+                  {ANNOUNCEMENT_TYPES.find(t => t.id === selectedAnnouncement.type)?.label}
+                </span>
+                <span className="text-xs font-bold text-slate-400 font-mono">{selectedAnnouncement.date} 發布</span>
+              </div>
+              <button onClick={() => setSelectedAnnouncement(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 md:p-8 overflow-y-auto">
+              <h2 className="text-2xl font-black text-slate-800 mb-6 leading-snug">{selectedAnnouncement.title}</h2>
+              <div className="text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">
+                {selectedAnnouncement.content || '此公告目前沒有詳細內文。'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-yellow-300 px-8 py-10 text-yellow-950 flex justify-between items-center text-left">
+          <div>
+            <h1 className="text-2xl font-black text-yellow-950 text-left">公告佈告欄</h1>
+            <p className="text-sm opacity-80 italic text-yellow-900 text-left">查看公司所有最新與歷史公告</p>
+          </div>
+          <Bell size={40} className="opacity-40 text-yellow-700" />
+        </div>
+        
+        <div className="divide-y divide-slate-100">
+          {activeAnnouncements.length > 0 ? activeAnnouncements.map(ann => {
+            const typeInfo = ANNOUNCEMENT_TYPES.find(t => t.id === ann.type) || ANNOUNCEMENT_TYPES[0];
+            return (
+            <div 
+              key={ann.id} 
+              onClick={() => setSelectedAnnouncement(ann)}
+              className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group"
+            >
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${typeInfo.colorClass}`}>
+                  {typeInfo.label}
+                </span>
+                {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
+              </div>
+              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-yellow-600 transition-colors truncate">{ann.title}</p>
+              <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date} 發布</span>
+            </div>
+            );
+          }) : (
+            <div className="p-16 text-center text-slate-400 text-sm font-bold italic">目前無任何公告資料</div>
+          )}
         </div>
       </div>
     </div>
@@ -946,7 +1040,12 @@ const InquiryView = ({ records, userSession }) => {
             searchResults.map(r => (
               <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-fuchsia-300 transition-all shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType}</span></div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">類型</p>
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
+                      {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
+                    </span>
+                  </div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-fuchsia-600">{r.serialId}</p></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
@@ -1536,6 +1635,7 @@ const App = () => {
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
           <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
+          <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Bell size={20} /> 公告佈告欄</button>
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
@@ -1565,6 +1665,7 @@ const App = () => {
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} employees={employees} />}
+          {activeMenu === 'announcement-list' && <AnnouncementListView announcements={announcements} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
