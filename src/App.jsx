@@ -1292,7 +1292,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         <div className="p-8 space-y-4 text-left">
           {pendingRecords.length > 0 ? pendingRecords.map(r => (
             <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-200' : 'bg-slate-50 hover:bg-white hover:border-indigo-200 border-slate-100'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1.5fr_1fr_2fr_1fr_2fr_auto] gap-4 items-center w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-[auto_1.2fr_1fr_1.5fr_0.6fr_1.5fr_1.5fr_auto] gap-4 items-center w-full">
                 <div className="flex items-center justify-center">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
                 </div>
@@ -1332,7 +1332,17 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
                   <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>{r.reason}</p>
                 </div>
-                <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">代理人意見</p>
+                  {r.formType === '請假' ? (
+                    <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.opinion || '同意代理'}>
+                      <span className="text-amber-600 mr-1">[{r.substitute}]</span> {r.opinion || '同意代理'}
+                    </p>
+                  ) : (
+                    <p className="font-bold text-xs text-slate-400">-</p>
+                  )}
+                </div>
+                <div className="flex justify-end items-center col-span-2 sm:col-span-3 lg:col-span-1">
                   <StatusBadge status={r.status} />
                 </div>
               </div>
@@ -1343,12 +1353,18 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         </div>
       </div>
       {selectedId && (
-        <div className="bg-white rounded-3xl shadow-xl border border-indigo-200 p-8 flex flex-col md:flex-row gap-8 text-left">
-          <div className="flex-1 space-y-4 text-left">
-            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm"><MessageSquare size={18} className="text-indigo-600" /> 簽核意見 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span></div>
-            <textarea placeholder="填寫具體簽核意見或指示..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
+        <div className="bg-white rounded-3xl shadow-xl border border-indigo-200 p-8 flex flex-col lg:flex-row gap-8 text-left animate-in fade-in slide-in-from-top-4 duration-300">
+          {selectedRecord?.formType === '請假' && (
+            <div className="w-full lg:w-64 bg-amber-50 rounded-2xl p-5 border border-amber-100 flex flex-col gap-2 text-left shrink-0">
+               <p className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1.5"><UserCheck size={14}/> 代理人 ({selectedRecord?.substitute}) 意見</p>
+               <p className="text-xs font-bold text-amber-900 leading-relaxed whitespace-pre-wrap">{selectedRecord?.opinion || '已同意代理 (無填寫特別意見)'}</p>
+            </div>
+          )}
+          <div className="flex-1 flex flex-col space-y-4 text-left">
+            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm shrink-0"><MessageSquare size={18} className="text-indigo-600" /> 主管簽核意見 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span></div>
+            <textarea placeholder="填寫具體簽核意見或指示..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900 flex-1 min-h-[100px]" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
           </div>
-          <div className="w-full md:w-72 flex flex-col justify-end gap-3 text-left">
+          <div className="w-full lg:w-72 flex flex-col justify-end gap-3 text-left shrink-0">
             <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-indigo-600 font-bold">{selectedRecord?.serialId}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
               <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回</span></button>
