@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 
 // --- API 設定 ---
-// 請確認此 NGROK 網址是您目前最新開啟的通道
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
 const fetchOptions = {
@@ -49,6 +48,19 @@ const LEAVE_CATEGORIES = [
   { id: 'parental_leave', label: '育嬰留停假' },
 ];
 
+// --- 新增：公告類型設定檔 (包含對應標籤顏色) ---
+const ANNOUNCEMENT_TYPES = [
+  { id: 'policy', label: '政策更新', colorClass: 'bg-violet-50 text-violet-600' },
+  { id: 'system', label: '系統維護', colorClass: 'bg-rose-50 text-rose-600' },
+  { id: 'personnel', label: '人事通報', colorClass: 'bg-indigo-50 text-indigo-600' },
+  { id: 'reward', label: '獎懲公告', colorClass: 'bg-amber-50 text-amber-600' },
+  { id: 'training', label: '教育訓練通知', colorClass: 'bg-cyan-50 text-cyan-600' },
+  { id: 'welfare', label: '福利與補助', colorClass: 'bg-emerald-50 text-emerald-600' },
+  { id: 'safety', label: '安全與健康提醒', colorClass: 'bg-orange-50 text-orange-600' },
+  { id: 'event', label: '節日與活動', colorClass: 'bg-fuchsia-50 text-fuchsia-600' },
+  { id: 'finance', label: '財務相關公告', colorClass: 'bg-blue-50 text-blue-600' },
+];
+
 // --- Helper Components ---
 
 const StatusBadge = ({ status }) => {
@@ -67,17 +79,17 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
   <div className="space-y-1 text-left">
     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{label}</label>
     <div className="relative group">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-500 transition-colors">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600 transition-colors">
         <Icon size={18} />
       </div>
       <input 
         type={shows[showKey] ? 'text' : 'password'} 
         required 
-        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-slate-200 bg-white text-slate-900 font-bold outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all text-left [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" 
+        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-slate-200 bg-white text-slate-900 font-bold outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 transition-all text-left [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" 
         value={value} 
         onChange={e => onChange(field, e.target.value)} 
       />
-      <button type="button" onClick={() => onToggle(showKey)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-violet-600 transition-colors">
+      <button type="button" onClick={() => onToggle(showKey)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
         {shows[showKey] ? <EyeOff size={18} /> : <Eye size={18} />}
       </button>
     </div>
@@ -119,7 +131,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       }
     });
 
-    // 依勞基法計算特休總額 (週年制)
     let totalAnnualHours = 0;
     if (userSession.hireDate) {
       const hireDate = new Date(userSession.hireDate);
@@ -144,14 +155,13 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         } else if (years >= 1) {
           days = 7;
         } else {
-          // 滿半年未滿一年
           const sixMonthsLater = new Date(hireDate);
           sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
           if (today >= sixMonthsLater) {
             days = 3;
           }
         }
-        totalAnnualHours = days * 8; // 轉換為小時
+        totalAnnualHours = days * 8; 
       }
     }
 
@@ -165,11 +175,16 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     };
   }, [records, userSession.empId, userSession.hireDate]);
 
+  const activeAnnouncements = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    return announcements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
+  }, [announcements]);
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
-      <div className="bg-gradient-to-br from-sky-500 to-indigo-600 rounded-3xl shadow-xl overflow-hidden text-white relative">
+      <div className="bg-gradient-to-br from-sky-400 to-blue-600 rounded-3xl shadow-xl overflow-hidden text-white relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-400/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-300/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
         
         <div className="p-10 md:p-14 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-4">
@@ -198,18 +213,21 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">最新公告</h2>
         </div>
         <div className="divide-y divide-slate-100">
-          {announcements.length > 0 ? announcements.map(ann => (
+          {activeAnnouncements.length > 0 ? activeAnnouncements.map(ann => {
+            const typeInfo = ANNOUNCEMENT_TYPES.find(t => t.id === ann.type) || ANNOUNCEMENT_TYPES[0];
+            return (
             <div key={ann.id} className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group">
               <div className="flex items-center gap-3 w-full sm:w-auto">
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${ann.type === 'policy' ? 'bg-violet-50 text-violet-600' : ann.type === 'system' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
-                  {ann.type === 'policy' ? '政策更新' : ann.type === 'system' ? '系統維護' : '活動通知'}
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${typeInfo.colorClass}`}>
+                  {typeInfo.label}
                 </span>
                 {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
               </div>
               <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-sky-600 transition-colors truncate">{ann.title}</p>
-              <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date}</span>
+              <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date} 發布</span>
             </div>
-          )) : (
+            );
+          }) : (
             <div className="p-8 text-center text-slate-400 text-sm font-bold italic">目前無最新公告</div>
           )}
         </div>
@@ -239,7 +257,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center gap-5">
-            <div className="p-4 bg-sky-50 text-sky-600 rounded-2xl">
+            <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl">
               <Timer size={28} />
             </div>
             <div>
@@ -252,7 +270,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           </div>
           <div className="text-right flex flex-col gap-1.5">
             <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">總累計 {earnedComp} HR</span>
-            <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-2 py-1 rounded-lg">已用 {usedComp} HR</span>
+            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">已用 {usedComp} HR</span>
           </div>
         </div>
       </div>
@@ -261,11 +279,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         {isAdmin && (
           <div 
             onClick={() => setActiveMenu && setActiveMenu('approval')}
-            className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full"
+            className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer active:scale-[0.98] h-full"
           >
             <div className="flex items-center gap-5">
-              <div className="p-4 bg-amber-50 text-amber-500 rounded-2xl">
-                <Clock size={28} />
+              <div className="p-4 bg-indigo-50 text-indigo-500 rounded-2xl">
+                <ShieldCheck size={28} />
               </div>
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待簽核申請</p>
@@ -276,30 +294,30 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               </div>
             </div>
             <div className="text-right flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 查看進度</span>
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 前往簽核</span>
             </div>
           </div>
         )}
 
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow h-full">
           <div className="flex flex-col items-center justify-center gap-3 shrink-0 sm:pr-6 sm:border-r border-slate-100">
-            <div className="p-4 bg-sky-50 text-sky-500 rounded-2xl">
+            <div className="p-4 bg-slate-100 text-slate-500 rounded-2xl">
               <FileText size={28} />
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">流程處理中</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">進度查詢</p>
           </div>
           
           <div className="flex flex-col gap-3 flex-1 w-full">
             <div 
               onClick={() => setActiveMenu && setActiveMenu('overtime')}
-              className="bg-slate-50 hover:bg-sky-50 border border-slate-100 hover:border-sky-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98]"
+              className="bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98]"
             >
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-sky-600">
-                加班申請 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-blue-600">
+                加班處理中 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
               </span>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-black text-slate-800 group-hover:text-sky-600">{processingOtCount}</span>
-                <span className="text-[10px] font-bold text-slate-500 group-hover:text-sky-500">件</span>
+                <span className="text-2xl font-black text-slate-800 group-hover:text-blue-600">{processingOtCount}</span>
+                <span className="text-[10px] font-bold text-slate-500 group-hover:text-blue-500">件</span>
               </div>
             </div>
             <div 
@@ -307,7 +325,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               className="bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98]"
             >
               <span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-emerald-600">
-                請假申請 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
+                請假處理中 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1"/>
               </span>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-slate-800 group-hover:text-emerald-600">{processingLvCount}</span>
@@ -341,7 +359,6 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         const day = String(today.getDate()).padStart(2, '0');
         const dynamicPassword = `${minguoYear}${month}${day}`;
         
-        // 賦予 root 虛擬的到職日，以便能測試特休計算
         const fiveYearsAgo = new Date();
         fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
         
@@ -352,7 +369,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
             name: '系統管理員',
             jobTitle: '最高管理員',
             dept: '系統維護部',
-            hireDate: fiveYearsAgo.toISOString() // 虛擬 5 年年資
+            hireDate: fiveYearsAgo.toISOString() 
           });
           return;
         } else {
@@ -378,7 +395,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-sans">
       <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden max-w-md w-full animate-in zoom-in-95 duration-500">
-        <div className="bg-sky-600 p-12 text-white text-center relative overflow-hidden">
+        <div className="bg-sky-500 p-12 text-white text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
           <UserCheck size={44} className="mx-auto mb-4 opacity-90 text-white" />
           <h1 className="text-3xl font-black tracking-tight relative z-10 text-center text-white">員工服務平台</h1>
@@ -395,7 +412,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
               </div>
             </div>
           </div>
-          <button disabled={loading} className="w-full py-4 rounded-2xl font-black text-white bg-sky-600 shadow-xl hover:bg-sky-700 active:scale-95 flex items-center justify-center gap-3 text-white transition-all">
+          <button disabled={loading} className="w-full py-4 rounded-2xl font-black text-white bg-sky-500 shadow-xl hover:bg-sky-600 active:scale-95 flex items-center justify-center gap-3 text-white transition-all">
             {loading ? <Loader2 size={20} className="animate-spin text-white" /> : <CheckCircle size={20} />} 確認登入
           </button>
         </form>
@@ -477,7 +494,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         </div>
       )}
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden font-sans">
-        <div className={`${appType === 'pre' ? 'bg-sky-500' : 'bg-rose-500'} px-8 py-10 text-white relative transition-colors duration-500`}>
+        <div className={`${appType === 'pre' ? 'bg-blue-500' : 'bg-orange-500'} px-8 py-10 text-white relative transition-colors duration-500`}>
           <div className="absolute top-6 right-8 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 font-bold text-[11px] font-mono shadow-sm">
             <span className="opacity-70 mr-1">NO.</span>{currentSerialId}
           </div>
@@ -489,22 +506,22 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left text-slate-900">
           <div className="grid grid-cols-2 gap-4 p-1.5 bg-slate-100 rounded-2xl">
-            <button type="button" onClick={() => setAppType('pre')} className={`flex items-center justify-center gap-3 py-4 rounded-xl text-sm font-black transition-all duration-300 ${appType === 'pre' ? 'bg-white text-sky-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}><Timer size={20} />事前申請</button>
-            <button type="button" onClick={() => setAppType('post')} className={`flex items-center justify-center gap-3 py-4 rounded-xl text-sm font-black transition-all duration-300 ${appType === 'post' ? 'bg-white text-rose-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}><History size={20} />事後補報</button>
+            <button type="button" onClick={() => setAppType('pre')} className={`flex items-center justify-center gap-3 py-4 rounded-xl text-sm font-black transition-all duration-300 ${appType === 'pre' ? 'bg-white text-blue-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}><Timer size={20} />事前申請</button>
+            <button type="button" onClick={() => setAppType('post')} className={`flex items-center justify-center gap-3 py-4 rounded-xl text-sm font-black transition-all duration-300 ${appType === 'post' ? 'bg-white text-orange-600 shadow-md scale-[1.02]' : 'text-slate-400 hover:text-slate-600'}`}><History size={20} />事後補報</button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end text-left">
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">類別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">補償方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='leave'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>換補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='pay'?(appType==='pre'?'bg-sky-500':'bg-rose-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>計薪</button></div></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">類別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">補償方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='leave'?(appType==='pre'?'bg-blue-500':'bg-orange-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>換補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='pay'?(appType==='pre'?'bg-blue-500':'bg-orange-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>計薪</button></div></div>
           </div>
 
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left text-slate-900">
-            <div className="lg:col-span-4 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-sky-500 bg-white" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="lg:col-span-4 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-sky-500 bg-white" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className={`${appType === 'pre' ? 'bg-sky-500' : 'bg-rose-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
+            <div className="lg:col-span-4 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="lg:col-span-4 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-blue-500 bg-white" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className={`${appType === 'pre' ? 'bg-blue-500' : 'bg-orange-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
             
             <div className="bg-slate-200 rounded-2xl p-3 text-slate-600 flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500 shadow-inner">
               <span className="text-[9px] uppercase opacity-70 whitespace-nowrap">{formData.compensationType === 'leave' ? '預計補休' : '預計金額'}</span>
@@ -517,14 +534,14 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
           <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
           
-          <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-2xl text-[11px] font-bold text-amber-800 space-y-1 text-left shadow-sm">
-            <h4 className="flex items-center gap-2 text-amber-900 font-black mb-1 text-sm"><Info size={16} className="text-amber-600"/> 備註：</h4>
+          <div className={`${appType === 'pre' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-orange-50 border-orange-500 text-orange-800'} border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-1 text-left shadow-sm transition-colors`}>
+            <h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'}`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4>
             <p>A. 加班申請須事前由直屬主管核准，始得進行加班。</p>
             <p>B. 此單於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
             <p>C. 此加班工時將依比率換算為補休時數或薪資。</p>
             <p>D. 每月加班時數上限不得超過 46 小時。</p>
           </div>
-          <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting ? 'bg-slate-300' : (appType === 'pre' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-rose-500 hover:bg-rose-600')}`}>
+          <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting ? 'bg-slate-300' : (appType === 'pre' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600')}`}>
             {submitting ? '提交中...' : `送出加班申請 (${appType === 'pre' ? '事前' : '事後'})`}
           </button>
         </form>
@@ -538,7 +555,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><p className={`font-black text-xs ${r.appType === 'pre' ? 'text-sky-600' : 'text-rose-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><p className={`font-black text-xs ${r.appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">類別</p><p className="font-black text-xs text-slate-700 truncate">{OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
@@ -760,22 +777,12 @@ const InquiryView = ({ records, userSession }) => {
     if (e) e.preventDefault();
     
     const results = records.filter(r => {
-      // 1. 僅顯示當前登入者的單據 (最高權限 root 免除此限制)
       if (userSession.empId !== 'root' && r.empId !== userSession.empId) return false;
-      
-      // 2. 類型篩選
       if (filters.formType && r.formType !== filters.formType) return false;
-      
-      // 3. 單號模糊篩選 (忽略大小寫)
       if (filters.serialId && r.serialId && !r.serialId.toLowerCase().includes(filters.serialId.toLowerCase())) return false;
-      
-      // 4. 狀態篩選
       if (filters.status && r.status !== filters.status) return false;
-      
-      // 5. 日期區間篩選 (以單據起始日為主)
       if (filters.startDate && r.startDate < filters.startDate) return false;
       if (filters.endDate && r.startDate > filters.endDate) return false;
-      
       return true;
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -792,7 +799,7 @@ const InquiryView = ({ records, userSession }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-amber-400 px-8 py-10 text-white flex justify-between items-center">
+        <div className="bg-fuchsia-500 px-8 py-10 text-white flex justify-between items-center">
           <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據</p></div><Search size={40} className="opacity-30" />
         </div>
         
@@ -800,7 +807,7 @@ const InquiryView = ({ records, userSession }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">單據類型</label>
-              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.formType} onChange={e => setFilters({...filters, formType: e.target.value})}>
+              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.formType} onChange={e => setFilters({...filters, formType: e.target.value})}>
                 <option value="">全部</option>
                 <option value="加班">加班申請</option>
                 <option value="請假">請假申請</option>
@@ -808,11 +815,11 @@ const InquiryView = ({ records, userSession }) => {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">單號包含 (模糊搜尋)</label>
-              <input type="text" placeholder="例如: OT001" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.serialId} onChange={e => setFilters({...filters, serialId: e.target.value})} />
+              <input type="text" placeholder="例如: OT001" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.serialId} onChange={e => setFilters({...filters, serialId: e.target.value})} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">簽核狀態</label>
-              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
+              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
                 <option value="">全部</option>
                 <option value="pending">待簽核</option>
                 <option value="approved">已核准</option>
@@ -821,31 +828,31 @@ const InquiryView = ({ records, userSession }) => {
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">起始日期 (從)</label>
-              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} />
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">結束日期 (至)</label>
-              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-400" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} />
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} />
             </div>
           </div>
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={handleReset} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">清除重設</button>
-            <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-amber-500 hover:bg-amber-600 shadow-md transition-colors flex items-center gap-2"><Search size={18}/> 執行查詢</button>
+            <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-fuchsia-500 hover:bg-fuchsia-600 shadow-md transition-colors flex items-center gap-2"><Search size={18}/> 執行查詢</button>
           </div>
         </form>
 
         <div className="p-8 space-y-4 text-left">
           {!hasSearched ? (
             <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3">
-              <Search size={48} className="opacity-20 mb-2" />
+              <Search size={48} className="opacity-20 mb-2 text-fuchsia-500" />
               <p>請設定上方查詢條件，並點擊「執行查詢」查看單據</p>
             </div>
           ) : searchResults.length > 0 ? (
             searchResults.map(r => (
-              <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-amber-300 transition-all shadow-sm">
+              <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-fuchsia-300 transition-all shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'}`}>{r.formType}</span></div>
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-amber-600">{r.serialId}</p></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType}</span></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-fuchsia-600">{r.serialId}</p></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
@@ -899,7 +906,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-violet-500 px-8 py-10 text-white flex justify-between items-center">
+        <div className="bg-slate-700 px-8 py-10 text-white flex justify-between items-center">
           <div><h1 className="text-2xl font-black text-white">帳號安全設定</h1><p className="text-sm opacity-90 italic text-white">變更後將強制登出以確認生效</p></div><KeyRound size={40} className="opacity-30" />
         </div>
         <form onSubmit={handleUpdate} className="p-10 space-y-8 max-w-lg mx-auto py-16 text-left">
@@ -908,7 +915,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
             <PassInput label="設定新密碼" value={formData.new} field="new" showKey="new" Icon={KeyRound} shows={shows} onToggle={handleToggle} onChange={handleChange} />
             <PassInput label="再次確認新密碼" value={formData.confirm} field="confirm" showKey="con" Icon={CheckCircle2} shows={shows} onToggle={handleToggle} onChange={handleChange} />
           </div>
-          <button disabled={loading} className="w-full py-5 rounded-2xl font-black text-white bg-violet-500 hover:bg-violet-600 shadow-xl active:scale-95 flex items-center justify-center gap-3 transition-all">
+          <button disabled={loading} className="w-full py-5 rounded-2xl font-black text-white bg-slate-700 hover:bg-slate-800 shadow-xl active:scale-95 flex items-center justify-center gap-3 transition-all">
             {loading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />} 儲存變更
           </button>
         </form>
@@ -952,7 +959,7 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
                 <div className="flex items-center justify-center">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
                 </div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-rose-50 text-rose-700' : 'bg-sky-50 text-sky-700')}`}>{r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}</span></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}</span></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">申請人</p><p className="font-black text-slate-800 truncate">{r.name}</p><p className="text-[10px] text-slate-400 font-bold truncate">{r.dept || '未設定'} / {r.empId}</p></div>
                 <div className="min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase">事由</p><p className="font-bold text-xs text-slate-700 line-clamp-3" title={r.reason}>{r.reason}</p></div>
@@ -1034,13 +1041,13 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
             <p className="text-xs text-slate-400 mb-8 font-bold text-center">為 {pwdTarget.name} 還原為員編密碼</p>
             <div className="flex gap-3 text-left">
               <button onClick={()=>setPwdTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900 text-center">取消</button>
-              <button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-slate-600 rounded-xl text-white text-center">確認</button>
+              <button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center">確認</button>
             </div>
           </div>
         </div>
       )}
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-slate-600 p-8 text-white flex justify-between items-center text-left">
+        <div className="bg-teal-600 p-8 text-white flex justify-between items-center text-left">
           <div><h1 className="text-2xl font-black text-white text-left">人員管理中心</h1><p className="text-sm opacity-90 italic text-white text-left">維護同仁資料與 Excel 工具</p></div><Users size={40} className="opacity-40" />
         </div>
         <div className="px-8 pt-6 flex gap-3 text-left">
@@ -1073,18 +1080,18 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
         }} className="p-8 space-y-6 text-left">
           <div className="space-y-4 text-left">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
-              <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
-              <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
+              <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
+              <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
               
               <div>
-                <input type="text" list="titles-list" placeholder="職稱" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
+                <input type="text" list="titles-list" placeholder="職稱" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
                 <datalist id="titles-list">
                   {availableTitles.map(t=><option key={t} value={t} />)}
                 </datalist>
               </div>
 
               <div>
-                <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-slate-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
+                <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
                 <datalist id="depts-list">
                   {availableDepts.map(d=><option key={d} value={d} />)}
                 </datalist>
@@ -1092,20 +1099,20 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
             </div>
 
             <div className="text-left pt-2">
-              <button type="button" onClick={() => setShowDetails(!showDetails)} className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1.5 transition-colors bg-sky-50 px-3 py-2 rounded-lg">
+              <button type="button" onClick={() => setShowDetails(!showDetails)} className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1.5 transition-colors bg-teal-50 px-3 py-2 rounded-lg">
                 {showDetails ? <EyeOff size={14} /> : <Eye size={14} />} {showDetails ? '隱藏進階人事資料' : '填寫進階人事資料 (性別 / 生日 / 到職日)'}
               </button>
             </div>
 
             {showDetails && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left p-5 bg-slate-100/50 rounded-2xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
-                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">性別</label><select className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">出生年月日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.birthDate} onChange={e=>setFormData({...formData, birthDate:e.target.value})} /></div>
-                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">到職日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-slate-500" value={formData.hireDate} onChange={e=>setFormData({...formData, hireDate:e.target.value})} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">性別</label><select className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-teal-500" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">出生年月日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-teal-500" value={formData.birthDate} onChange={e=>setFormData({...formData, birthDate:e.target.value})} /></div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">到職日</label><input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-teal-500" value={formData.hireDate} onChange={e=>setFormData({...formData, hireDate:e.target.value})} /></div>
               </div>
             )}
           </div>
-          <button type="submit" className="w-full py-4 bg-slate-600 text-white rounded-2xl font-black text-center hover:bg-slate-700 transition-colors"> {editingId ? '更新資料' : '新增人員'} </button>
+          <button type="submit" className="w-full py-4 bg-teal-600 text-white rounded-2xl font-black text-center hover:bg-teal-700 transition-colors"> {editingId ? '更新資料' : '新增人員'} </button>
         </form>
         <div className="overflow-x-auto border-t text-left">
           <table className="w-full border-collapse text-sm text-left text-slate-900">
@@ -1119,11 +1126,11 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                   <td className="px-4 py-5">
                     <div 
                       onClick={() => setExpandedEmpId(expandedEmpId === emp.id ? null : emp.id)}
-                      className="font-black flex items-center gap-1.5 cursor-pointer text-slate-800 hover:text-sky-600 transition-colors w-fit group"
+                      className="font-black flex items-center gap-1.5 cursor-pointer text-slate-800 hover:text-teal-600 transition-colors w-fit group"
                     >
-                      {emp.name} {emp.gender && <span className="text-[10px] text-slate-400 font-bold group-hover:text-sky-500 transition-colors">({emp.gender})</span>}
+                      {emp.name} {emp.gender && <span className="text-[10px] text-slate-400 font-bold group-hover:text-teal-500 transition-colors">({emp.gender})</span>}
                       {(emp.birthDate || emp.hireDate) && (
-                        expandedEmpId === emp.id ? <ChevronUp size={14} className="text-sky-600"/> : <ChevronDown size={14} className="text-slate-300 group-hover:text-sky-400 transition-colors"/>
+                        expandedEmpId === emp.id ? <ChevronUp size={14} className="text-teal-600"/> : <ChevronDown size={14} className="text-slate-300 group-hover:text-teal-400 transition-colors"/>
                       )}
                     </div>
                     {expandedEmpId === emp.id && (emp.birthDate || emp.hireDate) && (
@@ -1160,7 +1167,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
 };
 
 const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification }) => {
-  const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });
+  const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });
   const [editingId, setEditingId] = useState(null);
 
   const handleSubmit = (e) => {
@@ -1174,7 +1181,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
       setAnnouncements(prev => [{ ...formData, id: Date.now() }, ...prev]);
       setNotification({ type: 'success', text: '公告新增成功' });
     }
-    setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });
+    setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });
     setEditingId(null);
   };
 
@@ -1197,7 +1204,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left border-b border-slate-100 bg-slate-50/30">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left items-end">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left items-end">
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase">公告標題</label>
               <input type="text" placeholder="請輸入公告標題..." required className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold" value={formData.title} onChange={e=>setFormData({...formData, title:e.target.value})} />
@@ -1205,14 +1212,18 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">公告類型</label>
               <select className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.type} onChange={e=>setFormData({...formData, type:e.target.value})}>
-                <option value="policy">政策更新</option>
-                <option value="system">系統維護</option>
-                <option value="event">活動通知</option>
+                {ANNOUNCEMENT_TYPES.map(t => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 uppercase">發布日期</label>
               <input type="date" required className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">下架日期 (選填)</label>
+              <input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.endDate || ''} onChange={e=>setFormData({...formData, endDate:e.target.value})} />
             </div>
           </div>
           
@@ -1222,7 +1233,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
               <span className="text-sm font-bold text-slate-600">標示為 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider ml-1">New</span> 新訊</span>
             </label>
             <div className="flex gap-3">
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });}} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">取消編輯</button>}
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });}} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">取消編輯</button>}
               <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-md transition-colors flex items-center gap-2">
                 {editingId ? <><Edit2 size={18}/> 更新公告</> : <><Plus size={18}/> 發布公告</>}
               </button>
@@ -1233,24 +1244,30 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
         <div className="p-8">
           <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2"><ListChecks size={18} className="text-slate-400"/> 現有公告列表</h3>
           <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
-            {announcements.length > 0 ? announcements.map(ann => (
+            {announcements.length > 0 ? announcements.map(ann => {
+              const typeInfo = ANNOUNCEMENT_TYPES.find(t => t.id === ann.type) || ANNOUNCEMENT_TYPES[0];
+              return (
               <div key={ann.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors group">
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${ann.type === 'policy' ? 'bg-violet-50 text-violet-600' : ann.type === 'system' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
-                    {ann.type === 'policy' ? '政策更新' : ann.type === 'system' ? '系統維護' : '活動通知'}
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${typeInfo.colorClass}`}>
+                    {typeInfo.label}
                   </span>
                   {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider">New</span>}
                 </div>
                 <p className="text-sm font-bold text-slate-700 flex-1 truncate">{ann.title}</p>
                 <div className="flex items-center gap-4 shrink-0">
-                  <span className="text-xs font-bold text-slate-400 font-mono">{ann.date}</span>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-slate-400 font-mono">{ann.date} 發布</div>
+                    {ann.endDate && <div className="text-[10px] font-bold text-rose-400 font-mono">~ {ann.endDate} 下架</div>}
+                  </div>
                   <div className="flex items-center gap-1 border-l pl-4 border-slate-200">
-                    <button onClick={()=>{setEditingId(ann.id); setFormData(ann); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-400 hover:text-sky-600 transition-colors rounded-lg hover:bg-sky-50"><Edit2 size={16} /></button>
+                    <button onClick={()=>{setEditingId(ann.id); setFormData(ann); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Edit2 size={16} /></button>
                     <button onClick={() => handleDelete(ann.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button>
                   </div>
                 </div>
               </div>
-            )) : (
+              );
+            }) : (
               <div className="p-8 text-center text-slate-400 text-sm font-bold italic">無任何公告資料</div>
             )}
           </div>
@@ -1268,9 +1285,9 @@ const App = () => {
   const [employees, setEmployees] = useState([]);
   
   const [announcements, setAnnouncements] = useState([
-    { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', isNew: true },
-    { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', isNew: false },
-    { id: 3, type: 'event', title: 'Q2 跨部門季會暨慶生會活動報名開跑！', date: '2026-04-10', isNew: false },
+    { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', endDate: '2026-05-15', isNew: true },
+    { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', endDate: '2026-04-18', isNew: false },
+    { id: 3, type: 'event', title: 'Q2 跨部門季會暨慶生會活動報名開跑！', date: '2026-04-10', endDate: '', isNew: false },
   ]);
 
   const [loading, setLoading] = useState(true);
@@ -1370,17 +1387,17 @@ const App = () => {
         </div>
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
-          <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
-          <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
+          <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
+          <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
-          <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
-          <button onClick={() => setActiveMenu('change-password')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'change-password' ? 'bg-violet-50 text-violet-600 border-violet-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><KeyRound size={20} /> 修改密碼</button>
+          <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
+          <button onClick={() => setActiveMenu('change-password')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'change-password' ? 'bg-slate-100 text-slate-700 border-slate-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><KeyRound size={20} /> 修改密碼</button>
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
               <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
-              <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-slate-100 text-slate-600 border-slate-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
+              <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
             </>
           )}
         </nav>
