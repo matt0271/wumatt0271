@@ -1187,7 +1187,12 @@ const App = () => {
   }, [records]);
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
-  if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{setUserSession(u);setNotification({type:'success',text:`${u.name} 登入成功`});}} />;
+  
+  if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{
+    setUserSession(u);
+    setActiveMenu('welcome'); // 確保每次登入時，選單狀態一定重置為首頁總覽
+    setNotification({type:'success',text:`${u.name} 登入成功`});
+  }} />;
 
   return (
     <div className="h-screen w-full bg-slate-50 flex text-left font-sans text-slate-900 overflow-hidden">
