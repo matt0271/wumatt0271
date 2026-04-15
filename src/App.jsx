@@ -48,7 +48,6 @@ const LEAVE_CATEGORIES = [
   { id: 'parental_leave', label: '育嬰留停假' },
 ];
 
-// --- 新增：公告類型設定檔 (包含對應標籤顏色) ---
 const ANNOUNCEMENT_TYPES = [
   { id: 'policy', label: '政策更新', colorClass: 'bg-violet-50 text-violet-600' },
   { id: 'system', label: '系統維護', colorClass: 'bg-rose-50 text-rose-600' },
@@ -67,12 +66,20 @@ const StatusBadge = ({ status }) => {
   const styles = {
     approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
     rejected: "bg-rose-50 text-rose-700 border-rose-100",
-    pending: "bg-amber-50 text-amber-700 border-amber-100"
+    pending_substitute: "bg-amber-50 text-amber-700 border-amber-100",
+    pending_manager: "bg-indigo-50 text-indigo-700 border-indigo-100",
+    pending: "bg-indigo-50 text-indigo-700 border-indigo-100" // 相容舊資料
   };
-  const labels = { approved: "已核准", rejected: "已駁回", pending: "待簽核" };
+  const labels = { 
+    approved: "已核准", 
+    rejected: "已駁回", 
+    pending_substitute: "待代理確認",
+    pending_manager: "待主管簽核",
+    pending: "待簽核" 
+  };
   const currentStyle = styles[status] || styles.pending;
   const currentLabel = labels[status] || labels.pending;
-  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${currentStyle}`}>{currentLabel}</span>;
+  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${currentStyle} whitespace-nowrap`}>{currentLabel}</span>;
 };
 
 const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
@@ -105,34 +112,33 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
 
-  const pendingCount = useMemo(() => {
-    if (isAdmin) {
-      return records.filter(r => {
-        if (r.status !== 'pending') return false;
-        if (userSession.empId === 'root') return true;
-        
-        // 總經理只看協理的單據
-        if (userSession.jobTitle === '總經理') {
-          const applicant = employees.find(emp => emp.empId === r.empId);
-          return applicant?.jobTitle === '協理';
-        }
+  const substituteCount = useMemo(() => {
+    return records.filter(r => r.formType === '請假' && r.status === 'pending_substitute' && r.substitute === userSession.name).length;
+  }, [records, userSession.name]);
 
-        if (userSession.jobTitle === '協理') {
-          if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
-          if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
-        }
-        return r.dept === userSession.dept;
-      }).length;
-    }
-    return records.filter(r => r.empId === userSession.empId && r.status === 'pending').length;
+  const managerCount = useMemo(() => {
+    if (!isAdmin) return 0;
+    return records.filter(r => {
+      if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
+      if (userSession.empId === 'root') return true;
+      if (userSession.jobTitle === '總經理') {
+        const applicant = employees.find(emp => emp.empId === r.empId);
+        return applicant?.jobTitle === '協理';
+      }
+      if (userSession.jobTitle === '協理') {
+        if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+        if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
+      }
+      return r.dept === userSession.dept;
+    }).length;
   }, [records, userSession, isAdmin, employees]);
 
   const processingOtCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && r.status === 'pending').length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && (r.status === 'pending' || r.status === 'pending_manager')).length;
   }, [records, userSession.empId]);
 
   const processingLvCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && r.status === 'pending').length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && (r.status === 'pending' || r.status === 'pending_substitute' || r.status === 'pending_manager')).length;
   }, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
@@ -197,13 +203,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return announcements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
   }, [announcements]);
 
-  // 限制首頁最多顯示 5 筆
   const displayAnnouncements = activeAnnouncements.slice(0, 5);
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans relative">
       
-      {/* 公告詳細視窗 Modal */}
       {selectedAnnouncement && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
@@ -342,7 +346,29 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-6`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? 'lg:grid-cols-3' : ''} gap-6`}>
+        
+        <div 
+          onClick={() => setActiveMenu && setActiveMenu('substitute')}
+          className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full"
+        >
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-amber-50 text-amber-500 rounded-2xl">
+              <UserCheck size={28} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待代理確認</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-black text-slate-800">{substituteCount}</span>
+                <span className="text-sm font-bold text-slate-500">件</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-right flex flex-col gap-1.5">
+            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 前往確認</span>
+          </div>
+        </div>
+
         {isAdmin && (
           <div 
             onClick={() => setActiveMenu && setActiveMenu('approval')}
@@ -353,9 +379,9 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
                 <ShieldCheck size={28} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待簽核申請</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待主管簽核</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-slate-800">{pendingCount}</span>
+                  <span className="text-3xl font-black text-slate-800">{managerCount}</span>
                   <span className="text-sm font-bold text-slate-500">件</span>
                 </div>
               </div>
@@ -366,7 +392,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           </div>
         )}
 
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow h-full">
+        <div className={`bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4 sm:gap-6 hover:shadow-md transition-shadow h-full ${!isAdmin ? 'md:col-span-1' : ''}`}>
           <div className="flex flex-col items-center justify-center gap-3 shrink-0 sm:pr-6 sm:border-r border-slate-100">
             <div className="p-4 bg-slate-100 text-slate-500 rounded-2xl">
               <FileText size={28} />
@@ -406,7 +432,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   );
 };
 
-// 新增：資訊公告元件 (供員工查詢所有公告)
 const AnnouncementListView = ({ announcements }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
@@ -418,7 +443,6 @@ const AnnouncementListView = ({ announcements }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans relative">
       
-      {/* 公告詳細視窗 Modal */}
       {selectedAnnouncement && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
@@ -636,7 +660,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
       const res = await fetch(`${NGROK_URL}/api/records`, { 
         method: 'POST', 
         headers: fetchOptions.headers, 
-        body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending', createdAt: new Date().toISOString() }) 
+        body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending_manager', createdAt: new Date().toISOString() }) 
       });
       if(!res.ok) throw new Error('API Error');
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
@@ -741,7 +765,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
-                  {r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                  {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
                 </div>
               </div>
             </div>
@@ -831,9 +855,9 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     if (totalHours <= 0 || submitting) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending', createdAt: new Date().toISOString() }) });
+      const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
       if(!res.ok) throw new Error('API error');
-      setNotification({ type: 'success', text: '請假申請已提交' });
+      setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '提交失敗' }); } finally { setSubmitting(false); }
@@ -894,7 +918,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-2xl text-[11px] font-bold text-emerald-800 space-y-3 text-left shadow-sm">
             <div>
               <h4 className="flex items-center gap-2 text-emerald-900 font-black mb-1 text-sm"><Info size={16} className="text-emerald-600"/> 簽核流程：</h4>
-              <p className="leading-relaxed">申請人 → 經副理(請假天數3日(含)以下) → 協理(請假天數5日(含)以下) → 總經理(請假天數5日以上) → 交辦(財務行政部)。單位主管一天(含)以上由總經理核定。</p>
+              <p className="leading-relaxed">申請人 → 代理確認 → 單位主管(依天數決定層級) → 交辦(財務行政部)。</p>
             </div>
             <div className="pt-3 border-t border-emerald-200">
               <p className="font-black text-emerald-900 mb-2">連續日期之請假單不可分開簽核，並均須檢附相關證明文件或說明事項：</p>
@@ -938,7 +962,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
-                  {r.status === 'pending' && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                  {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
                 </div>
               </div>
             </div>
@@ -1010,7 +1034,8 @@ const InquiryView = ({ records, userSession }) => {
               <label className="text-[10px] font-black text-slate-400 uppercase">簽核狀態</label>
               <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
                 <option value="">全部</option>
-                <option value="pending">待簽核</option>
+                <option value="pending_substitute">待代理確認</option>
+                <option value="pending_manager">待主管簽核</option>
                 <option value="approved">已核准</option>
                 <option value="rejected">已駁回</option>
               </select>
@@ -1118,13 +1143,90 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
   );
 };
 
+// 新增：代理人確認中心
+const SubstituteView = ({ records, onRefresh, setNotification, userSession }) => {
+  const [selectedId, setSelectedId] = useState(null);
+  const [opinion, setOpinion] = useState('');
+  const [updating, setUpdating] = useState(false);
+
+  const pendingRecords = useMemo(() => {
+    return records.filter(r => r.formType === '請假' && r.status === 'pending_substitute' && r.substitute === userSession.name);
+  }, [records, userSession.name]);
+
+  const handleUpdate = async (status) => {
+    if (!selectedId) return;
+    if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '拒絕原因為必填' });
+    setUpdating(true);
+    try {
+      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
+      if(!res.ok) throw new Error('API error');
+      setNotification({ type: 'success', text: status === 'pending_manager' ? '已同意代理，單據送交主管簽核' : '已拒絕代理，單據退回申請人' });
+      setSelectedId(null); setOpinion(''); onRefresh();
+    } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
+  };
+  const selectedRecord = useMemo(() => pendingRecords.find(r => r.id === selectedId), [pendingRecords, selectedId]);
+
+  return (
+    <div className="space-y-6 pb-20 text-left font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-amber-500 p-8 text-white flex justify-between items-center text-left">
+          <div className="space-y-1 text-left text-white">
+            <div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待您確認的職務代理</span></div>
+            <h1 className="text-2xl font-black text-white">代理確認中心</h1>
+            <p className="text-sm opacity-90 font-medium italic text-white">確認同仁指定您為代理人的請假申請</p>
+          </div>
+          <UserCheck size={40} className="opacity-40 text-white" />
+        </div>
+        <div className="p-8 space-y-4 text-left">
+          {pendingRecords.length > 0 ? pendingRecords.map(r => (
+            <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-amber-50 border-amber-300 ring-2 ring-inset ring-amber-200' : 'bg-slate-50 hover:bg-white hover:border-amber-200 border-slate-100'}`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1fr_1.5fr_1.5fr_3fr_1fr_auto] gap-4 items-center w-full">
+                <div className="flex items-center justify-center">
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-amber-600 bg-amber-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
+                </div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className="px-2 py-1 rounded-lg text-[10px] font-black bg-emerald-50 text-emerald-700">請假申請</span></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">申請人</p><p className="font-black text-slate-800 truncate">{r.name}</p><p className="text-[10px] text-slate-400 font-bold truncate">{r.dept || '未設定'} / {r.empId}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase">事由</p><p className="font-bold text-xs text-slate-700 line-clamp-3" title={r.reason}>{r.reason}</p></div>
+                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
+                  <StatusBadge status={r.status} />
+                </div>
+              </div>
+            </div>
+          )) : (
+            <div className="py-12 text-center text-slate-300 italic font-bold">目前無待確認的代理任務</div>
+          )}
+        </div>
+      </div>
+      {selectedId && (
+        <div className="bg-white rounded-3xl shadow-xl border border-amber-200 p-8 flex flex-col md:flex-row gap-8 text-left">
+          <div className="flex-1 space-y-4 text-left">
+            <div className="flex items-center gap-2 text-amber-600 font-black text-sm"><MessageSquare size={18} className="text-amber-600" /> 代理人回覆 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 拒絕為必填</span></div>
+            <textarea placeholder="填寫您拒絕或同意的意見 (選填)..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
+          </div>
+          <div className="w-full md:w-72 flex flex-col justify-end gap-3 text-left">
+            <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-amber-600 font-bold">{selectedRecord?.serialId}</span></p>
+            <div className="grid grid-cols-2 gap-3 text-white">
+              <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">拒絕代理</span></button>
+              <button disabled={updating} onClick={() => handleUpdate('pending_manager')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">同意代理</span></button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
   const pendingRecords = useMemo(() => {
     return records.filter(r => {
-      if (r.status !== 'pending') return false;
+      // 主管只能看到「待主管簽核」(pending_manager) 或是相容舊資料的 pending
+      if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
       if (!userSession) return false;
       if (userSession.empId === 'root') return true;
       if (userSession.jobTitle === '總經理') {
@@ -1636,6 +1738,7 @@ const App = () => {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
           <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
           <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Bell size={20} /> 資訊公告</button>
+          <button onClick={() => setActiveMenu('substitute')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'substitute' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><UserCheck size={20} /> 代理確認</button>
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
@@ -1666,6 +1769,7 @@ const App = () => {
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} employees={employees} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={announcements} />}
+          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
