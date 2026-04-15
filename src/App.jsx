@@ -817,7 +817,7 @@ const InquiryView = ({ records, userSession }) => {
   );
 };
 
-const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
+const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ current: '', new: '', confirm: '' });
   const [shows, setShows] = useState({ cur: false, new: false, con: false });
@@ -829,7 +829,11 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
     setLoading(true);
     try {
       const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...userSession, password: formData.new.trim() }) });
-      if (res.ok) { setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); setTimeout(() => onLogout(), 2000); }
+      if (res.ok) { 
+        setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); 
+        onRefresh(); // 確保登出前更新前端記憶體中的名單資料
+        setTimeout(() => onLogout(), 2000); 
+      }
       else throw new Error('API error');
     } catch (err) { setNotification({ type: 'error', text: '修改失敗' }); } finally { setLoading(false); }
   };
@@ -1244,7 +1248,7 @@ const App = () => {
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
-          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} />}
+          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
         </div>
