@@ -421,7 +421,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   );
 };
 
-const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession }) => {
+const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [appType, setAppType] = useState('pre');
@@ -513,7 +513,13 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end text-left">
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label>
+              <select required className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}>
+                <option value="" disabled>請選擇部門</option>
+                {availableDepts.map(d=><option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">類別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1 h-4">補償方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='leave'?(appType==='pre'?'bg-blue-500':'bg-orange-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>換補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black transition-all ${formData.compensationType==='pay'?(appType==='pre'?'bg-blue-500':'bg-orange-500') + ' text-white shadow':'text-slate-500 hover:bg-slate-200'}`}>計薪</button></div></div>
           </div>
@@ -584,7 +590,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   );
 };
 
-const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records }) => {
+const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [formData, setFormData] = useState({ 
@@ -688,7 +694,13 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end text-left">
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">員編 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} /></div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label>
+              <select required className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}>
+                <option value="" disabled>請選擇部門</option>
+                {availableDepts.map(d=><option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">職稱 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">代理人 <span className="text-rose-500">*</span></label><input type="text" required placeholder="職務代理人姓名" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})} /></div>
@@ -993,7 +1005,7 @@ const ApprovalView = ({ records, onRefresh, setNotification }) => {
   );
 };
 
-const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession }) => {
+const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession, availableDepts }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '', gender: '', birthDate: '', hireDate: '' });
   const [showDetails, setShowDetails] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -1001,6 +1013,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   const fileInputRef = useRef(null);
   const [pwdTarget, setPwdTarget] = useState(null); 
   const [expandedEmpId, setExpandedEmpId] = useState(null);
+  const [isCustomDept, setIsCustomDept] = useState(false);
 
   const filteredEmployees = useMemo(() => {
     if (!userSession) return [];
@@ -1017,11 +1030,6 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
     }
     return employees.filter(emp => emp.dept === userSession.dept);
   }, [employees, userSession]);
-
-  const availableDepts = useMemo(() => {
-    const depts = employees.map(e => e.dept).filter(Boolean);
-    return [...new Set(depts)];
-  }, [employees]);
 
   const availableTitles = useMemo(() => {
     const titles = employees.map(e => e.jobTitle).filter(Boolean);
@@ -1073,6 +1081,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
             setEditingId(null); 
             setFormData({name:'',empId:'',jobTitle:'',dept:'', gender:'', birthDate:'', hireDate:''}); 
             setShowDetails(false);
+            setIsCustomDept(false);
             setNotification({ type: 'success', text: '人員資料更新成功！' });
           } catch (err) {
             setNotification({ type: 'error', text: '更新失敗！請確認後端 API 是否有重啟' });
@@ -1091,10 +1100,15 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
               </div>
 
               <div>
-                <input type="text" list="depts-list" placeholder="單位" required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} />
-                <datalist id="depts-list">
-                  {availableDepts.map(d=><option key={d} value={d} />)}
-                </datalist>
+                {isCustomDept ? (
+                  <input type="text" placeholder="請輸入新單位..." required className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-teal-500 shadow-inner font-bold text-teal-700" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} autoFocus onBlur={() => { if(!formData.dept) setIsCustomDept(false); }} />
+                ) : (
+                  <select required className="w-full p-3 rounded-xl border bg-slate-50 outline-none focus:ring-2 focus:ring-teal-500 text-slate-700 font-bold" value={formData.dept} onChange={e => { if(e.target.value === '__custom__') { setIsCustomDept(true); setFormData({...formData, dept:''}); } else { setFormData({...formData, dept:e.target.value}); } }}>
+                    <option value="" disabled>請選擇單位</option>
+                    {availableDepts.map(d=><option key={d} value={d}>{d}</option>)}
+                    <option value="__custom__" className="text-teal-600 font-black">+ 新增單位 / 職稱</option>
+                  </select>
+                )}
               </div>
             </div>
 
@@ -1152,6 +1166,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                         hireDate: emp.hireDate ? emp.hireDate.split('T')[0] : '' 
                       }); 
                       setShowDetails(!!(emp.gender || emp.birthDate || emp.hireDate)); 
+                      setIsCustomDept(false);
                       window.scrollTo({top:0,behavior:'smooth'});
                     }} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
                     <button onClick={() => { if(window.confirm("確定刪除？")) fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers }).then(onRefresh); }} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
@@ -1326,6 +1341,11 @@ const App = () => {
   };
   
   useEffect(() => { fetchData(); }, []);
+
+  const availableDepts = useMemo(() => {
+    const depts = employees.map(e => e.dept).filter(Boolean);
+    return [...new Set(depts)];
+  }, [employees]);
   
   const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
 
@@ -1417,13 +1437,13 @@ const App = () => {
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} />}
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
-          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
+          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
+          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
-          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
+          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
         </div>
       </main>
     </div>
