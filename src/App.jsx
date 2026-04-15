@@ -914,7 +914,7 @@ const InquiryView = ({ records, userSession }) => {
             searchResults.map(r => (
               <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-fuchsia-300 transition-all shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType}</span></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}</span></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-fuchsia-600">{r.serialId}</p></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
