@@ -626,13 +626,19 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 
   const handleEmpIdChange = (id) => {
     const matched = employees.find(e => e.empId === id);
-    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle }));
+    setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle, substitute: '' }));
   };
 
   const handleNameChange = (name) => {
     const matched = employees.find(e => e.name === name);
-    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle }));
+    setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle, substitute: '' }));
   };
+
+  // 動態計算同部門的代理人清單 (排除自己)
+  const availableSubstitutes = useMemo(() => {
+    if (!formData.dept) return [];
+    return employees.filter(emp => emp.dept === formData.dept && emp.empId !== formData.empId);
+  }, [employees, formData.dept, formData.empId]);
 
   const recentSubmissions = useMemo(() => {
     const thirtyDaysAgo = new Date();
@@ -711,14 +717,22 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">姓名 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">部門 <HelpCircle size={10} className="text-slate-300" /></label>
-              <select required className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}>
+              <select required className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value, substitute: ''})}>
                 <option value="" disabled>請選擇部門</option>
                 {availableDepts.map(d=><option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">職稱 <HelpCircle size={10} className="text-slate-300" /></label><input type="text" placeholder="手動填寫或帶入" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase h-4">假別</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">代理人 <span className="text-rose-500">*</span></label><input type="text" required placeholder="職務代理人姓名" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})} /></div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase h-4">代理人 <span className="text-rose-500">*</span></label>
+              <select required className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})}>
+                <option value="" disabled>請選擇代理人</option>
+                {availableSubstitutes.map(emp => (
+                  <option key={emp.empId} value={emp.name}>{emp.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
           
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
