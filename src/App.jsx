@@ -1180,15 +1180,41 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession }) =>
         <div className="p-8 space-y-4 text-left">
           {pendingRecords.length > 0 ? pendingRecords.map(r => (
             <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-amber-50 border-amber-300 ring-2 ring-inset ring-amber-200' : 'bg-slate-50 hover:bg-white hover:border-amber-200 border-slate-100'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1fr_1.5fr_1.5fr_3fr_1fr_auto] gap-4 items-center w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1.5fr_1fr_2fr_1fr_2fr_auto] gap-4 items-center w-full">
                 <div className="flex items-center justify-center">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-amber-600 bg-amber-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
                 </div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className="px-2 py-1 rounded-lg text-[10px] font-black bg-emerald-50 text-emerald-700">請假申請</span></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">申請人</p><p className="font-black text-slate-800 truncate">{r.name}</p><p className="text-[10px] text-slate-400 font-bold truncate">{r.dept || '未設定'} / {r.empId}</p></div>
-                <div className="min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase">事由</p><p className="font-bold text-xs text-slate-700 line-clamp-3" title={r.reason}>{r.reason}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">申請人</p>
+                  <p className="font-black text-slate-800 truncate">{r.name}</p>
+                  <p className="text-[10px] text-slate-500 font-bold truncate">{r.dept} / {r.empId}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">假別</p>
+                  <span className="px-2 py-1 rounded-lg text-[10px] font-black bg-emerald-50 text-emerald-700 inline-block mb-1">
+                    {LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '請假申請'}
+                  </span>
+                  <p className="font-mono text-[9px] font-bold text-slate-400 truncate">{r.serialId}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-700">{r.startDate} <br/><span className="text-[10px] text-slate-500">{r.startHour}:{r.startMin} ~ {r.endHour}:{r.endMin}</span></p>
+                  ) : (
+                    <div className="font-bold text-[11px] text-slate-700 flex flex-col leading-tight gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時數</p>
+                  <p className="font-black text-slate-900">{r.totalHours} HR</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
+                  <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>{r.reason}</p>
+                </div>
                 <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
                 </div>
@@ -1266,15 +1292,46 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         <div className="p-8 space-y-4 text-left">
           {pendingRecords.length > 0 ? pendingRecords.map(r => (
             <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-200' : 'bg-slate-50 hover:bg-white hover:border-indigo-200 border-slate-100'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1fr_1.5fr_1.5fr_3fr_1fr_auto] gap-4 items-center w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[auto_1.5fr_1fr_2fr_1fr_2fr_auto] gap-4 items-center w-full">
                 <div className="flex items-center justify-center">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
                 </div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase mb-1">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}</span></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">申請人</p><p className="font-black text-slate-800 truncate">{r.name}</p><p className="text-[10px] text-slate-400 font-bold truncate">{r.dept || '未設定'} / {r.empId}</p></div>
-                <div className="min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase">事由</p><p className="font-bold text-xs text-slate-700 line-clamp-3" title={r.reason}>{r.reason}</p></div>
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">申請人</p>
+                  <p className="font-black text-slate-800 truncate">{r.name}</p>
+                  <p className="text-[10px] text-slate-500 font-bold truncate">{r.dept} / {r.empId}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">單據類型</p>
+                  <div className="flex flex-col items-start gap-1 mb-1.5">
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
+                      {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 bg-slate-100/80 px-2 py-0.5 rounded-md">
+                      {r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪')}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[9px] font-bold text-slate-400 truncate">{r.serialId}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間</p>
+                  {r.startDate === r.endDate ? (
+                    <p className="font-bold text-xs text-slate-700">{r.startDate} <br/><span className="text-[10px] text-slate-500">{r.startHour}:{r.startMin} ~ {r.endHour}:{r.endMin}</span></p>
+                  ) : (
+                    <div className="font-bold text-[11px] text-slate-700 flex flex-col leading-tight gap-0.5">
+                      <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
+                      <span>{r.endDate} {r.endHour}:{r.endMin}</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時數</p>
+                  <p className="font-black text-slate-900">{r.totalHours} HR</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
+                  <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>{r.reason}</p>
+                </div>
                 <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
                 </div>
