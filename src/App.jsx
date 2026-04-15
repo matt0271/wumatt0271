@@ -5,7 +5,7 @@ import {
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
-  CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp
+  CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone
 } from 'lucide-react';
 
 // --- API 設定 ---
@@ -33,7 +33,7 @@ const OT_CATEGORIES = [
 
 const LEAVE_CATEGORIES = [
   { id: 'annual', label: '特別休假' },
-  { id: 'comp', label: '補休' }, // 新增補休類別
+  { id: 'comp', label: '補休' },
   { id: 'personal', label: '事假' },
   { id: 'sick', label: '病假' },
   { id: 'sick_hospital', label: '病假(連續住院)' },
@@ -86,14 +86,12 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 
 // --- View Components ---
 
-const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }) => {
+const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements }) => {
   const currentDate = new Date().toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
 
-  // 計算單據數量
   const pendingCount = useMemo(() => {
-    // 主管顯示「所有」待簽核的數量，一般員工顯示「自己」送出的待簽核數量
     if (isAdmin) {
       return records.filter(r => r.status === 'pending').length;
     }
@@ -108,7 +106,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
     return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && r.status === 'pending').length;
   }, [records, userSession.empId]);
 
-  // 計算休假餘額
   const { remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
     let usedAnn = 0;
     let earnedCmp = 0;
@@ -157,6 +154,29 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin }
             <div className="text-2xl font-black">{userSession.jobTitle || '員工'}</div>
             <div className="text-xs font-mono mt-2 bg-white/20 px-3 py-1 rounded-full text-white">{userSession.empId}</div>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden text-left">
+        <div className="bg-slate-50/80 border-b border-slate-100 p-5 sm:px-8 flex items-center gap-3">
+          <Bell size={20} className="text-rose-500" />
+          <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">最新公告</h2>
+        </div>
+        <div className="divide-y divide-slate-100">
+          {announcements.length > 0 ? announcements.map(ann => (
+            <div key={ann.id} className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${ann.type === 'policy' ? 'bg-violet-50 text-violet-600' : ann.type === 'system' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+                  {ann.type === 'policy' ? '政策更新' : ann.type === 'system' ? '系統維護' : '活動通知'}
+                </span>
+                {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
+              </div>
+              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-sky-600 transition-colors truncate">{ann.title}</p>
+              <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date}</span>
+            </div>
+          )) : (
+            <div className="p-8 text-center text-slate-400 text-sm font-bold italic">目前無最新公告</div>
+          )}
         </div>
       </div>
 
@@ -277,7 +297,6 @@ const LoginView = ({ employees, onLogin, apiError }) => {
     setError('');
 
     setTimeout(() => {
-      // --- Root 隱藏權限通道 ---
       if (identifier.trim() === 'root') {
         const today = new Date();
         const minguoYear = today.getFullYear() - 1911;
@@ -290,7 +309,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
             id: 'root',
             empId: 'root',
             name: '系統管理員',
-            jobTitle: '最高管理員', // 賦予獨立的最高權限職稱，不與總經理混淆
+            jobTitle: '最高管理員',
             dept: '系統維護部'
           });
           return;
@@ -301,7 +320,6 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         }
       }
       
-      // 一般登入邏輯
       if (employees.length === 0) {
         setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
         setLoading(false);
@@ -347,7 +365,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
 const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
-  const [appType, setAppType] = useState('pre'); // pre=事前(Sky), post=事後(Rose)
+  const [appType, setAppType] = useState('pre');
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
@@ -446,7 +464,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <div className="lg:col-span-4 text-left"><label className="text-xs font-bold text-slate-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2 text-slate-900 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold outline-none focus:ring-2 focus:ring-sky-500 bg-white" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-sky-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
             <div className={`${appType === 'pre' ? 'bg-sky-500' : 'bg-rose-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
             
-            {/* 新增動態預計資訊欄位 */}
             <div className="bg-slate-200 rounded-2xl p-3 text-slate-600 flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500 shadow-inner">
               <span className="text-[9px] uppercase opacity-70 whitespace-nowrap">{formData.compensationType === 'leave' ? '預計補休' : '預計金額'}</span>
               <div className="flex items-baseline gap-1">
@@ -514,9 +531,9 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
-    dept: userSession.dept || '', // 新增部門欄位
-    jobTitle: userSession.jobTitle || '', // 新增職稱欄位
-    substitute: '', // 新增代理人欄位
+    dept: userSession.dept || '',
+    jobTitle: userSession.jobTitle || '',
+    substitute: '',
     category: 'annual', 
     startDate: '', 
     startHour: '', 
@@ -551,7 +568,6 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     
     let totalMs = end.getTime() - start.getTime();
     
-    // 計算跨越的天數並扣除每日 12:30 ~ 13:30 的午休時間 (1小時)
     let currentDay = new Date(start);
     currentDay.setHours(0, 0, 0, 0);
     const endDay = new Date(end);
@@ -564,7 +580,6 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       const lunchEnd = new Date(currentDay);
       lunchEnd.setHours(13, 30, 0, 0);
 
-      // 計算請假區間與當日午休時間的重疊部分
       const overlapStart = Math.max(start.getTime(), lunchStart.getTime());
       const overlapEnd = Math.min(end.getTime(), lunchEnd.getTime());
 
@@ -831,7 +846,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
       const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...userSession, password: formData.new.trim() }) });
       if (res.ok) { 
         setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); 
-        onRefresh(); // 確保登出前更新前端記憶體中的名單資料
+        onRefresh(); 
         setTimeout(() => onLogout(), 2000); 
       }
       else throw new Error('API error');
@@ -938,16 +953,11 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   const [pwdTarget, setPwdTarget] = useState(null); 
   const [expandedEmpId, setExpandedEmpId] = useState(null);
 
-  // 權限過濾：判斷是否為最高權限(root)或總經理，否則依照特定職稱與部門規則顯示
   const filteredEmployees = useMemo(() => {
     if (!userSession) return [];
-    
-    // 1. 最高管理員與總經理：看全部
     if (userSession.empId === 'root' || userSession.jobTitle === '總經理') {
       return employees;
     }
-
-    // 2. 特殊協理檢視權限
     if (userSession.jobTitle === '協理') {
       if (userSession.dept === '工程組') {
         return employees.filter(emp => ['工程組', '系統組'].includes(emp.dept));
@@ -956,8 +966,6 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
         return employees.filter(emp => ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept));
       }
     }
-
-    // 3. 預設：只顯示同部門員工
     return employees.filter(emp => emp.dept === userSession.dept);
   }, [employees, userSession]);
 
@@ -1002,7 +1010,6 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
           e.preventDefault(); 
           const url = editingId ? `${NGROK_URL}/api/employees/${editingId}` : `${NGROK_URL}/api/employees`; 
           
-          // 確保空白的日期被轉換成 null，避免 MySQL 報錯
           const payload = {
             ...formData,
             birthDate: formData.birthDate || null,
@@ -1110,12 +1117,120 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   );
 };
 
+const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification }) => {
+  const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });
+  const [editingId, setEditingId] = useState(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.title.trim()) return setNotification({ type: 'error', text: '公告標題不可為空' });
+
+    if (editingId) {
+      setAnnouncements(prev => prev.map(a => a.id === editingId ? { ...formData, id: editingId } : a));
+      setNotification({ type: 'success', text: '公告更新成功' });
+    } else {
+      setAnnouncements(prev => [{ ...formData, id: Date.now() }, ...prev]);
+      setNotification({ type: 'success', text: '公告新增成功' });
+    }
+    setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });
+    setEditingId(null);
+  };
+
+  const handleDelete = (id) => {
+    if(window.confirm('確定要刪除這則公告嗎？')) {
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+      setNotification({ type: 'success', text: '公告已刪除' });
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-rose-500 p-8 text-white flex justify-between items-center text-left">
+          <div>
+            <h1 className="text-2xl font-black text-white text-left">公告維護中心</h1>
+            <p className="text-sm opacity-90 italic text-white text-left">發布與管理首頁的系統公告資訊</p>
+          </div>
+          <Megaphone size={40} className="opacity-40" />
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left border-b border-slate-100 bg-slate-50/30">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left items-end">
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase">公告標題</label>
+              <input type="text" placeholder="請輸入公告標題..." required className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold" value={formData.title} onChange={e=>setFormData({...formData, title:e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">公告類型</label>
+              <select className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.type} onChange={e=>setFormData({...formData, type:e.target.value})}>
+                <option value="policy">政策更新</option>
+                <option value="system">系統維護</option>
+                <option value="event">活動通知</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">發布日期</label>
+              <input type="date" required className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})} />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between pt-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 rounded text-rose-500 focus:ring-rose-500 border-slate-300" checked={formData.isNew} onChange={e=>setFormData({...formData, isNew:e.target.checked})} />
+              <span className="text-sm font-bold text-slate-600">標示為 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider ml-1">New</span> 新訊</span>
+            </label>
+            <div className="flex gap-3">
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], isNew: true });}} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">取消編輯</button>}
+              <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-md transition-colors flex items-center gap-2">
+                {editingId ? <><Edit2 size={18}/> 更新公告</> : <><Plus size={18}/> 發布公告</>}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <div className="p-8">
+          <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2"><ListChecks size={18} className="text-slate-400"/> 現有公告列表</h3>
+          <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
+            {announcements.length > 0 ? announcements.map(ann => (
+              <div key={ann.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors group">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${ann.type === 'policy' ? 'bg-violet-50 text-violet-600' : ann.type === 'system' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+                    {ann.type === 'policy' ? '政策更新' : ann.type === 'system' ? '系統維護' : '活動通知'}
+                  </span>
+                  {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider">New</span>}
+                </div>
+                <p className="text-sm font-bold text-slate-700 flex-1 truncate">{ann.title}</p>
+                <div className="flex items-center gap-4 shrink-0">
+                  <span className="text-xs font-bold text-slate-400 font-mono">{ann.date}</span>
+                  <div className="flex items-center gap-1 border-l pl-4 border-slate-200">
+                    <button onClick={()=>{setEditingId(ann.id); setFormData(ann); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-400 hover:text-sky-600 transition-colors rounded-lg hover:bg-sky-50"><Edit2 size={16} /></button>
+                    <button onClick={() => handleDelete(ann.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="p-8 text-center text-slate-400 text-sm font-bold italic">無任何公告資料</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- App Component ---
 
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
+  
+  const [announcements, setAnnouncements] = useState([
+    { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', isNew: true },
+    { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', isNew: false },
+    { id: 3, type: 'event', title: 'Q2 跨部門季會暨慶生會活動報名開跑！', date: '2026-04-10', isNew: false },
+  ]);
+
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -1127,7 +1242,6 @@ const App = () => {
     try { 
       setLoading(true);
       setApiError(false);
-      // 🔥 加入 5 秒連線逾時機制，防止瀏覽器死等
       const fetchWithTimeout = (url, options, timeout = 5000) => {
         return Promise.race([
           fetch(url, options),
@@ -1148,14 +1262,12 @@ const App = () => {
       setEmployees([]); 
       setRecords([]);
     } finally {
-      // 🔥 無論成功或失敗，這行一定會執行，確保解除轉圈圈狀態
       setLoading(false);
     }
   };
   
   useEffect(() => { fetchData(); }, []);
   
-  // 判斷是否為管理員：若是 root 則無條件給予最高權限，否則依照職稱判斷
   const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
 
   const otSerialId = useMemo(() => {
@@ -1194,7 +1306,7 @@ const App = () => {
   
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{
     setUserSession(u);
-    setActiveMenu('welcome'); // 確保每次登入時，選單狀態一定重置為首頁總覽
+    setActiveMenu('welcome');
     setNotification({type:'success',text:`${u.name} 登入成功`});
   }} />;
 
@@ -1224,6 +1336,7 @@ const App = () => {
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
+              <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-slate-100 text-slate-600 border-slate-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
             </>
@@ -1244,11 +1357,12 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
+          {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
         </div>
