@@ -105,10 +105,18 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
   const pendingCount = useMemo(() => {
     if (isAdmin) {
-      return records.filter(r => r.status === 'pending').length;
+      return records.filter(r => {
+        if (r.status !== 'pending') return false;
+        if (userSession.empId === 'root' || userSession.jobTitle === '總經理') return true;
+        if (userSession.jobTitle === '協理') {
+          if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+          if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
+        }
+        return r.dept === userSession.dept;
+      }).length;
     }
     return records.filter(r => r.empId === userSession.empId && r.status === 'pending').length;
-  }, [records, userSession.empId, isAdmin]);
+  }, [records, userSession, isAdmin]);
 
   const processingOtCount = useMemo(() => {
     return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && r.status === 'pending').length;
@@ -936,11 +944,22 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
   );
 };
 
-const ApprovalView = ({ records, onRefresh, setNotification }) => {
+const ApprovalView = ({ records, onRefresh, setNotification, userSession }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
-  const pendingRecords = useMemo(() => records.filter(r => r.status === 'pending'), [records]);
+  const pendingRecords = useMemo(() => {
+    return records.filter(r => {
+      if (r.status !== 'pending') return false;
+      if (!userSession) return false;
+      if (userSession.empId === 'root' || userSession.jobTitle === '總經理') return true;
+      if (userSession.jobTitle === '協理') {
+        if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+        if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
+      }
+      return r.dept === userSession.dept;
+    });
+  }, [records, userSession]);
   const handleUpdate = async (status) => {
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
@@ -1442,7 +1461,7 @@ const App = () => {
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
-          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} />}
+          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
         </div>
       </main>
