@@ -98,7 +98,7 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 
 // --- View Components ---
 
-const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements }) => {
+const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees }) => {
   const currentDate = new Date().toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
@@ -107,7 +107,14 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     if (isAdmin) {
       return records.filter(r => {
         if (r.status !== 'pending') return false;
-        if (userSession.empId === 'root' || userSession.jobTitle === '總經理') return true;
+        if (userSession.empId === 'root') return true;
+        
+        // 總經理只看協理的單據
+        if (userSession.jobTitle === '總經理') {
+          const applicant = employees.find(emp => emp.empId === r.empId);
+          return applicant?.jobTitle === '協理';
+        }
+
         if (userSession.jobTitle === '協理') {
           if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
           if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
@@ -116,7 +123,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       }).length;
     }
     return records.filter(r => r.empId === userSession.empId && r.status === 'pending').length;
-  }, [records, userSession, isAdmin]);
+  }, [records, userSession, isAdmin, employees]);
 
   const processingOtCount = useMemo(() => {
     return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && r.status === 'pending').length;
@@ -944,7 +951,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
   );
 };
 
-const ApprovalView = ({ records, onRefresh, setNotification, userSession }) => {
+const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -952,14 +959,18 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession }) => {
     return records.filter(r => {
       if (r.status !== 'pending') return false;
       if (!userSession) return false;
-      if (userSession.empId === 'root' || userSession.jobTitle === '總經理') return true;
+      if (userSession.empId === 'root') return true;
+      if (userSession.jobTitle === '總經理') {
+        const applicant = employees.find(emp => emp.empId === r.empId);
+        return applicant?.jobTitle === '協理';
+      }
       if (userSession.jobTitle === '協理') {
         if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
         if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
       }
       return r.dept === userSession.dept;
     });
-  }, [records, userSession]);
+  }, [records, userSession, employees]);
   const handleUpdate = async (status) => {
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
@@ -1347,8 +1358,22 @@ const App = () => {
         fetchWithTimeout(`${NGROK_URL}/api/records`, fetchOptions).then(r => r.ok ? r.json() : []) 
       ]); 
       
-      setEmployees(Array.isArray(resEmp) ? resEmp : []); 
-      setRecords(Array.isArray(resRec) ? resRec : []); 
+      const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
+      let fetchedRecords = Array.isArray(resRec) ? resRec : [];
+
+      // 將單據中缺乏部門資訊的，透過目前人員管理名單自動比對並補齊
+      fetchedRecords = fetchedRecords.map(r => {
+        if (!r.dept || r.dept === '未設定') {
+          const emp = fetchedEmployees.find(e => e.empId === r.empId);
+          if (emp && emp.dept) {
+            return { ...r, dept: emp.dept };
+          }
+        }
+        return r;
+      });
+      
+      setEmployees(fetchedEmployees); 
+      setRecords(fetchedRecords); 
     } catch (err) { 
       console.error('資料庫連線失敗:', err);
       setApiError(true);
@@ -1434,8 +1459,8 @@ const App = () => {
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
-              <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
+              <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
             </>
           )}
@@ -1455,13 +1480,13 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} employees={employees} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
-          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
+          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
         </div>
       </main>
