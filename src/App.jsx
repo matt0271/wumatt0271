@@ -106,7 +106,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && r.status === 'pending').length;
   }, [records, userSession.empId]);
 
-  const { remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
+  const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
     let usedAnn = 0;
     let earnedCmp = 0;
     let usedCmp = 0;
@@ -119,16 +119,51 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       }
     });
 
-    const totalAnnual = 80;
+    // 依勞基法計算特休總額 (週年制)
+    let totalAnnualHours = 0;
+    if (userSession.hireDate) {
+      const hireDate = new Date(userSession.hireDate);
+      const today = new Date();
+      if (!isNaN(hireDate.getTime())) {
+        let years = today.getFullYear() - hireDate.getFullYear();
+        let m = today.getMonth() - hireDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < hireDate.getDate())) {
+          years--;
+        }
+        
+        let days = 0;
+        if (years >= 10) {
+          days = 15 + (years - 9);
+          if (days > 30) days = 30;
+        } else if (years >= 5) {
+          days = 15;
+        } else if (years >= 3) {
+          days = 14;
+        } else if (years >= 2) {
+          days = 10;
+        } else if (years >= 1) {
+          days = 7;
+        } else {
+          // 滿半年未滿一年
+          const sixMonthsLater = new Date(hireDate);
+          sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+          if (today >= sixMonthsLater) {
+            days = 3;
+          }
+        }
+        totalAnnualHours = days * 8; // 轉換為小時
+      }
+    }
 
     return {
+      totalAnnual: totalAnnualHours,
       usedAnnual: usedAnn,
-      remainAnnual: Math.max(0, totalAnnual - usedAnn),
+      remainAnnual: Math.max(0, totalAnnualHours - usedAnn),
       earnedComp: earnedCmp,
       usedComp: usedCmp,
       remainComp: Math.max(0, earnedCmp - usedCmp)
     };
-  }, [records, userSession.empId]);
+  }, [records, userSession.empId, userSession.hireDate]);
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
@@ -189,14 +224,16 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">特休餘額</p>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-slate-800">{remainAnnual}</span>
+                <span className="text-3xl font-black text-slate-800">{userSession.hireDate ? remainAnnual : '-'}</span>
                 <span className="text-sm font-bold text-slate-500">HR</span>
               </div>
             </div>
           </div>
           <div className="text-right flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">總額度 80 HR</span>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 {usedAnnual} HR</span>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${userSession.hireDate ? 'text-slate-500 bg-slate-100' : 'text-rose-500 bg-rose-50'}`}>
+              {userSession.hireDate ? `總額度 ${totalAnnual} HR` : '請先設定到職日'}
+            </span>
+            {userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 {usedAnnual} HR</span>}
           </div>
         </div>
 
@@ -304,13 +341,18 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         const day = String(today.getDate()).padStart(2, '0');
         const dynamicPassword = `${minguoYear}${month}${day}`;
         
+        // 賦予 root 虛擬的到職日，以便能測試特休計算
+        const fiveYearsAgo = new Date();
+        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+        
         if (password.trim() === dynamicPassword) {
           onLogin({
             id: 'root',
             empId: 'root',
             name: '系統管理員',
             jobTitle: '最高管理員',
-            dept: '系統維護部'
+            dept: '系統維護部',
+            hireDate: fiveYearsAgo.toISOString() // 虛擬 5 年年資
           });
           return;
         } else {
