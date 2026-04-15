@@ -1170,7 +1170,20 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
               </div>
             )}
           </div>
-          <button type="submit" className="w-full py-4 bg-teal-600 text-white rounded-2xl font-black text-center hover:bg-teal-700 transition-colors"> {editingId ? '更新資料' : '新增人員'} </button>
+          
+          <div className="flex gap-4 pt-2">
+            <button type="submit" className="flex-1 py-4 bg-teal-600 text-white rounded-2xl font-black text-center hover:bg-teal-700 transition-colors shadow-md"> 
+              {editingId ? '更新資料' : '新增人員'} 
+            </button>
+            <button type="button" onClick={() => {
+              setEditingId(null); 
+              setFormData({name:'',empId:'',jobTitle:'',dept:'', gender:'', birthDate:'', hireDate:''}); 
+              setShowDetails(false);
+              setIsCustomDept(false);
+            }} className="w-1/3 sm:w-1/4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-center hover:bg-slate-200 transition-colors">
+              清除 / 取消
+            </button>
+          </div>
         </form>
         <div className="overflow-x-auto border-t text-left">
           <table className="w-full border-collapse text-sm text-left text-slate-900">
