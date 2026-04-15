@@ -293,7 +293,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               className="p-4 bg-slate-50/50 hover:bg-yellow-50 transition-colors cursor-pointer text-center group border-t border-slate-100"
             >
               <span className="text-xs font-bold text-slate-500 group-hover:text-yellow-600 flex items-center justify-center gap-1.5">
-                前往佈告欄查看全部 {activeAnnouncements.length} 則公告 <ArrowRight size={14} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all"/>
+                前往資訊公告查看全部 {activeAnnouncements.length} 則公告 <ArrowRight size={14} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all"/>
               </span>
             </div>
           )}
@@ -406,7 +406,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   );
 };
 
-// 新增：公告佈告欄元件 (供員工查詢所有公告)
+// 新增：資訊公告元件 (供員工查詢所有公告)
 const AnnouncementListView = ({ announcements }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
@@ -446,7 +446,7 @@ const AnnouncementListView = ({ announcements }) => {
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-yellow-300 px-8 py-10 text-yellow-950 flex justify-between items-center text-left">
           <div>
-            <h1 className="text-2xl font-black text-yellow-950 text-left">公告佈告欄</h1>
+            <h1 className="text-2xl font-black text-yellow-950 text-left">資訊公告</h1>
             <p className="text-sm opacity-80 italic text-yellow-900 text-left">查看公司所有最新與歷史公告</p>
           </div>
           <Bell size={40} className="opacity-40 text-yellow-700" />
@@ -1635,7 +1635,7 @@ const App = () => {
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
           <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
-          <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Bell size={20} /> 公告佈告欄</button>
+          <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Bell size={20} /> 資訊公告</button>
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
