@@ -99,6 +99,8 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 // --- View Components ---
 
 const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees }) => {
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+
   const currentDate = new Date().toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
   });
@@ -196,7 +198,33 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   }, [announcements]);
 
   return (
-    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans">
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans relative">
+      
+      {/* 公告詳細視窗 Modal */}
+      {selectedAnnouncement && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black ${ANNOUNCEMENT_TYPES.find(t => t.id === selectedAnnouncement.type)?.colorClass || ANNOUNCEMENT_TYPES[0].colorClass}`}>
+                  {ANNOUNCEMENT_TYPES.find(t => t.id === selectedAnnouncement.type)?.label}
+                </span>
+                <span className="text-xs font-bold text-slate-400 font-mono">{selectedAnnouncement.date} 發布</span>
+              </div>
+              <button onClick={() => setSelectedAnnouncement(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 md:p-8 overflow-y-auto">
+              <h2 className="text-2xl font-black text-slate-800 mb-6 leading-snug">{selectedAnnouncement.title}</h2>
+              <div className="text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">
+                {selectedAnnouncement.content || '此公告目前沒有詳細內文。'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-sky-400 to-blue-600 rounded-3xl shadow-xl overflow-hidden text-white relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-sky-300/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
@@ -231,7 +259,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           {activeAnnouncements.length > 0 ? activeAnnouncements.map(ann => {
             const typeInfo = ANNOUNCEMENT_TYPES.find(t => t.id === ann.type) || ANNOUNCEMENT_TYPES[0];
             return (
-            <div key={ann.id} className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group">
+            <div 
+              key={ann.id} 
+              onClick={() => setSelectedAnnouncement(ann)}
+              className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group"
+            >
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${typeInfo.colorClass}`}>
                   {typeInfo.label}
@@ -914,7 +946,7 @@ const InquiryView = ({ records, userSession }) => {
             searchResults.map(r => (
               <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-fuchsia-300 transition-all shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}</span></div>
+                  <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>{r.formType}</span></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-fuchsia-600">{r.serialId}</p></div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
@@ -1261,7 +1293,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
 };
 
 const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification }) => {
-  const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });
+  const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });
   const [editingId, setEditingId] = useState(null);
 
   const handleSubmit = (e) => {
@@ -1275,7 +1307,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
       setAnnouncements(prev => [{ ...formData, id: Date.now() }, ...prev]);
       setNotification({ type: 'success', text: '公告新增成功' });
     }
-    setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });
+    setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });
     setEditingId(null);
   };
 
@@ -1319,6 +1351,10 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
               <label className="text-[10px] font-black text-slate-400 uppercase">下架日期 (選填)</label>
               <input type="date" className="w-full p-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.endDate || ''} onChange={e=>setFormData({...formData, endDate:e.target.value})} />
             </div>
+            <div className="space-y-1.5 md:col-span-5 pt-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase">公告詳細內容 (選填)</label>
+              <textarea placeholder="請輸入詳細公告內容，支援多行顯示..." rows="4" className="w-full p-4 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-rose-500 font-bold text-slate-700" value={formData.content} onChange={e=>setFormData({...formData, content:e.target.value})} />
+            </div>
           </div>
           
           <div className="flex items-center justify-between pt-2">
@@ -1327,7 +1363,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
               <span className="text-sm font-bold text-slate-600">標示為 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider ml-1">New</span> 新訊</span>
             </label>
             <div className="flex gap-3">
-              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true });}} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">取消編輯</button>}
+              {editingId && <button type="button" onClick={() => {setEditingId(null); setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });}} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">取消編輯</button>}
               <button type="submit" className="px-8 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-md transition-colors flex items-center gap-2">
                 {editingId ? <><Edit2 size={18}/> 更新公告</> : <><Plus size={18}/> 發布公告</>}
               </button>
@@ -1379,9 +1415,9 @@ const App = () => {
   const [employees, setEmployees] = useState([]);
   
   const [announcements, setAnnouncements] = useState([
-    { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', endDate: '2026-05-15', isNew: true },
-    { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', endDate: '2026-04-18', isNew: false },
-    { id: 3, type: 'event', title: 'Q2 跨部門季會暨慶生會活動報名開跑！', date: '2026-04-10', endDate: '', isNew: false },
+    { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', endDate: '2026-05-15', isNew: true, content: '請各位同仁注意，2026年度的員工旅遊補助辦法已於今日更新。補助金額與申請流程有部分調整，詳細規則與申請表單請至人資部下載。若有任何疑問，請洽人資部王小姐。' },
+    { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', endDate: '2026-04-18', isNew: false, content: '資訊部預計於本週五晚間 10:00 至 12:00 進行伺服器例行性維護。屆時員工服務平台將暫停服務，無法進行表單送出或資料查詢。請有需要的同仁提早完成相關作業，造成不便敬請見諒。' },
+    { id: 3, type: 'event', title: 'Q2 跨部門季會暨慶生會活動報名開跑！', date: '2026-04-10', endDate: '', isNew: false, content: '各位夥伴好，\n\n今年第二季的跨部門交流會與慶生會要來囉！\n活動時間：2026年5月10日下午 15:00\n活動地點：總部大樓 3F 交誼廳\n\n歡迎大家踴躍報名參加，當天備有精緻下午茶與抽獎活動，千萬別錯過！' },
   ]);
 
   const [loading, setLoading] = useState(true);
