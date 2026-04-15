@@ -479,6 +479,29 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     return Math.round(((end - start) / (1000 * 60 * 60)) * 10) / 10;
   }, [formData]);
 
+  const calculatedCompensation = useMemo(() => {
+    if (totalHours <= 0) return { leave: 0, payStr: '0' };
+    let payHours = 0;
+    const h = Number(totalHours);
+    if (formData.category === 'rest') { // 休息日
+      if (h <= 2) payHours = h * 1.34;
+      else if (h <= 8) payHours = 2 * 1.34 + (h - 2) * 1.67;
+      else payHours = 2 * 1.34 + 6 * 1.67 + (h - 8) * 2.67;
+    } else if (formData.category === 'holiday') { // 國定假日
+      if (h <= 8) payHours = 8;
+      else if (h <= 10) payHours = 8 + (h - 8) * 1.34;
+      else payHours = 8 + 2 * 1.34 + (h - 10) * 1.67;
+    } else { // 一般上班日、出差
+      if (h <= 2) payHours = h * 1.34;
+      else payHours = 2 * 1.34 + (h - 2) * 1.67;
+    }
+
+    return {
+      leave: h, 
+      payStr: payHours > 0 ? (Math.round(payHours * 100) / 100).toFixed(2) : '0'
+    };
+  }, [totalHours, formData.category]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (totalHours <= 0 || submitting) return;
@@ -545,10 +568,10 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <div className={`${appType === 'pre' ? 'bg-blue-500' : 'bg-orange-500'} rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500`}><span className="text-[9px] uppercase opacity-70">時數</span><div className="flex items-baseline gap-1"><span className="text-xl text-white">{totalHours || "0"}</span><span className="text-[9px] text-white">HR</span></div></div>
             
             <div className="bg-slate-200 rounded-2xl p-3 text-slate-600 flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black transition-colors duration-500 shadow-inner">
-              <span className="text-[9px] uppercase opacity-70 whitespace-nowrap">{formData.compensationType === 'leave' ? '預計補休' : '預計金額'}</span>
+              <span className="text-[9px] uppercase opacity-70 whitespace-nowrap">{formData.compensationType === 'leave' ? '預計補休' : '預計加班費'}</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl text-slate-700">-</span>
-                <span className="text-[9px] text-slate-500">{formData.compensationType === 'leave' ? 'HR' : '元'}</span>
+                <span className="text-xl text-slate-700">{formData.compensationType === 'leave' ? calculatedCompensation.leave : calculatedCompensation.payStr}</span>
+                <span className="text-[9px] text-slate-500">{formData.compensationType === 'leave' ? 'HR' : '倍時薪'}</span>
               </div>
             </div>
           </div>
@@ -559,7 +582,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'}`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4>
             <p>A. 加班申請須事前由直屬主管核准，始得進行加班。</p>
             <p>B. 此單於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
-            <p>C. 此加班工時將依比率換算為補休時數或薪資。</p>
+            <p>C. 加班費將依勞基法規定倍率計算 (平日 1.34/1.67、休息日 1.34/1.67/2.67、國定假日加發一日工資)；補休則依工作時數 1:1 計算。</p>
             <p>D. 每月加班時數上限不得超過 46 小時。</p>
           </div>
           <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting ? 'bg-slate-300' : (appType === 'pre' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600')}`}>
@@ -634,7 +657,6 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle, substitute: '' }));
   };
 
-  // 動態計算同部門的代理人清單 (排除自己)
   const availableSubstitutes = useMemo(() => {
     if (!formData.dept) return [];
     return employees.filter(emp => emp.dept === formData.dept && emp.empId !== formData.empId);
@@ -1205,7 +1227,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                       )}
                     </div>
                     {expandedEmpId === emp.id && (emp.birthDate || emp.hireDate) && (
-                      <div className="mt-2 p-2.5 bg-white border border-slate-100 shadow-sm rounded-xl text-[10px] font-bold text-slate-600 animate-in fade-in slide-in-from-top-1 inline-block space-y-1">
+                      <div className="mt-2 p-2.5 bg-white border border-slate-100 shadow-sm rounded-xl text-[10px] font-bold text-slate-600 animate-in fade-in slide-in-from-top-1 inline-block space-y-1 min-w-[140px]">
                         {emp.hireDate && <div><span className="text-slate-400 mr-2 uppercase tracking-widest">到職</span>{emp.hireDate.split('T')[0]}</div>}
                         {emp.birthDate && <div><span className="text-slate-400 mr-2 uppercase tracking-widest">生日</span>{emp.birthDate.split('T')[0]}</div>}
                       </div>
@@ -1220,7 +1242,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                         ...emp, 
                         gender: emp.gender || '', 
                         birthDate: emp.birthDate ? emp.birthDate.split('T')[0] : '', 
-                        hireDate: emp.hireDate ? emp.hireDate.split('T')[0] : '' 
+                        hireDate: emp.hireDate ? emp.hireDate.split('T')[0] : ''
                       }); 
                       setShowDetails(!!(emp.gender || emp.birthDate || emp.hireDate)); 
                       setIsCustomDept(false);
@@ -1388,7 +1410,6 @@ const App = () => {
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       let fetchedRecords = Array.isArray(resRec) ? resRec : [];
 
-      // 將單據中缺乏部門資訊的，透過目前人員管理名單自動比對並補齊
       fetchedRecords = fetchedRecords.map(r => {
         if (!r.dept || r.dept === '未設定') {
           const emp = fetchedEmployees.find(e => e.empId === r.empId);
