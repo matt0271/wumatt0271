@@ -781,18 +781,17 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       if (user && validPassword === password.trim()) {
         // --- 登入成功：產生新的 sessionToken 與登入時間戳 ---
         const newToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
-        const loginTime = Date.now();
         
         // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
         const loginRecord = {
-          serialId: `LOG-${loginTime}`,
+          serialId: `LOG-${Date.now()}`,
           formType: '系統登入',
           empId: user.empId,
           name: user.name,
           dept: user.dept || '未設定',
           sessionToken: newToken,
           status: 'system', // 標記為系統單，不參與簽核
-          createdAt: new Date(loginTime).toISOString()
+          createdAt: new Date().toISOString()
         };
 
         // 嘗試發送登入紀錄到資料庫 (非同步執行，且就算失敗也被 Catch 捕捉，不阻擋登入)
@@ -806,8 +805,8 @@ const LoginView = ({ employees, onLogin, apiError }) => {
           console.warn("SSO 登入紀錄寫入失敗，但已強制放行登入", postErr);
         }
 
-        // 將 Token 與最新登入時間綁定到當前 Session 狀態中
-        onLogin({ ...user, sessionToken: newToken, loginTime });
+        // 將 Token 綁定到當前 Session 狀態中
+        onLogin({ ...user, sessionToken: newToken });
       } else { 
         setError('帳號或密碼不正確'); 
       }
@@ -2179,13 +2178,10 @@ const App = () => {
       if (userSession && userSession.id !== 'root') {
         const loginRecords = Array.isArray(resRec) ? resRec.filter(r => r.formType === '系統登入' && r.empId === userSession.empId) : [];
         if (loginRecords.length > 0) {
-          loginRecords.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          const latestLogin = loginRecords[0];
+          // 強制依照 JSON Server 返回的陣列自然順序，取最後一筆保證是最新的
+          const latestLogin = loginRecords[loginRecords.length - 1];
           
-          // 防護機制：只有當資料庫中的最新登入紀錄「比我們現在的 Session 還要新」時，才認定為被覆寫踢出
-          const isDbLoginNewer = new Date(latestLogin.createdAt).getTime() > (userSession.loginTime || 0);
-
-          if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken && isDbLoginNewer) {
+          if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
             setUserSession(null);
             sessionStorage.removeItem('docflow_user_session');
             setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
@@ -2234,23 +2230,23 @@ const App = () => {
     const checkSession = async () => {
       try {
         // 只需要去拉取 records 就可以判斷
-        const res = await fetch(`${NGROK_URL}/api/records?formType=系統登入&empId=${userSession.empId}&_t=${Date.now()}`, {
+        const formTypeEncoded = encodeURIComponent('系統登入');
+        const res = await fetch(`${NGROK_URL}/api/records?formType=${formTypeEncoded}&empId=${userSession.empId}&_t=${Date.now()}`, {
           method: 'GET',
           headers: fetchOptions.headers
         });
         if (res.ok) {
           let loginRecords = await res.json();
+          if (!Array.isArray(loginRecords)) return;
+
           // 如果後端不支援 query 過濾，就在前端再過濾一次
           loginRecords = loginRecords.filter(r => r.formType === '系統登入' && r.empId === userSession.empId);
 
           if (loginRecords.length > 0) {
-            loginRecords.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            const latestLogin = loginRecords[0];
+            // 利用陣列最後一筆作為最新紀錄，徹底避開兩台電腦時間差(Clock Skew)的問題
+            const latestLogin = loginRecords[loginRecords.length - 1];
 
-            // 防護機制：只有當資料庫中的最新登入紀錄「比我們現在的 Session 還要新」時，才認定為被覆寫踢出
-            const isDbLoginNewer = new Date(latestLogin.createdAt).getTime() > (userSession.loginTime || 0);
-
-            if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken && isDbLoginNewer) {
+            if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
               setUserSession(null);
               sessionStorage.removeItem('docflow_user_session');
               setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
