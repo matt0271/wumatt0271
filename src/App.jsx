@@ -597,6 +597,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         </div>
       </div>
 
+      {/* 新增：主管專屬團隊特休預警清單 */}
       {isAdmin && teamWatchlist.length > 0 && (
         <div className="bg-white rounded-3xl shadow-xl border border-rose-200 overflow-hidden text-left animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3">
@@ -1066,31 +1067,59 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     const end = new Date(`${formData.endDate}T${formData.endHour}:${formData.endMin}:00`);
     if (isNaN(start.getTime()) || end <= start) return 0;
     
-    let totalMs = end.getTime() - start.getTime();
-    
+    let totalValidMs = 0;
     let currentDay = new Date(start);
     currentDay.setHours(0, 0, 0, 0);
     const endDay = new Date(end);
     endDay.setHours(0, 0, 0, 0);
 
-    let deductMs = 0;
+    // 模擬：2026年部分國定假日
+    const holidays = [
+      '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20',
+      '2026-04-03', '2026-04-06', '2026-05-01', '2026-06-19', '2026-09-25', '2026-10-10'
+    ];
+
     while (currentDay <= endDay) {
-      const lunchStart = new Date(currentDay);
-      lunchStart.setHours(12, 30, 0, 0);
-      const lunchEnd = new Date(currentDay);
-      lunchEnd.setHours(13, 30, 0, 0);
+      const dayOfWeek = currentDay.getDay();
+      const localDateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth() + 1).padStart(2, '0')}-${String(currentDay.getDate()).padStart(2, '0')}`;
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isHoliday = holidays.includes(localDateStr);
 
-      const overlapStart = Math.max(start.getTime(), lunchStart.getTime());
-      const overlapEnd = Math.min(end.getTime(), lunchEnd.getTime());
+      // 若非週末且非國定假日，才計入請假時數
+      if (!isWeekend && !isHoliday) {
+        // 設定每日正常上班時間 09:00 ~ 18:00
+        const workStart = new Date(currentDay);
+        workStart.setHours(9, 0, 0, 0);
+        const workEnd = new Date(currentDay);
+        workEnd.setHours(18, 0, 0, 0);
 
-      if (overlapEnd > overlapStart) {
-        deductMs += (overlapEnd - overlapStart);
+        const overlapStart = Math.max(start.getTime(), workStart.getTime());
+        const overlapEnd = Math.min(end.getTime(), workEnd.getTime());
+
+        if (overlapEnd > overlapStart) {
+          let dailyValidMs = overlapEnd - overlapStart;
+
+          // 扣除午休 12:30 ~ 13:30
+          const lunchStart = new Date(currentDay);
+          lunchStart.setHours(12, 30, 0, 0);
+          const lunchEnd = new Date(currentDay);
+          lunchEnd.setHours(13, 30, 0, 0);
+
+          const lunchOverlapStart = Math.max(overlapStart, lunchStart.getTime());
+          const lunchOverlapEnd = Math.min(overlapEnd, lunchEnd.getTime());
+
+          if (lunchOverlapEnd > lunchOverlapStart) {
+            dailyValidMs -= (lunchOverlapEnd - lunchOverlapStart);
+          }
+
+          totalValidMs += dailyValidMs;
+        }
       }
       currentDay.setDate(currentDay.getDate() + 1);
     }
 
-    return Math.max(0, Math.round(((totalMs - deductMs) / (1000 * 60 * 60)) * 10) / 10);
-  }, [formData]);
+    return Math.max(0, Math.round((totalValidMs / (1000 * 60 * 60)) * 10) / 10);
+  }, [formData.startDate, formData.endDate, formData.startHour, formData.startMin, formData.endHour, formData.endMin]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1154,6 +1183,9 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-emerald-600 flex items-center gap-2 mb-2 font-black">開始時間</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
             <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-rose-500 flex items-center gap-2 mb-2 font-black">結束時間</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 px-2 sm:px-4 w-16 sm:w-20 rounded-xl border font-bold bg-white text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
             <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black shadow-lg"><span className="text-[9px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
+          </div>
+          <div className="px-2 text-[11px] text-emerald-600 font-bold -mt-2">
+             * 系統僅計算工作日 09:00~18:00 (自動扣除午休 12:30~13:30、週末及國定假日)。
           </div>
           
           <div className="space-y-4">
