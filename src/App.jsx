@@ -5,7 +5,8 @@ import {
   BarChart3, Users, UserPlus, Edit2, Plus, ArrowRight, AlertTriangle, RefreshCw,
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
-  CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone
+  CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone,
+  Paperclip, UploadCloud
 } from 'lucide-react';
 
 // --- API 設定 ---
@@ -1003,6 +1004,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
@@ -1016,7 +1018,9 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     endDate: '', 
     endHour: '', 
     endMin: '00', 
-    reason: '' 
+    reason: '',
+    attachmentName: '',
+    attachmentData: null
   });
 
   const handleEmpIdChange = (id) => {
@@ -1027,6 +1031,22 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   const handleNameChange = (name) => {
     const matched = employees.find(e => e.name === name);
     setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept, jobTitle: matched ? matched.jobTitle : prev.jobTitle, substitute: '' }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setNotification({ type: 'error', text: '檔案大小不能超過 5MB' });
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, attachmentName: file.name, attachmentData: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const availableSubstitutes = useMemo(() => {
@@ -1080,7 +1100,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
       if(!res.ok) throw new Error('API error');
       setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
-      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
+      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '提交失敗' }); } finally { setSubmitting(false); }
   };
@@ -1135,7 +1156,26 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black shadow-lg"><span className="text-[9px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
           </div>
           
-          <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+          <div className="space-y-4">
+            <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+            
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase">證明文件 (選填)</label>
+              <div 
+                onClick={() => fileInputRef.current?.click()} 
+                className={`w-full p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${formData.attachmentName ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+              >
+                <UploadCloud size={24} className={formData.attachmentName ? 'text-emerald-500' : 'text-slate-400'} />
+                <span className="font-bold text-sm text-center">
+                  {formData.attachmentName ? formData.attachmentName : '點擊上傳附加檔案 (最大 5MB)'}
+                </span>
+                <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileChange} accept=".jpg,.jpeg,.png,.pdf" />
+              </div>
+              {formData.attachmentName && (
+                 <button type="button" onClick={(e) => { e.stopPropagation(); setFormData(prev => ({...prev, attachmentName: '', attachmentData: null})); if(fileInputRef.current) fileInputRef.current.value=''; }} className="text-xs text-rose-500 font-bold mt-1 hover:underline">移除檔案</button>
+              )}
+            </div>
+          </div>
           
           <div className="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-2xl text-[11px] font-bold text-emerald-800 space-y-3 text-left shadow-sm">
             <div>
@@ -1167,7 +1207,17 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="space-y-4">{recentSubmissions.map(r => (
             <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border hover:bg-white transition-all text-slate-900">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
-                <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase">單號</p>
+                  <p className="font-mono font-bold text-slate-600 truncate flex flex-col items-start">
+                    {r.serialId}
+                    {r.attachmentName && (
+                      <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded transition-colors">
+                        <Paperclip size={10} /> 附件
+                      </a>
+                    )}
+                  </p>
+                </div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">假別</p><p className="font-black text-xs text-slate-700 truncate">{LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</p></div>
                 <div>
@@ -1293,7 +1343,17 @@ const InquiryView = ({ records, userSession }) => {
                       {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
                     </span>
                   </div>
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-fuchsia-600">{r.serialId}</p></div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">單號</p>
+                    <p className="font-mono font-bold text-fuchsia-600 flex flex-col items-start">
+                      {r.serialId}
+                      {r.attachmentName && (
+                        <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded transition-colors">
+                          <Paperclip size={10} /> 附件
+                        </a>
+                      )}
+                    </p>
+                  </div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
@@ -1435,7 +1495,14 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession }) =>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
-                  <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>{r.reason}</p>
+                  <div className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>
+                    {r.reason}
+                    {r.attachmentName && (
+                      <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="block mt-1 text-[10px] font-bold text-sky-600 hover:text-sky-700 transition-colors">
+                        <Paperclip size={10} className="inline mr-0.5" /> 附件: {r.attachmentName}
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
@@ -1511,7 +1578,9 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">單號</p>
-                  <p className="font-mono text-xs font-bold text-slate-600 truncate">{r.serialId}</p>
+                  <p className="font-mono text-xs font-bold text-slate-600 truncate flex flex-col items-start">
+                    {r.serialId}
+                  </p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1">單據類型</p>
@@ -1541,7 +1610,14 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
-                  <p className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>{r.reason}</p>
+                  <div className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>
+                    {r.reason}
+                    {r.attachmentName && (
+                      <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="block mt-1 text-[10px] font-bold text-sky-600 hover:text-sky-700 transition-colors">
+                        <Paperclip size={10} className="inline mr-0.5" /> 附件: {r.attachmentName}
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="min-w-0">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">代理人意見</p>
