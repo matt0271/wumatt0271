@@ -879,9 +879,27 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     };
   }, [totalHours, formData.category]);
 
+  // 新增：計算當月已核准加班時數與防呆邏輯
+  const currentMonthOTHours = useMemo(() => {
+    if (!formData.startDate) return 0;
+    const targetMonth = formData.startDate.substring(0, 7); // 取得 YYYY-MM 格式
+    return records
+      .filter(r => 
+        r.formType === '加班' && 
+        r.empId === formData.empId && 
+        r.status === 'approved' && // 僅計算已核准的時數
+        r.startDate && 
+        r.startDate.substring(0, 7) === targetMonth
+      )
+      .reduce((sum, r) => sum + (parseFloat(r.totalHours) || 0), 0);
+  }, [records, formData.startDate, formData.empId]);
+
+  const projectedTotalHours = currentMonthOTHours + (Number(totalHours) || 0);
+  const isOverLimit = projectedTotalHours > 46;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (totalHours <= 0 || submitting) return;
+    if (totalHours <= 0 || submitting || isOverLimit) return;
     setSubmitting(true);
     try {
       const res = await fetch(`${NGROK_URL}/api/records`, { 
@@ -975,7 +993,20 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <p>C. 加班費將依勞基法規定倍率計算 (平日 1.34/1.67、休息日 1.34/1.67/2.67、國定假日加發一日工資)；補休則依工作時數 1:1 計算。</p>
             <p>D. 每月加班時數上限不得超過 46 小時。</p>
           </div>
-          <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting ? 'bg-slate-300' : (appType === 'pre' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600')}`}>
+
+          {isOverLimit && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-700 text-sm font-bold shadow-sm animate-in fade-in slide-in-from-bottom-2">
+              <AlertTriangle size={20} className="shrink-0 text-rose-500" />
+              <div>
+                送出限制：當月加班時數將超過 46 小時法定上限！
+                <div className="text-xs font-medium mt-1 text-rose-600">
+                  當月已核准：{currentMonthOTHours} 小時 + 本次申請：{totalHours || 0} 小時 = 預計 {projectedTotalHours} 小時
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button disabled={totalHours <= 0 || submitting || isOverLimit} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting || isOverLimit ? 'bg-slate-300 cursor-not-allowed' : (appType === 'pre' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600')}`}>
             {submitting ? '提交中...' : `送出加班申請 (${appType === 'pre' ? '事前' : '事後'})`}
           </button>
         </form>
