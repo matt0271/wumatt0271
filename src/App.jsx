@@ -737,67 +737,50 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    if (identifier.trim() === 'root') {
-      const today = new Date();
-      const minguoYear = today.getFullYear() - 1911;
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
-      const dynamicPassword = `${minguoYear}${month}${day}`;
-      
-      const fiveYearsAgo = new Date();
-      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-      
-      if (password.trim() === dynamicPassword) {
-        onLogin({
-          id: 'root',
-          empId: 'root',
-          name: '系統管理員',
-          jobTitle: '最高管理員',
-          dept: '系統維護部',
-          hireDate: fiveYearsAgo.toISOString() 
-        });
-      } else {
-        setError('帳號或密碼不正確');
+    setTimeout(() => {
+      if (identifier.trim() === 'root') {
+        const today = new Date();
+        const minguoYear = today.getFullYear() - 1911;
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const dynamicPassword = `${minguoYear}${month}${day}`;
+        
+        const fiveYearsAgo = new Date();
+        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+        
+        if (password.trim() === dynamicPassword) {
+          onLogin({
+            id: 'root',
+            empId: 'root',
+            name: '系統管理員',
+            jobTitle: '最高管理員',
+            dept: '系統維護部',
+            hireDate: fiveYearsAgo.toISOString() 
+          });
+          return;
+        } else {
+          setError('帳號或密碼不正確');
+          setLoading(false);
+          return;
+        }
       }
-      setLoading(false);
-      return;
-    }
-    
-    if (employees.length === 0) {
-      setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
-      setLoading(false);
-      return;
-    }
+      
+      if (employees.length === 0) {
+        setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
+        setLoading(false);
+        return;
+      }
 
-    try {
       const user = employees.find(emp => emp.name === identifier.trim() || emp.empId === identifier.trim());
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
-      
-      if (user && validPassword === password.trim()) {
-        // --- 登入成功：發配並紀錄新的 sessionToken ---
-        const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
-        
-        const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-          method: 'PUT',
-          headers: fetchOptions.headers,
-          body: JSON.stringify({ ...user, sessionToken: newToken })
-        });
-        
-        if (!res.ok) throw new Error('API Error');
-        onLogin({ ...user, sessionToken: newToken });
-      } else { 
-        setError('帳號或密碼不正確'); 
-      }
-    } catch (err) {
-      setError('登入連線失敗，請檢查網路狀態');
-    } finally {
-      setLoading(false);
-    }
+      if (user && validPassword === password.trim()) onLogin(user);
+      else { setError('帳號或密碼不正確'); setLoading(false); }
+    }, 800);
   };
 
   return (
@@ -2154,16 +2137,6 @@ const App = () => {
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       let fetchedRecords = Array.isArray(resRec) ? resRec : [];
 
-      // 新增：檢查當前登入者是否被踢出 (單一登入驗證)
-      if (userSession && userSession.id !== 'root') {
-        const currentDbUser = fetchedEmployees.find(e => e.id === userSession.id);
-        if (currentDbUser && currentDbUser.sessionToken && currentDbUser.sessionToken !== userSession.sessionToken) {
-          setUserSession(null);
-          setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
-          return; // 中止後續狀態更新
-        }
-      }
-
       fetchedRecords = fetchedRecords.map(r => {
         let updatedR = { ...r };
         if (!updatedR.dept || updatedR.dept === '未設定') {
@@ -2194,30 +2167,6 @@ const App = () => {
   };
   
   useEffect(() => { fetchData(); }, []);
-
-  // 新增：定期檢查單一登入 (SSO) 狀態 (輪詢)
-  useEffect(() => {
-    if (!userSession || userSession.id === 'root') return;
-    
-    const checkSession = async () => {
-      try {
-        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, fetchOptions);
-        if (res.ok) {
-          const dbUser = await res.json();
-          // 如果資料庫中的 token 與當前 session 的 token 不符，代表已被其他裝置登入
-          if (dbUser.sessionToken && dbUser.sessionToken !== userSession.sessionToken) {
-            setUserSession(null);
-            setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
-          }
-        }
-      } catch (e) {
-        // 忽略網路錯誤，避免因短暫斷線造成誤踢
-      }
-    };
-
-    const interval = setInterval(checkSession, 5000); // 每 5 秒檢查一次
-    return () => clearInterval(interval);
-  }, [userSession]);
 
   const availableDepts = useMemo(() => {
     const depts = employees.map(e => e.dept).filter(Boolean);
