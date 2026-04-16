@@ -781,26 +781,21 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       if (user && validPassword === password.trim()) {
         // --- 登入成功：發配並紀錄新的 sessionToken ---
         const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
-        
-        // 為了避免 PATCH 在某些 json-server 版本或 CORS 設定下被阻擋
-        // 改先拉取最新單筆資料，再用 PUT 完整寫入
-        const userRes = await fetch(`${NGROK_URL}/api/employees/${user.id}`, { headers: fetchOptions.headers });
-        const latestUser = await userRes.json();
-        const updatedUser = { ...latestUser, sessionToken: newToken };
+        const updatedUser = { ...user, sessionToken: newToken };
 
-        const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-          method: 'PUT',
+        // 背景非同步更新 Token 到資料庫，不阻擋前端登入流程，避免 CORS 或網路延遲卡死
+        fetch(`${NGROK_URL}/api/employees/${user.id}`, {
+          method: 'PATCH',
           headers: fetchOptions.headers,
-          body: JSON.stringify(updatedUser)
-        });
+          body: JSON.stringify({ sessionToken: newToken })
+        }).catch(err => console.warn('SSO 更新失敗，忽略此錯誤以維持基本登入：', err));
         
-        if (!res.ok) throw new Error('API Error');
         onLogin(updatedUser);
       } else { 
         setError('帳號或密碼不正確'); 
       }
     } catch (err) {
-      setError('登入連線失敗，請檢查網路狀態');
+      setError('登入處理發生錯誤');
     } finally {
       setLoading(false);
     }
@@ -1199,10 +1194,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setSubmitting(true);
     try {
       // --- 防護機制：送單前即時二次驗證餘額 ---
-      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, {
-        ...fetchOptions,
-        cache: 'no-store'
-      });
+      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, fetchOptions);
       if (!freshRes.ok) throw new Error('無法驗證最新餘額');
       const freshRecords = await freshRes.json();
       const stats = calculatePTOStats(userSession.empId, userSession.hireDate, freshRecords);
@@ -2213,12 +2205,7 @@ const App = () => {
       try {
         const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, {
           method: 'GET',
-          headers: {
-            ...fetchOptions.headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
+          headers: fetchOptions.headers
         });
         if (res.ok) {
           const dbUser = await res.json();
