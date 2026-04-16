@@ -214,14 +214,16 @@ const StatusBadge = ({ status }) => {
     rejected: "bg-rose-50 text-rose-700 border-rose-100",
     pending_substitute: "bg-amber-50 text-amber-700 border-amber-100",
     pending_manager: "bg-indigo-50 text-indigo-700 border-indigo-100",
-    pending: "bg-indigo-50 text-indigo-700 border-indigo-100" // 相容舊資料
+    pending: "bg-indigo-50 text-indigo-700 border-indigo-100", // 相容舊資料
+    canceled: "bg-slate-100 text-slate-500 border-slate-200"
   };
   const labels = { 
     approved: "已核准", 
     rejected: "已駁回", 
     pending_substitute: "待代理確認",
     pending_manager: "待主管簽核",
-    pending: "待簽核" 
+    pending: "待簽核",
+    canceled: "已撤銷"
   };
   const currentStyle = styles[status] || styles.pending;
   const currentLabel = labels[status] || labels.pending;
@@ -813,6 +815,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
 const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [appType, setAppType] = useState('pre');
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
@@ -890,7 +893,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
       setNotification({ type: 'success', text: '加班申請已送出' });
       onRefresh();
-    } catch (err) { setNotification({ type: 'error', text: '連線失敗，請檢查後端' }); } finally { setSubmitting(false); }
+    } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
   };
 
   return (
@@ -899,9 +902,22 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black mb-2 text-slate-900">確定要撤回申請？</h3>
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要刪除申請？</h3>
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
-            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認</button></div>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
+          </div>
+        </div>
+      )}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <Undo2 size={48} className="text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要抽單 (撤銷核准)？</h3>
+            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
+              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行抽單撤銷' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功撤銷該單據' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '撤銷失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認撤銷</button>
+            </div>
           </div>
         </div>
       )}
@@ -989,7 +1005,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
-                  {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                  {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors" title="刪除單據"><Trash2 size={16}/></button>}
+                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="p-2 text-slate-500 hover:bg-slate-200 rounded-xl transition-colors" title="抽單(撤銷)"><Undo2 size={16}/></button>}
                 </div>
               </div>
             </div>
@@ -1005,6 +1022,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
@@ -1132,7 +1150,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null }));
       if (fileInputRef.current) fileInputRef.current.value = '';
       onRefresh();
-    } catch (err) { setNotification({ type: 'error', text: '提交失敗' }); } finally { setSubmitting(false); }
+    } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
   };
 
   return (
@@ -1141,9 +1159,22 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black mb-2 text-slate-900">確定要撤回申請？</h3>
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要刪除申請？</h3>
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
-            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認</button></div>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
+          </div>
+        </div>
+      )}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <Undo2 size={48} className="text-slate-400 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要辦理銷假 (抽單)？</h3>
+            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
+              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功完成銷假' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '銷假失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認銷假</button>
+            </div>
           </div>
         </div>
       )}
@@ -1266,7 +1297,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
-                  {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                  {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors" title="刪除單據"><Trash2 size={16}/></button>}
+                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="p-2 text-slate-500 hover:bg-slate-200 rounded-xl transition-colors" title="銷假(抽單)"><Undo2 size={16}/></button>}
                 </div>
               </div>
             </div>
@@ -1342,6 +1374,7 @@ const InquiryView = ({ records, userSession }) => {
                 <option value="pending_manager">待主管簽核</option>
                 <option value="approved">已核准</option>
                 <option value="rejected">已駁回</option>
+                <option value="canceled">已撤銷(銷假)</option>
               </select>
             </div>
             <div className="space-y-1.5">
