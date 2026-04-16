@@ -783,9 +783,9 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
         
         const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-          method: 'PATCH',
+          method: 'PUT',
           headers: fetchOptions.headers,
-          body: JSON.stringify({ sessionToken: newToken })
+          body: JSON.stringify({ ...user, sessionToken: newToken })
         });
         
         if (!res.ok) throw new Error('API Error');
@@ -1193,10 +1193,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setSubmitting(true);
     try {
       // --- 防護機制：送單前即時二次驗證餘額 ---
-      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, {
-        ...fetchOptions,
-        cache: 'no-store'
-      });
+      const freshRes = await fetch(`${NGROK_URL}/api/records`, fetchOptions);
       if (!freshRes.ok) throw new Error('無法驗證最新餘額');
       const freshRecords = await freshRes.json();
       const stats = calculatePTOStats(userSession.empId, userSession.hireDate, freshRecords);
@@ -2144,14 +2141,14 @@ const App = () => {
       setApiError(false);
       const fetchWithTimeout = (url, options, timeout = 5000) => {
         return Promise.race([
-          fetch(url, { ...options, cache: 'no-store' }),
+          fetch(url, options),
           new Promise((_, reject) => setTimeout(() => reject(new Error('連線逾時')), timeout))
         ]);
       };
 
       const [resEmp, resRec] = await Promise.all([ 
-        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []), 
-        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []) 
+        fetchWithTimeout(`${NGROK_URL}/api/employees`, fetchOptions).then(r => r.ok ? r.json() : []), 
+        fetchWithTimeout(`${NGROK_URL}/api/records`, fetchOptions).then(r => r.ok ? r.json() : []) 
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
@@ -2204,10 +2201,7 @@ const App = () => {
     
     const checkSession = async () => {
       try {
-        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, {
-          ...fetchOptions,
-          cache: 'no-store'
-        });
+        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, fetchOptions);
         if (res.ok) {
           const dbUser = await res.json();
           // 如果資料庫中的 token 與當前 session 的 token 不符，代表已被其他裝置登入
