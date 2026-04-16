@@ -478,7 +478,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">特休餘額</p>
-                {userWarningStatus && <AlertTriangle size={14} className="text-rose-500 animate-bounce" title="即將超標" />}
+                {userWarningStatus && <AlertTriangle size={14} className="text-rose-500 animate-bounce" title="即遇到期" />}
               </div>
               <div className="flex items-baseline gap-1">
                 <span className={`text-3xl font-black ${userWarningStatus ? 'text-rose-600' : 'text-slate-800'}`}>
@@ -737,50 +737,73 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      if (identifier.trim() === 'root') {
-        const today = new Date();
-        const minguoYear = today.getFullYear() - 1911;
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const dynamicPassword = `${minguoYear}${month}${day}`;
-        
-        const fiveYearsAgo = new Date();
-        fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-        
-        if (password.trim() === dynamicPassword) {
-          onLogin({
-            id: 'root',
-            empId: 'root',
-            name: '系統管理員',
-            jobTitle: '最高管理員',
-            dept: '系統維護部',
-            hireDate: fiveYearsAgo.toISOString() 
-          });
-          return;
-        } else {
-          setError('帳號或密碼不正確');
-          setLoading(false);
-          return;
-        }
-      }
+    if (identifier.trim() === 'root') {
+      const today = new Date();
+      const minguoYear = today.getFullYear() - 1911;
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const dynamicPassword = `${minguoYear}${month}${day}`;
       
-      if (employees.length === 0) {
-        setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
-        setLoading(false);
-        return;
+      const fiveYearsAgo = new Date();
+      fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
+      
+      if (password.trim() === dynamicPassword) {
+        onLogin({
+          id: 'root',
+          empId: 'root',
+          name: '系統管理員',
+          jobTitle: '最高管理員',
+          dept: '系統維護部',
+          hireDate: fiveYearsAgo.toISOString() 
+        });
+      } else {
+        setError('帳號或密碼不正確');
       }
+      setLoading(false);
+      return;
+    }
+    
+    if (employees.length === 0) {
+      setError('目前無法連線到資料庫，請確認後端伺服器已啟動。');
+      setLoading(false);
+      return;
+    }
 
+    try {
       const user = employees.find(emp => emp.name === identifier.trim() || emp.empId === identifier.trim());
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
-      if (user && validPassword === password.trim()) onLogin(user);
-      else { setError('帳號或密碼不正確'); setLoading(false); }
-    }, 800);
+      
+      if (user && validPassword === password.trim()) {
+        // --- 登入成功：發配並紀錄新的 sessionToken ---
+        const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
+        
+        // 為了避免 PATCH 在某些 json-server 版本或 CORS 設定下被阻擋
+        // 改先拉取最新單筆資料，再用 PUT 完整寫入
+        const userRes = await fetch(`${NGROK_URL}/api/employees/${user.id}`, { headers: fetchOptions.headers });
+        const latestUser = await userRes.json();
+        const updatedUser = { ...latestUser, sessionToken: newToken };
+
+        const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
+          method: 'PUT',
+          headers: fetchOptions.headers,
+          body: JSON.stringify(updatedUser)
+        });
+        
+        if (!res.ok) throw new Error('API Error');
+        onLogin(updatedUser);
+      } else { 
+        setError('帳號或密碼不正確'); 
+      }
+    } catch (err) {
+      setError('登入連線失敗，請檢查網路狀態');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1176,7 +1199,10 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setSubmitting(true);
     try {
       // --- 防護機制：送單前即時二次驗證餘額 ---
-      const freshRes = await fetch(`${NGROK_URL}/api/records`, fetchOptions);
+      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, {
+        ...fetchOptions,
+        cache: 'no-store'
+      });
       if (!freshRes.ok) throw new Error('無法驗證最新餘額');
       const freshRecords = await freshRes.json();
       const stats = calculatePTOStats(userSession.empId, userSession.hireDate, freshRecords);
@@ -2130,12 +2156,23 @@ const App = () => {
       };
 
       const [resEmp, resRec] = await Promise.all([ 
-        fetchWithTimeout(`${NGROK_URL}/api/employees`, fetchOptions).then(r => r.ok ? r.json() : []), 
-        fetchWithTimeout(`${NGROK_URL}/api/records`, fetchOptions).then(r => r.ok ? r.json() : []) 
+        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []), 
+        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []) 
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       let fetchedRecords = Array.isArray(resRec) ? resRec : [];
+
+      // 新增：檢查當前登入者是否被踢出 (單一登入驗證)
+      if (userSession && userSession.id !== 'root') {
+        const currentDbUser = fetchedEmployees.find(e => e.id === userSession.id);
+        if (currentDbUser && currentDbUser.sessionToken && userSession.sessionToken && currentDbUser.sessionToken !== userSession.sessionToken) {
+          setUserSession(null);
+          sessionStorage.removeItem('docflow_user_session');
+          setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
+          return; // 中止後續狀態更新
+        }
+      }
 
       fetchedRecords = fetchedRecords.map(r => {
         let updatedR = { ...r };
@@ -2167,6 +2204,44 @@ const App = () => {
   };
   
   useEffect(() => { fetchData(); }, []);
+
+  // 新增：定期檢查單一登入 (SSO) 狀態 (輪詢)
+  useEffect(() => {
+    if (!userSession || userSession.id === 'root') return;
+    
+    const checkSession = async () => {
+      try {
+        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, {
+          method: 'GET',
+          headers: {
+            ...fetchOptions.headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        if (res.ok) {
+          const dbUser = await res.json();
+          // 嚴格比對 Token：如果資料庫有 Token 且與當前瀏覽器 Token 不同，就是被別人登入了
+          if (dbUser.sessionToken && userSession.sessionToken && dbUser.sessionToken !== userSession.sessionToken) {
+            setUserSession(null);
+            sessionStorage.removeItem('docflow_user_session'); // 確保清除
+            setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
+          } else if (dbUser.sessionToken && !userSession.sessionToken) {
+             // 如果當前沒 token 但 DB 有，代表是舊 session，也強制登出重登
+             setUserSession(null);
+             sessionStorage.removeItem('docflow_user_session');
+             setNotification({ type: 'error', text: '登入憑證已更新，請重新登入' });
+          }
+        }
+      } catch (e) {
+        // 忽略網路錯誤，避免因短暫斷線造成誤踢
+      }
+    };
+
+    const interval = setInterval(checkSession, 3000); // 加快檢查頻率 (每 3 秒)
+    return () => clearInterval(interval);
+  }, [userSession]);
 
   const availableDepts = useMemo(() => {
     const depts = employees.map(e => e.dept).filter(Boolean);
