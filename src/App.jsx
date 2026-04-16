@@ -60,6 +60,98 @@ const ANNOUNCEMENT_TYPES = [
   { id: 'finance', label: '財務相關公告', colorClass: 'bg-blue-50 text-blue-600' },
 ];
 
+// --- 特休計算 Helpers (新增預警計算邏輯) ---
+const getNextAnniversary = (hireDateStr) => {
+  if (!hireDateStr) return null;
+  const hireDate = new Date(hireDateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 歸零時間以精準比較日期
+  let nextAnniv = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
+  if (nextAnniv < today) {
+    nextAnniv.setFullYear(today.getFullYear() + 1);
+  }
+  return nextAnniv;
+};
+
+const getDaysDiff = (date1, date2) => {
+  const diffTime = date2.getTime() - date1.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const getProjectedPTO = (hireDateStr, nextAnniversaryDate) => {
+  if (!hireDateStr || !nextAnniversaryDate) return 0;
+  const hireDate = new Date(hireDateStr);
+  const years = nextAnniversaryDate.getFullYear() - hireDate.getFullYear();
+  let days = 0;
+  // 依勞基法規定
+  if (years >= 10) days = 15 + (years - 9);
+  else if (years >= 5) days = 15;
+  else if (years >= 3) days = 14;
+  else if (years >= 2) days = 10;
+  else if (years >= 1) days = 7;
+  else days = 3;
+  if (days > 30) days = 30; // 勞基法上限30天
+  return days * 8; // 轉換為小時
+};
+
+// 將原本散落在 WelcomeView 的結餘計算抽出，方便重複使用
+const calculatePTOStats = (empId, hireDateStr, records) => {
+  let usedAnn = 0;
+  let earnedCmp = 0;
+  let usedCmp = 0;
+
+  records.forEach(r => {
+    if (r.empId === empId && r.status === 'approved') {
+      if (r.formType === '請假' && r.category === 'annual') usedAnn += (parseFloat(r.totalHours) || 0);
+      if (r.formType === '加班' && r.compensationType === 'leave') earnedCmp += (parseFloat(r.totalHours) || 0);
+      if (r.formType === '請假' && r.category === 'comp') usedCmp += (parseFloat(r.totalHours) || 0);
+    }
+  });
+
+  let totalAnnualHours = 0;
+  if (hireDateStr) {
+    const hireDate = new Date(hireDateStr);
+    const today = new Date();
+    if (!isNaN(hireDate.getTime())) {
+      let years = today.getFullYear() - hireDate.getFullYear();
+      let m = today.getMonth() - hireDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < hireDate.getDate())) {
+        years--;
+      }
+
+      let days = 0;
+      if (years >= 10) {
+        days = 15 + (years - 9);
+        if (days > 30) days = 30;
+      } else if (years >= 5) {
+        days = 15;
+      } else if (years >= 3) {
+        days = 14;
+      } else if (years >= 2) {
+        days = 10;
+      } else if (years >= 1) {
+        days = 7;
+      } else {
+        const sixMonthsLater = new Date(hireDate);
+        sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+        if (today >= sixMonthsLater) {
+          days = 3;
+        }
+      }
+      totalAnnualHours = days * 8; 
+    }
+  }
+
+  return {
+    totalAnnual: totalAnnualHours,
+    usedAnnual: usedAnn,
+    remainAnnual: Math.max(0, totalAnnualHours - usedAnn),
+    earnedComp: earnedCmp,
+    usedComp: usedCmp,
+    remainComp: Math.max(0, earnedCmp - usedCmp)
+  };
+};
+
 // --- Helper Components ---
 
 const StatusBadge = ({ status }) => {
@@ -142,61 +234,77 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   }, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
-    let usedAnn = 0;
-    let earnedCmp = 0;
-    let usedCmp = 0;
+    return calculatePTOStats(userSession.empId, userSession.hireDate, records);
+  }, [records, userSession.empId, userSession.hireDate]);
+
+  // --- 新增：員工個人特休預警計算 ---
+  const userWarningStatus = useMemo(() => {
+    if (!userSession.hireDate) return null;
+    const nextAnniv = getNextAnniversary(userSession.hireDate);
+    if (!nextAnniv) return null;
     
-    records.forEach(r => {
-      if (r.empId === userSession.empId && r.status === 'approved') {
-        if (r.formType === '請假' && r.category === 'annual') usedAnn += (parseFloat(r.totalHours) || 0);
-        if (r.formType === '加班' && r.compensationType === 'leave') earnedCmp += (parseFloat(r.totalHours) || 0);
-        if (r.formType === '請假' && r.category === 'comp') usedCmp += (parseFloat(r.totalHours) || 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const daysLeft = getDaysDiff(today, nextAnniv);
+    
+    const projectedNewPTO = getProjectedPTO(userSession.hireDate, nextAnniv);
+    const projectedTotal = remainAnnual + projectedNewPTO;
+    
+    // 條件：預測總額超過 240，且倒數在 90 天內 (且 >0 避免過期干擾)
+    if (projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0) {
+      return {
+        active: true,
+        daysLeft,
+        projectedTotal,
+        overHours: projectedTotal - 240,
+        nextAnnivStr: nextAnniv.toISOString().split('T')[0]
+      };
+    }
+    return null;
+  }, [userSession.hireDate, remainAnnual]);
+
+  // --- 新增：主管團隊特休預警名單 ---
+  const teamWatchlist = useMemo(() => {
+    if (!isAdmin) return [];
+    
+    // 1. 取得主管權限範圍內的部屬清單
+    const team = employees.filter(emp => {
+      if (emp.empId === userSession.empId) return false; // 排除自己
+      if (userSession.empId === 'root') return true;
+      if (userSession.jobTitle === '總經理') return emp.jobTitle === '協理';
+      if (userSession.jobTitle === '協理') {
+        if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(emp.dept);
+        if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept);
       }
+      return emp.dept === userSession.dept;
     });
 
-    let totalAnnualHours = 0;
-    if (userSession.hireDate) {
-      const hireDate = new Date(userSession.hireDate);
-      const today = new Date();
-      if (!isNaN(hireDate.getTime())) {
-        let years = today.getFullYear() - hireDate.getFullYear();
-        let m = today.getMonth() - hireDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < hireDate.getDate())) {
-          years--;
-        }
-        
-        let days = 0;
-        if (years >= 10) {
-          days = 15 + (years - 9);
-          if (days > 30) days = 30;
-        } else if (years >= 5) {
-          days = 15;
-        } else if (years >= 3) {
-          days = 14;
-        } else if (years >= 2) {
-          days = 10;
-        } else if (years >= 1) {
-          days = 7;
-        } else {
-          const sixMonthsLater = new Date(hireDate);
-          sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
-          if (today >= sixMonthsLater) {
-            days = 3;
-          }
-        }
-        totalAnnualHours = days * 8; 
-      }
-    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    return {
-      totalAnnual: totalAnnualHours,
-      usedAnnual: usedAnn,
-      remainAnnual: Math.max(0, totalAnnualHours - usedAnn),
-      earnedComp: earnedCmp,
-      usedComp: usedCmp,
-      remainComp: Math.max(0, earnedCmp - usedCmp)
-    };
-  }, [records, userSession.empId, userSession.hireDate]);
+    // 2. 逐一試算是否處於超標預警狀態
+    return team.map(emp => {
+      const stats = calculatePTOStats(emp.empId, emp.hireDate, records);
+      const nextAnniv = getNextAnniversary(emp.hireDate);
+      if (!nextAnniv) return null;
+      
+      const daysLeft = getDaysDiff(today, nextAnniv);
+      const projectedNew = getProjectedPTO(emp.hireDate, nextAnniv);
+      const projectedTotal = stats.remainAnnual + projectedNew;
+
+      if (projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0) {
+        return {
+          ...emp,
+          remainAnnual: stats.remainAnnual,
+          projectedTotal,
+          daysLeft,
+          nextAnnivStr: nextAnniv.toISOString().split('T')[0],
+          overHours: projectedTotal - 240
+        };
+      }
+      return null;
+    }).filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft); // 依到期日緊急程度排序
+  }, [isAdmin, employees, records, userSession]);
 
   const activeAnnouncements = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -228,6 +336,25 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
                 {selectedAnnouncement.content || '此公告目前沒有詳細內文。'}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 新增：員工特休超標預警橫幅 (Banner) */}
+      {userWarningStatus && (
+        <div className="bg-rose-50 border-l-4 border-rose-500 p-4 sm:p-5 rounded-r-2xl shadow-sm flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
+          <div className="p-2 bg-rose-100 rounded-full shrink-0 animate-pulse mt-0.5">
+            <AlertTriangle className="text-rose-600" size={24} />
+          </div>
+          <div>
+            <h3 className="text-rose-800 font-black text-lg flex items-center gap-2">
+              特休時數超標預警 <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">倒數 {userWarningStatus.daysLeft} 天</span>
+            </h3>
+            <p className="text-rose-700 mt-1.5 text-sm font-medium leading-relaxed">
+              您的到職週年日 (<span className="font-bold">{userWarningStatus.nextAnnivStr}</span>) 即將到來。
+              預計發放新特休後將達 <span className="font-bold">{userWarningStatus.projectedTotal} 小時</span>，超過 240 小時之規定上限。
+              <strong className="block mt-1 text-rose-900 bg-rose-200/50 inline-block px-2 py-0.5 rounded">屆時超過之 {userWarningStatus.overHours} 小時將自動歸零，請盡速安排休假，以免影響權益。</strong>
+            </p>
           </div>
         </div>
       )}
@@ -311,9 +438,14 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               <CalendarDays size={28} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">特休餘額</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">特休餘額</p>
+                {userWarningStatus && <AlertTriangle size={14} className="text-rose-500 animate-bounce" title="即將超標" />}
+              </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-slate-800">{userSession.hireDate ? remainAnnual : '-'}</span>
+                <span className={`text-3xl font-black ${userWarningStatus ? 'text-rose-600' : 'text-slate-800'}`}>
+                  {userSession.hireDate ? remainAnnual : '-'}
+                </span>
                 <span className="text-sm font-bold text-slate-500">HR</span>
               </div>
             </div>
@@ -428,6 +560,62 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           </div>
         </div>
       </div>
+
+      {/* 新增：主管專屬團隊特休預警清單 */}
+      {isAdmin && teamWatchlist.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-xl border border-rose-200 overflow-hidden text-left animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-500 rounded-xl text-white shadow-sm">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-rose-900 uppercase tracking-widest">團隊特休超標關注名單</h2>
+                <p className="text-xs text-rose-600 mt-0.5 font-bold">未來 90 天內即將發放特休且預估超標之人員，請盡速督促排休</p>
+              </div>
+            </div>
+            <span className="bg-rose-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm">
+              需關注 {teamWatchlist.length} 人
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                <tr>
+                  <th className="p-4 px-8">員工姓名 / 單位</th>
+                  <th className="p-4">發放日 / 倒數</th>
+                  <th className="p-4 text-right">目前結餘</th>
+                  <th className="p-4 text-right">預測總計</th>
+                  <th className="p-4 text-right px-8">預計歸零</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {teamWatchlist.map(emp => (
+                  <tr key={emp.id} className="hover:bg-rose-50/50 transition-colors">
+                    <td className="p-4 px-8">
+                      <div className="font-bold text-slate-800">{emp.name} <span className="font-mono text-[11px] text-slate-400 ml-1 font-medium">({emp.empId})</span></div>
+                      <div className="text-[10px] text-slate-500 font-bold">{emp.dept} / {emp.jobTitle}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-bold text-slate-700">{emp.nextAnnivStr}</div>
+                      <div className={`text-[10px] font-bold mt-0.5 ${emp.daysLeft <= 30 ? 'text-rose-600' : 'text-amber-600'}`}>
+                        倒數 {emp.daysLeft} 天
+                      </div>
+                    </td>
+                    <td className="p-4 text-right font-bold text-slate-600">{emp.remainAnnual} HR</td>
+                    <td className="p-4 text-right font-black text-rose-600">{emp.projectedTotal} HR</td>
+                    <td className="p-4 px-8 text-right">
+                      <span className="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-black shadow-sm border border-rose-200">
+                        -{emp.overHours} HR
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1005,7 +1193,7 @@ const InquiryView = ({ records, userSession }) => {
 
   const handleReset = () => {
     setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
-    setSearchResults([]);
+    searchResults([]);
     setHasSearched(false);
   };
 
