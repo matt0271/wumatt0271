@@ -1912,13 +1912,20 @@ const App = () => {
       let fetchedRecords = Array.isArray(resRec) ? resRec : [];
 
       fetchedRecords = fetchedRecords.map(r => {
-        if (!r.dept || r.dept === '未設定') {
-          const emp = fetchedEmployees.find(e => e.empId === r.empId);
+        let updatedR = { ...r };
+        if (!updatedR.dept || updatedR.dept === '未設定') {
+          const emp = fetchedEmployees.find(e => e.empId === updatedR.empId);
           if (emp && emp.dept) {
-            return { ...r, dept: emp.dept };
+            updatedR.dept = emp.dept;
           }
         }
-        return r;
+        
+        // 新增：過濾後端附加上去的「[主管意見]」或「[代理人意見]」，讓事由欄位保持乾淨
+        if (updatedR.reason) {
+          updatedR.reason = updatedR.reason.replace(/\s*\[(?:主管|代理人)意見\][:：]?[\s\S]*$/, '');
+        }
+        
+        return updatedR;
       });
       
       setEmployees(fetchedEmployees); 
