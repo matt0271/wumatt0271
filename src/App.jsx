@@ -779,23 +779,36 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
       
       if (user && validPassword === password.trim()) {
-        // --- 登入成功：發配並紀錄新的 sessionToken ---
+        // --- 登入成功：產生新的 sessionToken ---
         const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
-        const updatedUser = { ...user, sessionToken: newToken };
-
-        // 背景非同步更新 Token 到資料庫，不阻擋前端登入流程，避免 CORS 或網路延遲卡死
-        fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-          method: 'PATCH',
-          headers: fetchOptions.headers,
-          body: JSON.stringify({ sessionToken: newToken })
-        }).catch(err => console.warn('SSO 更新失敗，忽略此錯誤以維持基本登入：', err));
         
-        onLogin(updatedUser);
+        // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
+        const loginRecord = {
+          serialId: `LOG-${Date.now()}`,
+          formType: '系統登入',
+          empId: user.empId,
+          name: user.name,
+          dept: user.dept,
+          sessionToken: newToken,
+          status: 'system', // 標記為系統單，不參與簽核
+          createdAt: new Date().toISOString()
+        };
+
+        const loginRes = await fetch(`${NGROK_URL}/api/records`, {
+          method: 'POST',
+          headers: fetchOptions.headers,
+          body: JSON.stringify(loginRecord)
+        });
+
+        if (!loginRes.ok) throw new Error('API Error');
+
+        // 將 Token 綁定到當前 Session 狀態中
+        onLogin({ ...user, sessionToken: newToken });
       } else { 
         setError('帳號或密碼不正確'); 
       }
     } catch (err) {
-      setError('登入處理發生錯誤');
+      setError('登入連線失敗，請檢查網路狀態');
     } finally {
       setLoading(false);
     }
@@ -1194,7 +1207,10 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     setSubmitting(true);
     try {
       // --- 防護機制：送單前即時二次驗證餘額 ---
-      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, fetchOptions);
+      const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, {
+        ...fetchOptions,
+        cache: 'no-store'
+      });
       if (!freshRes.ok) throw new Error('無法驗證最新餘額');
       const freshRecords = await freshRes.json();
       const stats = calculatePTOStats(userSession.empId, userSession.hireDate, freshRecords);
@@ -2148,40 +2164,46 @@ const App = () => {
       };
 
       const [resEmp, resRec] = await Promise.all([ 
-        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []), 
-        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []) 
+        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []), 
+        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []) 
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       let fetchedRecords = Array.isArray(resRec) ? resRec : [];
 
-      // 新增：檢查當前登入者是否被踢出 (單一登入驗證)
+      // 新增：檢查當前登入者是否被踢出 (單一登入驗證，透過系統登入紀錄)
       if (userSession && userSession.id !== 'root') {
-        const currentDbUser = fetchedEmployees.find(e => e.id === userSession.id);
-        if (currentDbUser && currentDbUser.sessionToken && userSession.sessionToken && currentDbUser.sessionToken !== userSession.sessionToken) {
-          setUserSession(null);
-          sessionStorage.removeItem('docflow_user_session');
-          setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
-          return; // 中止後續狀態更新
+        const loginRecords = Array.isArray(resRec) ? resRec.filter(r => r.formType === '系統登入' && r.empId === userSession.empId) : [];
+        if (loginRecords.length > 0) {
+          loginRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          const latestLogin = loginRecords[0];
+          if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
+            setUserSession(null);
+            sessionStorage.removeItem('docflow_user_session');
+            setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
+            return;
+          }
         }
       }
 
-      fetchedRecords = fetchedRecords.map(r => {
-        let updatedR = { ...r };
-        if (!updatedR.dept || updatedR.dept === '未設定') {
-          const emp = fetchedEmployees.find(e => e.empId === updatedR.empId);
-          if (emp && emp.dept) {
-            updatedR.dept = emp.dept;
+      fetchedRecords = fetchedRecords
+        .filter(r => r.formType !== '系統登入') // 過濾掉系統登入紀錄，確保不會出現在任何列表
+        .map(r => {
+          let updatedR = { ...r };
+          if (!updatedR.dept || updatedR.dept === '未設定') {
+            const emp = fetchedEmployees.find(e => e.empId === updatedR.empId);
+            if (emp && emp.dept) {
+              updatedR.dept = emp.dept;
+            }
           }
-        }
-        
-        // 新增：過濾後端附加上去的「[主管意見]」或「[代理人意見]」，讓事由欄位保持乾淨
-        if (updatedR.reason) {
-          updatedR.reason = updatedR.reason.replace(/\s*\[(?:主管|代理人)意見\][:：]?[\s\S]*$/, '');
-        }
-        
-        return updatedR;
-      });
+          
+          // 過濾後端附加上去的「[主管意見]」或「[代理人意見]」，讓事由欄位保持乾淨
+          if (updatedR.reason) {
+            updatedR.reason = updatedR.reason.replace(/\s*\[(?:主管|代理人)意見\][:：]?[\s\S]*$/, '');
+          }
+          
+          return updatedR;
+        });
       
       setEmployees(fetchedEmployees); 
       setRecords(fetchedRecords); 
@@ -2203,26 +2225,29 @@ const App = () => {
     
     const checkSession = async () => {
       try {
-        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, {
+        // 只需要去拉取 records 就可以判斷
+        const res = await fetch(`${NGROK_URL}/api/records?formType=系統登入&empId=${userSession.empId}&_t=${Date.now()}`, {
           method: 'GET',
           headers: fetchOptions.headers
         });
         if (res.ok) {
-          const dbUser = await res.json();
-          // 嚴格比對 Token：如果資料庫有 Token 且與當前瀏覽器 Token 不同，就是被別人登入了
-          if (dbUser.sessionToken && userSession.sessionToken && dbUser.sessionToken !== userSession.sessionToken) {
-            setUserSession(null);
-            sessionStorage.removeItem('docflow_user_session'); // 確保清除
-            setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
-          } else if (dbUser.sessionToken && !userSession.sessionToken) {
-             // 如果當前沒 token 但 DB 有，代表是舊 session，也強制登出重登
-             setUserSession(null);
-             sessionStorage.removeItem('docflow_user_session');
-             setNotification({ type: 'error', text: '登入憑證已更新，請重新登入' });
+          let loginRecords = await res.json();
+          // 如果後端不支援 query 過濾，就在前端再過濾一次
+          loginRecords = loginRecords.filter(r => r.formType === '系統登入' && r.empId === userSession.empId);
+
+          if (loginRecords.length > 0) {
+            loginRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const latestLogin = loginRecords[0];
+
+            if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
+              setUserSession(null);
+              sessionStorage.removeItem('docflow_user_session');
+              setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
+            }
           }
         }
       } catch (e) {
-        // 忽略網路錯誤，避免因短暫斷線造成誤踢
+        // 忽略網路錯誤，避免短暫斷線造成誤踢
       }
     };
 
