@@ -55,12 +55,12 @@ const ANNOUNCEMENT_TYPES = [
   { id: 'reward', label: '獎懲公告', colorClass: 'bg-amber-50 text-amber-600' },
   { id: 'training', label: '教育訓練通知', colorClass: 'bg-cyan-50 text-cyan-600' },
   { id: 'welfare', label: '福利與補助', colorClass: 'bg-emerald-50 text-emerald-600' },
-  { id: 'safety', label: '安全與健康提醒', colorClass: 'bg-orange-50 text-orange-600' },
+  { id: 'safety', label: '安全健康提醒', colorClass: 'bg-orange-50 text-orange-600' },
   { id: 'event', label: '節日與活動', colorClass: 'bg-fuchsia-50 text-fuchsia-600' },
   { id: 'finance', label: '財務相關公告', colorClass: 'bg-blue-50 text-blue-600' },
 ];
 
-// --- 特休計算 Helpers (新增預警計算邏輯) ---
+// --- 特休計算 Helpers (包含預警計算與動態簽核路由邏輯) ---
 const getNextAnniversary = (hireDateStr) => {
   if (!hireDateStr) return null;
   const hireDate = new Date(hireDateStr);
@@ -94,7 +94,7 @@ const getProjectedPTO = (hireDateStr, nextAnniversaryDate) => {
   return days * 8; // 轉換為小時
 };
 
-// 將原本散落在 WelcomeView 的結餘計算抽出，方便重複使用
+// 計算單一員工的特休與補休結餘
 const calculatePTOStats = (empId, hireDateStr, records) => {
   let usedAnn = 0;
   let earnedCmp = 0;
@@ -151,6 +151,59 @@ const calculatePTOStats = (empId, hireDateStr, records) => {
     remainComp: Math.max(0, earnedCmp - usedCmp)
   };
 };
+
+// 簽核路由規則引擎：判斷指定單據是否應由目前的主管簽核
+const canManagerApproveRecord = (userSession, r, employees) => {
+  if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
+  if (!userSession) return false;
+  if (userSession.empId === 'root') return true;
+
+  const applicant = employees.find(emp => emp.empId === r.empId);
+
+  // 請假申請的層級判斷
+  if (r.formType === '請假') {
+    const days = (parseFloat(r.totalHours) || 0) / 8;
+    const isApplicantManager = ["協理", "經理", "副理"].includes(applicant?.jobTitle);
+    let targetLevel = '';
+
+    if (isApplicantManager && days >= 1) {
+      targetLevel = '總經理'; // 單位主管一天(含)以上由總經理核定
+    } else if (days > 5) {
+      targetLevel = '總經理'; // 請假天數5日以上
+    } else if (days > 3 && days <= 5) {
+      targetLevel = '協理'; // 請假天數5日(含)以下
+    } else {
+      targetLevel = '經副理'; // 請假天數3日(含)以下
+    }
+
+    if (targetLevel === '總經理') {
+      return userSession.jobTitle === '總經理';
+    }
+    if (targetLevel === '協理') {
+      if (userSession.jobTitle !== '協理') return false;
+      if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+      if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
+      return r.dept === userSession.dept;
+    }
+    if (targetLevel === '經副理') {
+      if (!["經理", "副理"].includes(userSession.jobTitle)) return false;
+      return r.dept === userSession.dept;
+    }
+    return false;
+  } else {
+    // 加班及其他單據維持原有的跨部門兼管與部門簽核邏輯
+    if (userSession.jobTitle === '總經理') {
+      return applicant?.jobTitle === '協理';
+    }
+    if (userSession.jobTitle === '協理') {
+      if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+      if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
+      return r.dept === userSession.dept;
+    }
+    return r.dept === userSession.dept;
+  }
+};
+
 
 // --- Helper Components ---
 
@@ -210,19 +263,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
   const managerCount = useMemo(() => {
     if (!isAdmin) return 0;
-    return records.filter(r => {
-      if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
-      if (userSession.empId === 'root') return true;
-      if (userSession.jobTitle === '總經理') {
-        const applicant = employees.find(emp => emp.empId === r.empId);
-        return applicant?.jobTitle === '協理';
-      }
-      if (userSession.jobTitle === '協理') {
-        if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
-        if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
-      }
-      return r.dept === userSession.dept;
-    }).length;
+    return records.filter(r => canManagerApproveRecord(userSession, r, employees)).length;
   }, [records, userSession, isAdmin, employees]);
 
   const processingOtCount = useMemo(() => {
@@ -237,7 +278,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return calculatePTOStats(userSession.empId, userSession.hireDate, records);
   }, [records, userSession.empId, userSession.hireDate]);
 
-  // --- 新增：員工個人特休預警計算 ---
   const userWarningStatus = useMemo(() => {
     if (!userSession.hireDate) return null;
     const nextAnniv = getNextAnniversary(userSession.hireDate);
@@ -250,7 +290,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     const projectedNewPTO = getProjectedPTO(userSession.hireDate, nextAnniv);
     const projectedTotal = remainAnnual + projectedNewPTO;
     
-    // 條件：預測總額超過 240，且倒數在 90 天內 (且 >0 避免過期干擾)
     if (projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0) {
       return {
         active: true,
@@ -263,13 +302,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return null;
   }, [userSession.hireDate, remainAnnual]);
 
-  // --- 新增：主管團隊特休預警名單 ---
   const teamWatchlist = useMemo(() => {
     if (!isAdmin) return [];
     
-    // 1. 取得主管權限範圍內的部屬清單
     const team = employees.filter(emp => {
-      if (emp.empId === userSession.empId) return false; // 排除自己
+      if (emp.empId === userSession.empId) return false; 
       if (userSession.empId === 'root') return true;
       if (userSession.jobTitle === '總經理') return emp.jobTitle === '協理';
       if (userSession.jobTitle === '協理') {
@@ -282,7 +319,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 2. 逐一試算是否處於超標預警狀態
     return team.map(emp => {
       const stats = calculatePTOStats(emp.empId, emp.hireDate, records);
       const nextAnniv = getNextAnniversary(emp.hireDate);
@@ -303,7 +339,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         };
       }
       return null;
-    }).filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft); // 依到期日緊急程度排序
+    }).filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft);
   }, [isAdmin, employees, records, userSession]);
 
   const activeAnnouncements = useMemo(() => {
@@ -340,7 +376,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         </div>
       )}
 
-      {/* 新增：員工特休超標預警橫幅 (Banner) */}
       {userWarningStatus && (
         <div className="bg-rose-50 border-l-4 border-rose-500 p-4 sm:p-5 rounded-r-2xl shadow-sm flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
           <div className="p-2 bg-rose-100 rounded-full shrink-0 animate-pulse mt-0.5">
@@ -561,7 +596,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         </div>
       </div>
 
-      {/* 新增：主管專屬團隊特休預警清單 */}
       {isAdmin && teamWatchlist.length > 0 && (
         <div className="bg-white rounded-3xl shadow-xl border border-rose-200 overflow-hidden text-left animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3">
@@ -1106,7 +1140,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-2xl text-[11px] font-bold text-emerald-800 space-y-3 text-left shadow-sm">
             <div>
               <h4 className="flex items-center gap-2 text-emerald-900 font-black mb-1 text-sm"><Info size={16} className="text-emerald-600"/> 簽核流程：</h4>
-              <p className="leading-relaxed">申請人 → 代理確認 → 單位主管(依天數決定層級) → 交辦(財務行政部)。</p>
+              <p className="leading-relaxed">申請人→經副理(請假天數3日(含)以下)→協理(請假天數5日(含)以下)→總經理(請假天數5日以上)→交辦(財務行政部)。 單位主管一天(含)以上由總經理核定。</p>
             </div>
             <div className="pt-3 border-t border-emerald-200">
               <p className="font-black text-emerald-900 mb-2">連續日期之請假單不可分開簽核，並均須檢附相關證明文件或說明事項：</p>
@@ -1438,21 +1472,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
   const pendingRecords = useMemo(() => {
-    return records.filter(r => {
-      // 主管只能看到「待主管簽核」(pending_manager) 或是相容舊資料的 pending
-      if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
-      if (!userSession) return false;
-      if (userSession.empId === 'root') return true;
-      if (userSession.jobTitle === '總經理') {
-        const applicant = employees.find(emp => emp.empId === r.empId);
-        return applicant?.jobTitle === '協理';
-      }
-      if (userSession.jobTitle === '協理') {
-        if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
-        if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
-      }
-      return r.dept === userSession.dept;
-    });
+    return records.filter(r => canManagerApproveRecord(userSession, r, employees));
   }, [records, userSession, employees]);
   const handleUpdate = async (status) => {
     if (!selectedId) return;
