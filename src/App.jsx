@@ -782,26 +782,25 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         // --- 登入成功：產生新的 sessionToken ---
         const newToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
         
-        try {
-          // 為了避免 PATCH 被阻擋，改用最標準的 PUT 來更新整筆員工資料
-          const updatedUser = { ...user, sessionToken: newToken };
-          const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-            method: 'PATCH',
-            headers: fetchOptions.headers,
-            body: JSON.stringify({ sessionToken: newToken })
-          });
-          
-          // 如果 PATCH 失敗，退回使用 PUT
-          if (!res.ok) {
-             await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
-               method: 'PUT',
-               headers: fetchOptions.headers,
-               body: JSON.stringify(updatedUser)
-             });
-          }
-        } catch (postErr) {
-          console.warn("SSO Token 寫入失敗，但已強制放行登入", postErr);
-        }
+        // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
+        const loginRecord = {
+          serialId: `LOG-${Date.now()}`,
+          formType: '系統登入',
+          empId: user.empId,
+          name: user.name,
+          dept: user.dept || '未設定',
+          sessionToken: newToken,
+          status: 'system', // 標記為系統單，不參與簽核
+          createdAt: new Date().toISOString()
+        };
+
+        const loginRes = await fetch(`${NGROK_URL}/api/records`, {
+          method: 'POST',
+          headers: fetchOptions.headers,
+          body: JSON.stringify(loginRecord)
+        });
+
+        if (!loginRes.ok) throw new Error('API Error');
 
         // 將 Token 綁定到當前 Session 狀態中
         onLogin({ ...user, sessionToken: newToken });
@@ -809,7 +808,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         setError('帳號或密碼不正確'); 
       }
     } catch (err) {
-      setError('登入處理發生系統錯誤，請重試');
+      setError('登入連線失敗，請檢查網路狀態');
     } finally {
       setLoading(false);
     }
