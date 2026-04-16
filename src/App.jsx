@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿\import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
@@ -1175,6 +1175,26 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     if (totalHours <= 0 || submitting) return;
     setSubmitting(true);
     try {
+      // --- 防護機制：送單前即時二次驗證餘額 ---
+      const freshRes = await fetch(`${NGROK_URL}/api/records`, fetchOptions);
+      if (!freshRes.ok) throw new Error('無法驗證最新餘額');
+      const freshRecords = await freshRes.json();
+      const stats = calculatePTOStats(userSession.empId, userSession.hireDate, freshRecords);
+
+      if (formData.category === 'annual' && totalHours > stats.remainAnnual) {
+        setNotification({ type: 'error', text: `特休餘額不足！最新餘額為 ${stats.remainAnnual} 小時` });
+        setSubmitting(false);
+        onRefresh();
+        return;
+      }
+      if (formData.category === 'comp' && totalHours > stats.remainComp) {
+        setNotification({ type: 'error', text: `補休餘額不足！最新餘額為 ${stats.remainComp} 小時` });
+        setSubmitting(false);
+        onRefresh();
+        return;
+      }
+      // ----------------------------------------
+
       const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
       if(!res.ok) throw new Error('API error');
       setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
