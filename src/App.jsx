@@ -1480,7 +1480,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         <div className="p-8 space-y-4 text-left">
           {pendingRecords.length > 0 ? pendingRecords.map(r => (
             <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-200' : 'bg-slate-50 hover:bg-white hover:border-indigo-200 border-slate-100'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-[auto_1.2fr_1fr_1.5fr_0.6fr_1.5fr_1.5fr_auto] gap-4 items-center w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-[auto_1.2fr_0.8fr_1fr_1.5fr_0.5fr_1.5fr_1.5fr_auto] gap-4 items-center w-full">
                 <div className="flex items-center justify-center">
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${selectedId === r.id ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'}`}>{selectedId === r.id && <div className="w-2 h-2 rounded-full bg-white text-white" />}</div>
                 </div>
@@ -1490,8 +1490,12 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                   <p className="text-[10px] text-slate-500 font-bold truncate">{r.dept} / {r.empId}</p>
                 </div>
                 <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">單號</p>
+                  <p className="font-mono text-xs font-bold text-slate-600 truncate">{r.serialId}</p>
+                </div>
+                <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1">單據類型</p>
-                  <div className="flex flex-col items-start gap-1 mb-1.5">
+                  <div className="flex flex-col items-start gap-1">
                     <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
                       {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
                     </span>
@@ -1499,7 +1503,6 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                       {r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪')}
                     </span>
                   </div>
-                  <p className="font-mono text-[9px] font-bold text-slate-400 truncate">{r.serialId}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間</p>
