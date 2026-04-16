@@ -779,36 +779,40 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
       
       if (user && validPassword === password.trim()) {
-        // --- 登入成功：產生新的 sessionToken ---
-        const newToken = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
+        // --- 登入成功：產生新的 sessionToken 與登入時間戳 ---
+        const newToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
+        const loginTime = Date.now();
         
         // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
         const loginRecord = {
-          serialId: `LOG-${Date.now()}`,
+          serialId: `LOG-${loginTime}`,
           formType: '系統登入',
           empId: user.empId,
           name: user.name,
-          dept: user.dept,
+          dept: user.dept || '未設定',
           sessionToken: newToken,
           status: 'system', // 標記為系統單，不參與簽核
-          createdAt: new Date().toISOString()
+          createdAt: new Date(loginTime).toISOString()
         };
 
-        const loginRes = await fetch(`${NGROK_URL}/api/records`, {
-          method: 'POST',
-          headers: fetchOptions.headers,
-          body: JSON.stringify(loginRecord)
-        });
+        // 嘗試發送登入紀錄到資料庫 (非同步執行，且就算失敗也被 Catch 捕捉，不阻擋登入)
+        try {
+          await fetch(`${NGROK_URL}/api/records`, {
+            method: 'POST',
+            headers: fetchOptions.headers,
+            body: JSON.stringify(loginRecord)
+          });
+        } catch (postErr) {
+          console.warn("SSO 登入紀錄寫入失敗，但已強制放行登入", postErr);
+        }
 
-        if (!loginRes.ok) throw new Error('API Error');
-
-        // 將 Token 綁定到當前 Session 狀態中
-        onLogin({ ...user, sessionToken: newToken });
+        // 將 Token 與最新登入時間綁定到當前 Session 狀態中
+        onLogin({ ...user, sessionToken: newToken, loginTime });
       } else { 
         setError('帳號或密碼不正確'); 
       }
     } catch (err) {
-      setError('登入連線失敗，請檢查網路狀態');
+      setError('登入處理發生系統錯誤，請重試');
     } finally {
       setLoading(false);
     }
@@ -2093,7 +2097,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
                   <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black shrink-0 ${typeInfo.colorClass}`}>
                     {typeInfo.label}
                   </span>
-                  {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase tracking-wider">New</span>}
+                  {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
                 </div>
                 <p className="text-sm font-bold text-slate-700 flex-1 truncate">{ann.title}</p>
                 <div className="flex items-center gap-4 shrink-0">
@@ -2164,8 +2168,8 @@ const App = () => {
       };
 
       const [resEmp, resRec] = await Promise.all([ 
-        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []), 
-        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, fetchOptions).then(r => r.ok ? r.json() : []) 
+        fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []), 
+        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []) 
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
@@ -2175,9 +2179,13 @@ const App = () => {
       if (userSession && userSession.id !== 'root') {
         const loginRecords = Array.isArray(resRec) ? resRec.filter(r => r.formType === '系統登入' && r.empId === userSession.empId) : [];
         if (loginRecords.length > 0) {
-          loginRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          loginRecords.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           const latestLogin = loginRecords[0];
-          if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
+          
+          // 防護機制：只有當資料庫中的最新登入紀錄「比我們現在的 Session 還要新」時，才認定為被覆寫踢出
+          const isDbLoginNewer = new Date(latestLogin.createdAt).getTime() > (userSession.loginTime || 0);
+
+          if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken && isDbLoginNewer) {
             setUserSession(null);
             sessionStorage.removeItem('docflow_user_session');
             setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
@@ -2236,10 +2244,13 @@ const App = () => {
           loginRecords = loginRecords.filter(r => r.formType === '系統登入' && r.empId === userSession.empId);
 
           if (loginRecords.length > 0) {
-            loginRecords.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            loginRecords.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             const latestLogin = loginRecords[0];
 
-            if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
+            // 防護機制：只有當資料庫中的最新登入紀錄「比我們現在的 Session 還要新」時，才認定為被覆寫踢出
+            const isDbLoginNewer = new Date(latestLogin.createdAt).getTime() > (userSession.loginTime || 0);
+
+            if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken && isDbLoginNewer) {
               setUserSession(null);
               sessionStorage.removeItem('docflow_user_session');
               setNotification({ type: 'error', text: '您的帳號已在其他裝置登入，您已被強制登出' });
