@@ -779,30 +779,28 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
       
       if (user && validPassword === password.trim()) {
-        // --- 登入成功：產生新的 sessionToken 與登入時間戳 ---
+        // --- 登入成功：產生新的 sessionToken ---
         const newToken = Date.now().toString(36) + Math.random().toString(36).substring(2);
         
-        // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
-        const loginRecord = {
-          serialId: `LOG-${Date.now()}`,
-          formType: '系統登入',
-          empId: user.empId,
-          name: user.name,
-          dept: user.dept || '未設定',
-          sessionToken: newToken,
-          status: 'system', // 標記為系統單，不參與簽核
-          createdAt: new Date().toISOString()
-        };
-
-        // 嘗試發送登入紀錄到資料庫 (非同步執行，且就算失敗也被 Catch 捕捉，不阻擋登入)
         try {
-          await fetch(`${NGROK_URL}/api/records`, {
-            method: 'POST',
+          // 為了避免 PATCH 被阻擋，改用最標準的 PUT 來更新整筆員工資料
+          const updatedUser = { ...user, sessionToken: newToken };
+          const res = await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
+            method: 'PATCH',
             headers: fetchOptions.headers,
-            body: JSON.stringify(loginRecord)
+            body: JSON.stringify({ sessionToken: newToken })
           });
+          
+          // 如果 PATCH 失敗，退回使用 PUT
+          if (!res.ok) {
+             await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
+               method: 'PUT',
+               headers: fetchOptions.headers,
+               body: JSON.stringify(updatedUser)
+             });
+          }
         } catch (postErr) {
-          console.warn("SSO 登入紀錄寫入失敗，但已強制放行登入", postErr);
+          console.warn("SSO Token 寫入失敗，但已強制放行登入", postErr);
         }
 
         // 將 Token 綁定到當前 Session 狀態中
@@ -1546,7 +1544,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
     if (formData.current !== (userSession.password || userSession.empId)) return setNotification({ type: 'error', text: '舊密碼錯誤' });
     setLoading(true);
     try {
-      const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...userSession, password: formData.new.trim() }) });
+      const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PATCH', headers: fetchOptions.headers, body: JSON.stringify({ password: formData.new.trim() }) });
       if (res.ok) { 
         setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); 
         onRefresh(); 
@@ -1861,7 +1859,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
             <p className="text-xs text-slate-400 mb-8 font-bold text-center">為 {pwdTarget.name} 還原為員編密碼</p>
             <div className="flex gap-3 text-left">
               <button onClick={()=>setPwdTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900 text-center">取消</button>
-              <button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center">確認</button>
+              <button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PATCH', headers: fetchOptions.headers, body: JSON.stringify({ password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center">確認</button>
             </div>
           </div>
         </div>
@@ -1886,7 +1884,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
           };
 
           try {
-            const res = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) });
+            const res = await fetch(url, { method: editingId ? 'PATCH' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) });
             if (!res.ok) throw new Error('伺服器更新失敗');
             
             onRefresh(); 
