@@ -102,7 +102,8 @@ const calculatePTOStats = (empId, hireDateStr, records) => {
   let usedCmp = 0;
 
   records.forEach(r => {
-    if (r.empId === empId && r.status === 'approved') {
+    // 包含 'pending_cancellation'，確保在銷假尚未核准前，假額仍然是扣除狀態，防止超額透支
+    if (r.empId === empId && (r.status === 'approved' || r.status === 'pending_cancellation')) {
       if (r.formType === '請假' && r.category === 'annual') usedAnn += (parseFloat(r.totalHours) || 0);
       if (r.formType === '加班' && r.compensationType === 'leave') earnedCmp += (parseFloat(r.totalHours) || 0);
       if (r.formType === '請假' && r.category === 'comp') usedCmp += (parseFloat(r.totalHours) || 0);
@@ -155,7 +156,8 @@ const calculatePTOStats = (empId, hireDateStr, records) => {
 
 // 簽核路由規則引擎：判斷指定單據是否應由目前的主管簽核
 const canManagerApproveRecord = (userSession, r, employees) => {
-  if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
+  // 將 pending_cancellation (待簽核(銷假)) 加入主管可簽核的範圍
+  if (r.status !== 'pending_manager' && r.status !== 'pending' && r.status !== 'pending_cancellation') return false;
   if (!userSession) return false;
   if (userSession.empId === 'root') return true;
 
@@ -214,14 +216,18 @@ const StatusBadge = ({ status }) => {
     rejected: "bg-rose-50 text-rose-700 border-rose-100",
     pending_substitute: "bg-amber-50 text-amber-700 border-amber-100",
     pending_manager: "bg-indigo-50 text-indigo-700 border-indigo-100",
-    pending: "bg-indigo-50 text-indigo-700 border-indigo-100" // 相容舊資料
+    pending: "bg-indigo-50 text-indigo-700 border-indigo-100", // 相容舊資料
+    pending_cancellation: "bg-purple-50 text-purple-700 border-purple-100",
+    cancelled: "bg-slate-100 text-slate-500 border-slate-200 text-slate-500"
   };
   const labels = { 
     approved: "已核准", 
     rejected: "已駁回", 
     pending_substitute: "待代理確認",
     pending_manager: "待主管簽核",
-    pending: "待簽核" 
+    pending: "待簽核",
+    pending_cancellation: "待簽核(銷假)",
+    cancelled: "已銷假"
   };
   const currentStyle = styles[status] || styles.pending;
   const currentLabel = labels[status] || labels.pending;
@@ -272,7 +278,8 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   }, [records, userSession.empId]);
 
   const processingLvCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && (r.status === 'pending' || r.status === 'pending_substitute' || r.status === 'pending_manager')).length;
+    // 新增計算 'pending_cancellation' 狀態
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && (r.status === 'pending' || r.status === 'pending_substitute' || r.status === 'pending_manager' || r.status === 'pending_cancellation')).length;
   }, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
@@ -597,7 +604,6 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
         </div>
       </div>
 
-      {/* 新增：主管專屬團隊特休預警清單 */}
       {isAdmin && teamWatchlist.length > 0 && (
         <div className="bg-white rounded-3xl shadow-xl border border-rose-200 overflow-hidden text-left animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3">
@@ -1005,6 +1011,11 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
+  
+  // 銷假專用 state
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
@@ -1135,6 +1146,24 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     } catch (err) { setNotification({ type: 'error', text: '提交失敗' }); } finally { setSubmitting(false); }
   };
 
+  const handleCancelSubmit = async () => {
+    if (!cancelReason.trim()) return;
+    try {
+      const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}`, {
+        method: 'PUT',
+        headers: fetchOptions.headers,
+        body: JSON.stringify({ ...cancelTarget, status: 'pending_cancellation', cancelReason })
+      });
+      if (!res.ok) throw new Error('API Error');
+      setNotification({ type: 'success', text: '銷假申請已送交主管審核' });
+      setCancelTarget(null);
+      setCancelReason('');
+      onRefresh();
+    } catch (e) {
+      setNotification({ type: 'error', text: '銷假申請失敗，請檢查網路連線' });
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
       {withdrawTarget && (
@@ -1144,6 +1173,31 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <h3 className="text-xl font-black mb-2 text-slate-900">確定要撤回申請？</h3>
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
             <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認</button></div>
+          </div>
+        </div>
+      )}
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="mx-auto w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4">
+              <Undo2 size={32} />
+            </div>
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要申請銷假？</h3>
+            <p className="text-xs text-slate-500 mb-6 font-bold text-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+              將對單號 <span className="font-mono text-purple-600">{cancelTarget.serialId}</span> 進行銷假。<br/>需經主管簽核後，特休時數才會加回。
+            </p>
+            <textarea 
+              required
+              className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none mb-6 focus:ring-2 focus:ring-purple-500 text-left" 
+              placeholder="請填寫銷假原因..." 
+              value={cancelReason} 
+              onChange={e => setCancelReason(e.target.value)} 
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setCancelTarget(null); setCancelReason(''); }} className="flex-1 py-3 font-bold bg-slate-100 hover:bg-slate-200 transition-colors rounded-xl text-slate-900">取消</button>
+              <button onClick={handleCancelSubmit} disabled={!cancelReason.trim()} className="flex-1 py-3 font-black text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:bg-purple-400 transition-colors rounded-xl text-white">送出申請</button>
+            </div>
           </div>
         </div>
       )}
@@ -1266,7 +1320,13 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black">{r.totalHours} HR</p></div>
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
-                  {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors"><Trash2 size={16}/></button>}
+                  {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors" title="撤回申請"><Trash2 size={16}/></button>}
+                  {/* 銷假按鈕：僅在假單已核准時顯示 */}
+                  {r.status === 'approved' && (
+                    <button onClick={() => setCancelTarget(r)} className="p-2 text-purple-600 hover:bg-purple-100 rounded-xl transition-colors ml-1" title="申請銷假">
+                      <Undo2 size={16}/>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1279,7 +1339,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   );
 };
 
-const InquiryView = ({ records, userSession }) => {
+const InquiryView = ({ records, userSession, onRefresh, setNotification }) => {
   const [filters, setFilters] = useState({
     formType: '',
     serialId: '',
@@ -1289,6 +1349,10 @@ const InquiryView = ({ records, userSession }) => {
   });
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // 銷假專用 state
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
@@ -1313,8 +1377,54 @@ const InquiryView = ({ records, userSession }) => {
     setHasSearched(false);
   };
 
+  const handleCancelSubmit = async () => {
+    if (!cancelReason.trim()) return;
+    try {
+      const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}`, {
+        method: 'PUT',
+        headers: fetchOptions.headers,
+        body: JSON.stringify({ ...cancelTarget, status: 'pending_cancellation', cancelReason })
+      });
+      if (!res.ok) throw new Error('API Error');
+      setNotification({ type: 'success', text: '銷假申請已送交主管審核' });
+      setCancelTarget(null);
+      setCancelReason('');
+      onRefresh();
+      // 在查詢結果中暫時手動更新狀態以呈現即時反饋
+      setSearchResults(prev => prev.map(item => item.id === cancelTarget.id ? { ...item, status: 'pending_cancellation', cancelReason } : item));
+    } catch (e) {
+      setNotification({ type: 'error', text: '銷假申請失敗，請檢查網路連線' });
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
+      
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="mx-auto w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-4">
+              <Undo2 size={32} />
+            </div>
+            <h3 className="text-xl font-black mb-2 text-slate-900">確定要申請銷假？</h3>
+            <p className="text-xs text-slate-500 mb-6 font-bold text-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+              將對單號 <span className="font-mono text-purple-600">{cancelTarget.serialId}</span> 進行銷假。<br/>需經主管簽核後，特休時數才會加回。
+            </p>
+            <textarea 
+              required
+              className="w-full p-4 rounded-xl border border-slate-200 bg-white font-bold text-sm outline-none mb-6 focus:ring-2 focus:ring-purple-500 text-left" 
+              placeholder="請填寫銷假原因..." 
+              value={cancelReason} 
+              onChange={e => setCancelReason(e.target.value)} 
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setCancelTarget(null); setCancelReason(''); }} className="flex-1 py-3 font-bold bg-slate-100 hover:bg-slate-200 transition-colors rounded-xl text-slate-900">取消</button>
+              <button onClick={handleCancelSubmit} disabled={!cancelReason.trim()} className="flex-1 py-3 font-black text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:bg-purple-400 transition-colors rounded-xl text-white">送出申請</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-fuchsia-500 px-8 py-10 text-white flex justify-between items-center">
           <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據</p></div><Search size={40} className="opacity-30" />
@@ -1340,7 +1450,9 @@ const InquiryView = ({ records, userSession }) => {
                 <option value="">全部</option>
                 <option value="pending_substitute">待代理確認</option>
                 <option value="pending_manager">待主管簽核</option>
+                <option value="pending_cancellation">待簽核(銷假)</option>
                 <option value="approved">已核准</option>
+                <option value="cancelled">已銷假</option>
                 <option value="rejected">已駁回</option>
               </select>
             </div>
@@ -1371,8 +1483,8 @@ const InquiryView = ({ records, userSession }) => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">類型</p>
-                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
-                      {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
+                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.status === 'pending_cancellation' ? 'bg-purple-50 text-purple-700' : (r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'))}`}>
+                      {r.status === 'pending_cancellation' ? '銷假申請' : (r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班'))}
                     </span>
                   </div>
                   <div>
@@ -1399,8 +1511,14 @@ const InquiryView = ({ records, userSession }) => {
                     )}
                   </div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
-                  <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1">
+                  <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1 items-center">
                     <StatusBadge status={r.status} />
+                    {/* 查詢介面中，只有本人已核准的請假單可以申請銷假 */}
+                    {r.status === 'approved' && r.formType === '請假' && userSession.empId === r.empId && (
+                      <button onClick={() => setCancelTarget(r)} className="p-2 text-purple-600 hover:bg-purple-100 rounded-xl transition-colors ml-1" title="申請銷假">
+                        <Undo2 size={16}/>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1573,12 +1691,18 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   const pendingRecords = useMemo(() => {
     return records.filter(r => canManagerApproveRecord(userSession, r, employees));
   }, [records, userSession, employees]);
-  const handleUpdate = async (status) => {
+  
+  const handleUpdate = async (action) => {
     if (!selectedId) return;
-    if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
+    if ((action === 'rejected' || action === 'approved_cancel') && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
+    
+    // 根據不同 action 轉換為真正的寫入 status
+    let newStatus = action;
+    if (action === 'approved_cancel') newStatus = 'approved'; // 駁回銷假，退回原本已核准狀態
+
     setUpdating(true);
     try {
-      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
+      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: newStatus, opinion }) });
       if(!res.ok) throw new Error('API error');
       setNotification({ type: 'success', text: '簽核作業完成' });
       setSelectedId(null); setOpinion(''); onRefresh();
@@ -1592,7 +1716,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
           <div className="space-y-1 text-left text-white">
             <div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待審核名單</span></div>
             <h1 className="text-2xl font-black text-white">主管審核中心</h1>
-            <p className="text-sm opacity-90 font-medium italic text-white">審核員工提交之加班或請假申請單</p>
+            <p className="text-sm opacity-90 font-medium italic text-white">審核員工提交之申請單與銷假單</p>
           </div>
           <ShieldCheck size={40} className="opacity-40 text-white" />
         </div>
@@ -1617,8 +1741,8 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                 <div>
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-1">單據類型</p>
                   <div className="flex flex-col items-start gap-1">
-                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
-                      {r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班')}
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${r.status === 'pending_cancellation' ? 'bg-purple-50 text-purple-700' : (r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'))}`}>
+                      {r.status === 'pending_cancellation' ? '銷假申請' : (r.formType === '請假' ? '請假申請' : (r.appType === 'post' ? '事後加班' : '事前加班'))}
                     </span>
                     <span className="text-[10px] font-bold text-slate-700 bg-slate-100/80 px-2 py-0.5 rounded-md">
                       {r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪')}
@@ -1641,9 +1765,11 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                   <p className="font-black text-slate-900">{r.totalHours} HR</p>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">事由</p>
-                  <div className="font-bold text-xs text-slate-600 line-clamp-2" title={r.reason}>
-                    {r.reason}
+                  <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">
+                    {r.status === 'pending_cancellation' ? '銷假原因' : '事由'}
+                  </p>
+                  <div className="font-bold text-xs text-slate-600 line-clamp-2" title={r.status === 'pending_cancellation' ? r.cancelReason : r.reason}>
+                    {r.status === 'pending_cancellation' ? r.cancelReason : r.reason}
                     {r.attachmentName && (
                       <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="block mt-1 text-[10px] font-bold text-sky-600 hover:text-sky-700 transition-colors">
                         <Paperclip size={10} className="inline mr-0.5" /> 附件: {r.attachmentName}
@@ -1686,8 +1812,17 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
           <div className="w-full lg:w-72 flex flex-col justify-end gap-3 text-left shrink-0">
             <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-indigo-600 font-bold">{selectedRecord?.serialId}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
-              <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回</span></button>
-              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">核准</span></button>
+              {selectedRecord?.status === 'pending_cancellation' ? (
+                <>
+                  <button disabled={updating} onClick={() => handleUpdate('approved_cancel')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回銷假</span></button>
+                  <button disabled={updating} onClick={() => handleUpdate('cancelled')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">同意銷假</span></button>
+                </>
+              ) : (
+                <>
+                  <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回</span></button>
+                  <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">核准</span></button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -2185,7 +2320,7 @@ const App = () => {
           {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
-          {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
+          {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} onRefresh={fetchData} setNotification={setNotification} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} />}
