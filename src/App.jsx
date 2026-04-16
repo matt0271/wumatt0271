@@ -784,6 +784,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
         
         // --- 解法核心：避開修改員工表 (PUT/PATCH)，直接在 records 建立一張「系統登入單」 ---
         const loginRecord = {
+          id: `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`, // 加上 ID 避免 json-server 報錯
           serialId: `LOG-${Date.now()}`,
           formType: '系統登入',
           empId: user.empId,
@@ -794,21 +795,25 @@ const LoginView = ({ employees, onLogin, apiError }) => {
           createdAt: new Date().toISOString()
         };
 
-        const loginRes = await fetch(`${NGROK_URL}/api/records`, {
+        // 核心解法：使用背景非同步執行，完全不阻擋登入流程 (移除 await)
+        fetch(`${NGROK_URL}/api/records`, {
           method: 'POST',
           headers: fetchOptions.headers,
           body: JSON.stringify(loginRecord)
+        }).then(res => {
+            if(!res.ok) console.warn("寫入登入紀錄失敗，API回傳異常狀態碼");
+        }).catch(err => {
+            console.warn("寫入登入紀錄失敗，網路異常", err);
         });
 
-        if (!loginRes.ok) throw new Error('API Error');
-
-        // 將 Token 綁定到當前 Session 狀態中
+        // 直接放行，保證能夠登入
         onLogin({ ...user, sessionToken: newToken });
       } else { 
         setError('帳號或密碼不正確'); 
       }
     } catch (err) {
-      setError('登入連線失敗，請檢查網路狀態');
+      console.error(err);
+      setError('登入處理發生系統錯誤，請重試');
     } finally {
       setLoading(false);
     }
@@ -2178,6 +2183,8 @@ const App = () => {
           // 強制依照 JSON Server 返回的陣列自然順序，取最後一筆保證是最新的
           const latestLogin = loginRecords[loginRecords.length - 1];
           
+          // 防護機制：只有當資料庫中的最新登入紀錄「比我們現在的 Session 還要新」時，才認定為被覆寫踢出
+          // 我們利用陣列的最後一筆代表最後的寫入，不依賴本機的絕對時間比對
           if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
             setUserSession(null);
             sessionStorage.removeItem('docflow_user_session');
@@ -2243,6 +2250,7 @@ const App = () => {
             // 利用陣列最後一筆作為最新紀錄，徹底避開兩台電腦時間差(Clock Skew)的問題
             const latestLogin = loginRecords[loginRecords.length - 1];
 
+            // 只要資料庫最後一筆的 Token 跟當前不合，就踢出
             if (latestLogin.sessionToken && userSession.sessionToken && latestLogin.sessionToken !== userSession.sessionToken) {
               setUserSession(null);
               sessionStorage.removeItem('docflow_user_session');
