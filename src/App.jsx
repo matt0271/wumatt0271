@@ -1888,7 +1888,21 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [userSession, setUserSession] = useState(null);
+  
+  // 新增：從 sessionStorage 讀取初始狀態
+  const [userSession, setUserSession] = useState(() => {
+    const savedSession = sessionStorage.getItem('docflow_user_session');
+    return savedSession ? JSON.parse(savedSession) : null;
+  });
+
+  // 新增：當 userSession 變更時，同步寫入或清除 sessionStorage
+  useEffect(() => {
+    if (userSession) {
+      sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession));
+    } else {
+      sessionStorage.removeItem('docflow_user_session');
+    }
+  }, [userSession]);
 
   useEffect(() => { if (notification) { const timer = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(timer); } }, [notification]);
   
