@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 // --- API 設定 ---
+// ⚠️ 請將這裡替換為您今天 ngrok 產生的最新網址
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
 
 const fetchOptions = {
@@ -255,11 +256,11 @@ const WelcomeView = ({ userSession, records, setActiveMenu, isAdmin, announcemen
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
         <div className="bg-white p-6 md:p-8 rounded-3xl border shadow-sm flex items-center justify-between hover:shadow-md transition-all text-left">
           <div className="flex items-center gap-5 text-left"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><CalendarDays size={28} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">特休餘額</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800">{userSession.hireDate ? remainAnnual : '-'}</span><span className="text-sm font-bold text-slate-500">HR</span></div></div></div>
-          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">{userSession.hireDate ? `總額度 ${totalAnnual} HR` : '未設定到職日'}</span>{userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 ${usedAnnual} HR</span>}</div>
+          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">{userSession.hireDate ? `總額度 ${totalAnnual} HR` : '未設定到職日'}</span>{userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 {usedAnnual} HR</span>}</div>
         </div>
         <div className="bg-white p-6 md:p-8 rounded-3xl border shadow-sm flex items-center justify-between hover:shadow-md transition-all text-left">
           <div className="flex items-center gap-5 text-left"><div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Timer size={28} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">補休餘額</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800">{remainComp}</span><span className="text-sm font-bold text-slate-500">HR</span></div></div></div>
-          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">累計 ${earnedComp} HR</span><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">已用 ${usedComp} HR</span></div>
+          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">累計 {earnedComp} HR</span><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">已用 {usedComp} HR</span></div>
         </div>
       </div>
 
@@ -338,19 +339,19 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-sans">
       <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden max-w-md w-full animate-in zoom-in-95">
-        <div className="bg-sky-500 p-12 text-white text-center relative overflow-hidden text-white"><UserCheck size={44} className="mx-auto mb-4 opacity-90 text-white" /><h1 className="text-3xl font-black text-white text-center">員工服務平台</h1><p className="text-sky-100 mt-2 opacity-90 text-sm text-center">登入系統驗證</p></div>
+        <div className="bg-sky-500 p-12 text-white text-center relative overflow-hidden"><UserCheck size={44} className="mx-auto mb-4 opacity-90 text-white" /><h1 className="text-3xl font-black text-white text-center">員工服務平台</h1><p className="text-sky-100 mt-2 opacity-90 text-sm text-center">登入系統驗證</p></div>
         <form onSubmit={handleLogin} className="p-10 space-y-6 text-left">
-          {apiError && <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-xs font-bold text-left">連線異常，目前為離線狀態。</div>}
+          {apiError && <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-700 text-xs font-bold text-left">連線異常，無法連接資料庫。請確認 NGROK 網址。</div>}
           {error && <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold animate-in fade-in text-left">{error}</div>}
           <div className="space-y-4 text-left">
-            <div className="space-y-1 text-left text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 text-left text-slate-400">帳號 (員編或姓名)</label><input type="text" required className="w-full p-4 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-left text-slate-900" value={identifier} onChange={e => setIdentifier(e.target.value)} /></div>
-            <div className="space-y-1 text-left text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 text-left text-slate-400">密碼</label>
+            <div className="space-y-1 text-left text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 text-left">帳號 (員編或姓名)</label><input type="text" required className="w-full p-4 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-left text-slate-900" value={identifier} onChange={e => setIdentifier(e.target.value)} /></div>
+            <div className="space-y-1 text-left text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 text-left">密碼</label>
               <div className="relative text-left"><input type={showPassword ? 'text' : 'password'} required className="w-full p-4 pr-12 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-left text-slate-900" value={password} onChange={e => setPassword(e.target.value)} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
               </div>
             </div>
           </div>
-          <button disabled={loading} className="w-full py-4 rounded-2xl font-black text-white bg-sky-500 shadow-xl hover:bg-sky-600 active:scale-95 transition-all flex items-center justify-center gap-3 text-white">{loading ? <Loader2 size={20} className="animate-spin text-white" /> : <CheckCircle size={20} />} 確認登入</button>
+          <button disabled={loading} className="w-full py-4 rounded-2xl font-black text-white bg-sky-500 shadow-xl hover:bg-sky-600 active:scale-95 transition-all flex items-center justify-center gap-3"><span className="text-white">{loading ? <Loader2 size={20} className="animate-spin" /> : <CheckCircle size={20} />}</span><span className="text-white">確認登入</span></button>
         </form>
       </div>
     </div>
@@ -382,58 +383,58 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900">
       {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800 text-center text-slate-800 text-center"><AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2 text-slate-800 text-center text-slate-800">確定刪除？</h3><div className="flex gap-3 mt-8 text-center text-slate-800 text-center"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800 text-center text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white text-center text-white text-white">確認刪除</button></div></div>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800"><AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2">確定刪除？</h3><div className="flex gap-3 mt-8"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl">確認刪除</button></div></div>
         </div>
       )}
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800 text-center text-slate-800 text-center text-slate-800"><Undo2 size={48} className="text-indigo-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2 text-slate-800 text-center text-slate-800 text-center">確定撤銷？</h3><div className="flex gap-3 mt-8 text-center text-slate-800 text-center text-slate-800"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800 text-center text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行撤銷' }) }); setCancelTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-indigo-600 rounded-xl text-white text-center text-white text-white text-white">確認撤銷</button></div></div>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800"><Undo2 size={48} className="text-indigo-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2">確定撤銷？</h3><div className="flex gap-3 mt-8"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行撤銷' }) }); setCancelTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-indigo-600 rounded-xl">確認撤銷</button></div></div>
         </div>
       )}
-      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left text-slate-800">
-        <div className="bg-blue-500 px-8 py-10 text-white relative flex justify-between items-center text-left text-white text-white text-white"><h1 className="text-2xl font-black text-left text-white text-white text-white">加班申請單</h1><div className="font-mono text-xs opacity-80 text-white text-white text-white text-white">NO.{currentSerialId}</div></div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left text-slate-900 text-slate-900">
-          <div className="grid grid-cols-2 gap-4 p-1.5 bg-slate-100 rounded-2xl text-left text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left">
+        <div className="bg-blue-500 px-8 py-10 text-white relative flex justify-between items-center"><h1 className="text-2xl font-black text-white">加班申請單</h1><div className="font-mono text-xs opacity-80 text-white">NO.{currentSerialId}</div></div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left">
+          <div className="grid grid-cols-2 gap-4 p-1.5 bg-slate-100 rounded-2xl text-left">
             <button type="button" onClick={() => setAppType('pre')} className={`py-4 rounded-xl text-sm font-black transition-all ${appType === 'pre' ? 'bg-white text-blue-600 shadow-md' : 'text-slate-400'}`}>事前申請</button>
             <button type="button" onClick={() => setAppType('post')} className={`py-4 rounded-xl text-sm font-black transition-all ${appType === 'post' ? 'bg-white text-orange-600 shadow-md' : 'text-slate-400'}`}>事後補報</button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left text-slate-900 text-slate-900">
-            <div className="space-y-1.5 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">員編</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-mono font-bold text-left text-slate-900" value={formData.empId} readOnly /></div>
-            <div className="space-y-1.5 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">姓名</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900" value={formData.name} readOnly /></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">部門</label><select required className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>部門</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">類別</label><select className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12 text-left text-slate-900"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='leave'?'bg-blue-500 text-white':'text-slate-500'}`}>補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='pay'?'bg-blue-500 text-white':'text-slate-500'}`}>計薪</button></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-left">
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">員編</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-mono font-bold" value={formData.empId} readOnly /></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">姓名</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.name} readOnly /></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">部門</label><select required className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>部門</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">類別</label><select className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{OT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">方式</label><div className="flex bg-slate-100 p-1 rounded-xl h-12 text-left"><button type="button" onClick={()=>setFormData({...formData, compensationType:'leave'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='leave'?'bg-blue-500 text-white':'text-slate-500'}`}>補休</button><button type="button" onClick={()=>setFormData({...formData, compensationType:'pay'})} className={`flex-1 rounded-lg text-[10px] font-black ${formData.compensationType==='pay'?'bg-blue-500 text-white':'text-slate-500'}`}>計薪</button></div></div>
           </div>
-          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left text-slate-900 text-slate-900">
-            <div className="lg:col-span-5 text-left text-slate-900"><label className="text-xs font-bold text-slate-500 mb-2 font-black text-left text-slate-500">開始</label><div className="flex gap-2 text-left text-slate-900"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold text-left text-slate-900" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="lg:col-span-5 text-left text-slate-900"><label className="text-xs font-bold text-slate-500 mb-2 font-black text-left text-slate-500">結束</label><div className="flex gap-2 text-left text-slate-900"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold text-left text-slate-900" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="bg-slate-200 rounded-2xl p-3 flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black text-left text-slate-900"><span className="text-[9px] uppercase opacity-70 text-left text-slate-500">時數</span><div className="flex items-baseline gap-1 font-black text-left text-slate-800"><span className="text-xl text-left text-slate-800">{totalHours || "0"}</span><span className="text-[9px] text-slate-500 text-left">HR</span></div></div>
+          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 mb-2">開始</label><div className="flex gap-2 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-slate-500 mb-2">結束</label><div className="flex gap-2 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="bg-slate-200 rounded-2xl p-3 flex flex-col justify-center items-center lg:col-span-2 h-[72px] text-left"><span className="text-[9px] uppercase opacity-70 font-black">時數</span><div className="flex items-baseline gap-1 font-black text-slate-800"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px] text-slate-500">HR</span></div></div>
           </div>
-          <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400">原因說明</label><textarea required rows="2" className="w-full p-4 rounded-xl border bg-white font-bold text-left text-slate-900" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
-          <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl text-white text-white ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-blue-500 hover:bg-blue-600'}`}>{submitting ? '提交中...' : '送出申請'}</button>
+          <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+          <button disabled={totalHours <= 0 || submitting} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-blue-500 hover:bg-blue-600'}`}>{submitting ? '提交中...' : '送出申請'}</button>
         </form>
       </div>
 
-      <div className="bg-white border rounded-3xl p-8 shadow-sm text-left text-slate-800">
-        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800"><History size={24} className="text-slate-400" /><h3 className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800">最近加班紀錄</h3></div>
-        <div className="space-y-2 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <div className="hidden md:grid md:grid-cols-[1fr_1fr_0.6fr_1fr_2.5fr_0.6fr_2.2fr] gap-4 px-6 py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest border text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">
-            <div>單號</div><div>部門</div><div>類型</div><div>類別</div><div>時間</div><div>時數</div><div className="text-right pr-6 text-slate-400 text-slate-400 text-slate-400 text-slate-400">狀態/操作</div>
+      <div className="bg-white border rounded-3xl p-8 shadow-sm text-left">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} className="text-slate-400" /><h3 className="text-slate-800">最近 10 筆加班紀錄</h3></div>
+        <div className="space-y-2 text-left">
+          <div className="hidden md:grid md:grid-cols-[1fr_1fr_0.6fr_1fr_2.5fr_0.6fr_2.2fr] gap-4 px-6 py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest border text-left">
+            <div>單號</div><div>部門</div><div>類型</div><div>類別</div><div>時間</div><div>時數</div><div className="text-right pr-6">狀態/操作</div>
           </div>
           {recent.map(r => (
-            <div key={r.id} className="p-4 md:px-6 md:py-2 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 transition-all group text-left text-slate-800 text-slate-800 text-slate-800">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_0.6fr_1fr_2.5fr_0.6fr_2.2fr] gap-2 md:gap-4 items-center text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                <div className="font-mono font-bold text-slate-500 text-xs truncate text-left text-slate-500 text-slate-500 text-slate-500">{r.serialId}</div>
-                <div className="font-bold text-slate-700 text-xs truncate text-left text-slate-700 text-slate-700 text-slate-700">{r.dept}</div>
-                <div className={`font-black text-[10px] ${r.appType === 'pre' ? 'text-blue-600' : 'text-orange-600'} text-left text-slate-800 text-slate-800 text-slate-800`}>加班</div>
-                <div className="font-bold text-[11px] text-slate-600 truncate text-left text-slate-600 text-slate-600 text-slate-600">{OT_CATEGORIES.find(c => c.id === r.category)?.label}</div>
-                <div className="font-bold text-[10px] text-slate-600 truncate text-left text-slate-600 text-slate-600 text-slate-600 whitespace-nowrap">{r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}` : `${r.startDate}~${r.endDate}`}</div>
-                <div className="font-black text-xs text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800">{r.totalHours}H</div>
-                <div className="flex justify-end items-center gap-1 min-w-[160px] text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
+            <div key={r.id} className="p-4 md:px-6 md:py-2 rounded-2xl bg-white border border-slate-100 hover:border-blue-200 transition-all group text-left text-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_0.6fr_1fr_2.5fr_0.6fr_2.2fr] gap-2 md:gap-4 items-center text-left">
+                <div className="font-mono font-bold text-slate-500 text-xs truncate">{r.serialId}</div>
+                <div className="font-bold text-slate-700 text-xs truncate">{r.dept}</div>
+                <div className={`font-black text-[10px] ${r.appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}`}>加班</div>
+                <div className="font-bold text-[11px] text-slate-600 truncate">{OT_CATEGORIES.find(c => c.id === r.category)?.label}</div>
+                <div className="font-bold text-[10px] text-slate-600 truncate whitespace-nowrap">{r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}` : `${r.startDate}~${r.endDate}`}</div>
+                <div className="font-black text-xs text-slate-800">{r.totalHours}H</div>
+                <div className="flex justify-end items-center gap-1 min-w-[160px] text-left">
                   <StatusBadge status={r.status} />
-                  <div className="flex items-center justify-end gap-1 w-24 shrink-0 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                    {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded transition-all text-rose-600 text-rose-600 text-rose-600">刪除</button>}
-                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all text-slate-600 text-slate-600 text-slate-600">抽單</button>}
+                  <div className="flex items-center justify-end gap-1 w-24 shrink-0 text-left">
+                    {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded transition-all">刪除</button>}
+                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all">抽單</button>}
                   </div>
                 </div>
               </div>
@@ -493,69 +494,70 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       setNotification({ type: 'success', text: '申請已送出' }); onRefresh(); setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null }));
     } catch (e) { setNotification({ type: 'error', text: '失敗' }); } finally { setSubmitting(false); }
   };
+  
   const recent = useMemo(() => records.filter(r => r.formType === '請假' && (userSession.empId === 'root' || r.empId === userSession.empId)).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0, 10), [records, userSession.empId]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
+    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-800">
       {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center text-slate-800"><AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2 text-slate-800 text-center text-slate-800 text-center text-slate-800">確定刪除？</h3><div className="flex gap-3 mt-8 text-center text-slate-800 text-center text-slate-800 text-center"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800 text-center text-slate-800 text-center">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white text-center text-white text-white text-white text-white text-white">確認刪除</button></div></div>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800"><AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2">確定刪除？</h3><div className="flex gap-3 mt-8"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl">確認刪除</button></div></div>
         </div>
       )}
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center text-slate-800"><Undo2 size={48} className="text-emerald-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2 text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center">確定銷假？</h3><div className="flex gap-3 mt-8 text-center text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center text-slate-800"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); setCancelTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-emerald-600 rounded-xl text-white text-center text-white text-white text-white text-white text-white text-white text-white text-white">確認銷假</button></div></div>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800"><Undo2 size={48} className="text-emerald-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-2">確定銷假？</h3><div className="flex gap-3 mt-8"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800">取消</button><button onClick={async () => { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); setCancelTarget(null); onRefresh(); }} className="flex-1 py-3 font-black text-white bg-emerald-600 rounded-xl">確認銷假</button></div></div>
         </div>
       )}
-      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-        <div className="bg-emerald-500 px-8 py-10 text-white relative flex justify-between items-center text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><h1 className="text-2xl font-black text-white text-left text-white text-white text-white text-white text-white text-white text-white">請假申請單</h1><div className="font-mono text-xs opacity-80 text-white text-white text-white text-white text-white text-white">NO.{currentSerialId}</div></div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">員編</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-mono font-bold text-left text-slate-900 text-slate-900" value={formData.empId} readOnly /></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">姓名</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.name} readOnly /></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">部門</label><select required className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>部門</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">職稱</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.jobTitle} readOnly /></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">假別</label><select className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">代理</label><select required className="w-full h-12 px-4 rounded-xl border text-left text-slate-900 text-slate-900" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})}><option value="" disabled>代理人</option>{employees.filter(e=>e.dept===formData.dept && e.empId!==formData.empId).map(e=>(<option key={e.empId} value={e.name}>{e.name}</option>))}</select></div>
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left text-slate-800">
+        <div className="bg-emerald-500 px-8 py-10 text-white relative flex justify-between items-center"><h1 className="text-2xl font-black text-white">請假申請單</h1><div className="font-mono text-xs opacity-80 text-white">NO.{currentSerialId}</div></div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 text-left">
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">員編</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-mono font-bold" value={formData.empId} readOnly /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">姓名</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.name} readOnly /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">部門</label><select required className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>部門</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">職稱</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.jobTitle} readOnly /></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">假別</label><select className="w-full h-12 px-4 rounded-xl border font-bold" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">代理</label><select required className="w-full h-12 px-4 rounded-xl border" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})}><option value="" disabled>代理人</option>{employees.filter(e=>e.dept===formData.dept && e.empId!==formData.empId).map(e=>(<option key={e.empId} value={e.name}>{e.name}</option>))}</select></div>
           </div>
-          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
-            <div className="lg:col-span-5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-xs font-bold text-emerald-600 mb-2 font-black text-left text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600">開始</label><div className="flex gap-2 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="lg:col-span-5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-xs font-bold text-rose-500 mb-2 font-black text-left text-rose-500 text-rose-500 text-rose-500 text-rose-500 text-rose-500 text-rose-500">結束</label><div className="flex gap-2 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><span className="text-[9px] opacity-80 uppercase text-left text-white text-white text-white text-white text-white text-white text-white">時數</span><div className="flex items-baseline gap-1 font-black text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><span className="text-xl text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{totalHours || "0"}</span><span className="text-[9px] text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">HR</span></div></div>
+          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
+            <div className="lg:col-span-5"><label className="text-xs font-bold text-emerald-600 mb-2">開始</label><div className="flex gap-2 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="lg:col-span-5"><label className="text-xs font-bold text-rose-500 mb-2">結束</label><div className="flex gap-2 text-left"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
+            <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black"><span className="text-[9px] opacity-80 uppercase">時數</span><div className="flex items-baseline gap-1 text-white"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
           </div>
-          <div className="space-y-4 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
-            <div className="space-y-1 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">原因</label><textarea required rows="2" className="w-full p-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
-            <div className="space-y-1 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
-              <label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">證明文件</label>
-              <div onClick={() => fileInputRef.current?.click()} className={`w-full p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${formData.attachmentName ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500'}`}>
-                <UploadCloud size={24} className="text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400" /><span className="text-xs font-bold text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">{formData.attachmentName || '點擊上傳檔案 (5MB內)'}</span>
+          <div className="space-y-4 text-left">
+            <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">原因</label><textarea required rows="2" className="w-full p-4 rounded-xl border font-bold" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase">證明文件</label>
+              <div onClick={() => fileInputRef.current?.click()} className={`w-full p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${formData.attachmentName ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>
+                <UploadCloud size={24} className={formData.attachmentName ? "text-emerald-500" : "text-slate-400"} /><span className="text-xs font-bold text-slate-800">{formData.attachmentName || '點擊上傳檔案 (5MB內)'}</span>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".jpg,.jpeg,.png,.pdf" />
               </div>
             </div>
           </div>
-          <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
+          <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
         </form>
       </div>
 
-      <div className="bg-white border rounded-3xl p-8 shadow-sm text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><History size={24} className="text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400" /><h3 className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">最近請假紀錄</h3></div>
-        <div className="space-y-2 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <div className="hidden md:grid md:grid-cols-[1fr_1fr_1.2fr_2.5fr_0.6fr_2.2fr] gap-4 px-6 py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest border text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">
-            <div>單號 / 附件</div><div>部門</div><div>假別</div><div>時段</div><div>時數</div><div className="text-right pr-6 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">狀態/操作</div>
+      <div className="bg-white border rounded-3xl p-8 shadow-sm text-left">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4"><History size={24} className="text-slate-400" /><h3 className="text-slate-800">最近 10 筆請假紀錄</h3></div>
+        <div className="space-y-2 text-left">
+          <div className="hidden md:grid md:grid-cols-[1fr_1fr_1.2fr_2.5fr_0.6fr_2.2fr] gap-4 px-6 py-3 bg-slate-50 rounded-xl text-[10px] font-black text-slate-400 uppercase tracking-widest border text-left">
+            <div>單號 / 附件</div><div>部門</div><div>假別</div><div>時段</div><div>時數</div><div className="text-right pr-6">狀態/操作</div>
           </div>
           {recent.map(r => (
-            <div key={r.id} className="p-4 md:px-6 md:py-2 rounded-2xl bg-white border border-slate-100 hover:border-emerald-200 transition-all group text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_1.2fr_2.5fr_0.6fr_2.2fr] gap-2 md:gap-4 items-center text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                <div className="flex flex-col text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><div className="font-mono font-bold text-slate-500 text-xs truncate text-left text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500 text-slate-500">{r.serialId}</div>{r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} className="text-[9px] text-sky-600 font-bold flex items-center gap-1 text-left text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600 text-sky-600"><Paperclip size={10} />附件</a>}</div>
-                <div className="font-bold text-slate-700 text-xs truncate text-left text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700 text-slate-700">{r.dept}</div>
-                <div className="font-bold text-[11px] text-slate-600 truncate text-left text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600">{LEAVE_CATEGORIES.find(c => c.id === r.category)?.label}</div>
-                <div className="font-bold text-[10px] text-slate-600 truncate text-left text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 whitespace-nowrap">{r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}` : `${r.startDate}~${r.endDate}`}</div>
-                <div className="font-black text-xs text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">{r.totalHours}H</div>
-                <div className="flex justify-end items-center gap-1 min-w-[160px] text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
+            <div key={r.id} className="p-4 md:px-6 md:py-2 rounded-2xl bg-white border border-slate-100 hover:border-emerald-200 transition-all group text-left text-slate-800">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_1.2fr_2.5fr_0.6fr_2.2fr] gap-2 md:gap-4 items-center text-left">
+                <div className="flex flex-col text-left"><div className="font-mono font-bold text-slate-500 text-xs truncate">{r.serialId}</div>{r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} className="text-[9px] text-sky-600 font-bold flex items-center gap-1"><Paperclip size={10} />附件</a>}</div>
+                <div className="font-bold text-slate-700 text-xs truncate">{r.dept}</div>
+                <div className="font-bold text-[11px] text-slate-600 truncate">{LEAVE_CATEGORIES.find(c => c.id === r.category)?.label}</div>
+                <div className="font-bold text-[10px] text-slate-600 truncate whitespace-nowrap">{r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}` : `${r.startDate}~${r.endDate}`}</div>
+                <div className="font-black text-xs text-slate-800">{r.totalHours}H</div>
+                <div className="flex justify-end items-center gap-1 min-w-[160px] text-left">
                   <StatusBadge status={r.status} />
-                  <div className="flex items-center justify-end gap-1 w-24 shrink-0 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                    {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded transition-all text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600 text-rose-600">刪除</button>}
-                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600 text-slate-600">銷假</button>}
+                  <div className="flex items-center justify-end gap-1 w-24 shrink-0 text-left">
+                    {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded transition-all">刪除</button>}
+                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all">銷假</button>}
                   </div>
                 </div>
               </div>
@@ -577,28 +579,28 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
     setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' }); setEditingId(null);
   };
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-800 text-slate-800 text-slate-800">
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left text-slate-800 text-slate-800 text-slate-800">
-        <div className="bg-rose-500 p-8 text-white flex justify-between items-center text-left text-white text-white text-white text-white text-white"><div><h1 className="text-2xl font-black text-white text-left text-white text-white text-white text-white text-white text-white text-white">公告維護中心</h1><p className="text-sm opacity-90 italic text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white">發布與管理首頁資訊</p></div><Megaphone size={40} className="opacity-40 text-white text-white text-white text-white text-white text-white text-white text-white" /></div>
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left border-b bg-slate-50/30 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-            <div className="md:col-span-2 space-y-1.5 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400">公告標題</label><input type="text" required className="w-full p-3 rounded-xl border font-bold text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.title} onChange={e=>setFormData({...formData, title:e.target.value})} /></div>
-            <div className="space-y-1.5 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">類型</label><select className="w-full h-[46px] px-3 rounded-xl border font-bold text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.type} onChange={e=>setFormData({...formData, type:e.target.value})}>{ANNOUNCEMENT_TYPES.map(t=>(<option key={t.id} value={t.id}>{t.label}</option>))}</select></div>
-            <div className="space-y-1.5 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">發布日期</label><input type="date" required className="w-full p-3 rounded-xl border font-bold text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})} /></div>
-            <div className="space-y-1.5 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">下架日期</label><input type="date" className="w-full p-3 rounded-xl border font-bold text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /></div>
-            <button type="submit" className="h-[46px] px-6 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-md text-white text-white text-white text-white text-white text-white text-white text-white">{editingId ? '更新' : '發布'}</button>
+    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-800">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-rose-500 p-8 text-white flex justify-between items-center text-left"><div><h1 className="text-2xl font-black text-white">公告維護中心</h1><p className="text-sm opacity-90 italic text-white">發布與管理首頁資訊</p></div><Megaphone size={40} className="opacity-40 text-white" /></div>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 text-left border-b bg-slate-50/30">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end text-left">
+            <div className="md:col-span-2 space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">公告標題</label><input type="text" required className="w-full p-3 rounded-xl border font-bold text-slate-800" value={formData.title} onChange={e=>setFormData({...formData, title:e.target.value})} /></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">類型</label><select className="w-full h-[46px] px-3 rounded-xl border font-bold text-slate-800" value={formData.type} onChange={e=>setFormData({...formData, type:e.target.value})}>{ANNOUNCEMENT_TYPES.map(t=>(<option key={t.id} value={t.id}>{t.label}</option>))}</select></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">發布日期</label><input type="date" required className="w-full p-3 rounded-xl border font-bold text-slate-800" value={formData.date} onChange={e=>setFormData({...formData, date:e.target.value})} /></div>
+            <div className="space-y-1.5 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">下架日期</label><input type="date" className="w-full p-3 rounded-xl border font-bold text-slate-800" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /></div>
+            <button type="submit" className="h-[46px] px-6 py-3 rounded-xl font-black text-white bg-rose-500 hover:bg-rose-600 shadow-md">{editingId ? '更新' : '發布'}</button>
           </div>
           <div className="flex items-center gap-4 text-left">
-            <label className="flex items-center gap-2 cursor-pointer text-left"><input type="checkbox" className="w-4 h-4 rounded text-rose-500" checked={formData.isNew} onChange={e=>setFormData({...formData, isNew:e.target.checked})} /><span className="text-xs font-bold text-slate-600 text-left">標示為 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase">New</span> 新訊</span></label>
+            <label className="flex items-center gap-2 cursor-pointer text-left"><input type="checkbox" className="w-4 h-4 rounded text-rose-500" checked={formData.isNew} onChange={e=>setFormData({...formData, isNew:e.target.checked})} /><span className="text-xs font-bold text-slate-600">標示為 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black uppercase">New</span> 新訊</span></label>
           </div>
-          <textarea placeholder="詳細內容..." rows="3" className="w-full p-4 rounded-xl border font-bold text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.content} onChange={e=>setFormData({...formData, content:e.target.value})} />
+          <textarea placeholder="詳細內容..." rows="3" className="w-full p-4 rounded-xl border font-bold text-slate-800" value={formData.content} onChange={e=>setFormData({...formData, content:e.target.value})} />
         </form>
-        <div className="p-8 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <div className="divide-y text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
+        <div className="p-8 text-left">
+          <div className="divide-y text-left">
             {announcements.map(ann => (
-              <div key={ann.id} className="py-4 flex items-center justify-between group text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                <div className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800"><span className="text-xs font-black text-slate-400 mr-4 text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400">{ann.date}</span><span className="font-bold text-slate-700 text-left text-slate-700 text-slate-700 text-slate-700">{ann.title}</span></div>
-                <div className="flex gap-2 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><button onClick={()=>setFormData(ann)} className="p-2 text-slate-300 hover:text-slate-600 text-left text-slate-300 text-slate-300 text-slate-300"><Edit2 size={16}/></button><button onClick={()=>setAnnouncements(prev=>prev.filter(a=>a.id!==ann.id))} className="p-2 text-slate-300 hover:text-rose-600 text-left text-slate-300 text-slate-300 text-slate-300"><Trash2 size={16}/></button></div>
+              <div key={ann.id} className="py-4 flex items-center justify-between group text-left">
+                <div className="text-left"><span className="text-xs font-black text-slate-400 mr-4">{ann.date}</span><span className="font-bold text-slate-700">{ann.title}</span></div>
+                <div className="flex gap-2 text-left"><button onClick={()=>setFormData(ann)} className="p-2 text-slate-300 hover:text-slate-600"><Edit2 size={16}/></button><button onClick={()=>setAnnouncements(prev=>prev.filter(a=>a.id!==ann.id))} className="p-2 text-slate-300 hover:text-rose-600"><Trash2 size={16}/></button></div>
               </div>
             ))}
           </div>
@@ -618,14 +620,22 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
     if (!window.XLSX) {
       const script = document.createElement('script');
       script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
-      script.async = true; document.head.appendChild(script);
+      script.async = true; 
+      document.head.appendChild(script);
     }
   }, []);
 
   const handleExport = () => {
     if (!window.XLSX) return;
-    const ws = window.XLSX.utils.json_to_sheet(employees.map(e => ({ "姓名": e.name, "員編": e.empId, "部門": e.dept, "職稱": e.jobTitle, "到職日": e.hireDate || '' })));
-    const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "Employees");
+    const ws = window.XLSX.utils.json_to_sheet(employees.map(e => ({ 
+      "姓名": e.name, 
+      "員編": e.empId, 
+      "部門": e.dept, 
+      "職稱": e.jobTitle, 
+      "到職日": e.hireDate || '' 
+    })));
+    const wb = window.XLSX.utils.book_new(); 
+    window.XLSX.utils.book_append_sheet(wb, ws, "Employees");
     window.XLSX.writeFile(wb, "員工名單.xlsx");
   };
 
@@ -640,49 +650,155 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   }, [employees, userSession]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
+    <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-800">
       {pwdTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800 text-center text-slate-800 text-center text-slate-800 text-center text-slate-800"><RotateCcw size={48} className="text-slate-500 mx-auto mb-4" /><h3 className="text-xl font-black mb-1 text-slate-800 text-center text-slate-800 text-center">重設密碼？</h3><div className="flex gap-3 mt-8 text-center text-slate-800 text-center text-slate-800 text-center"><button onClick={()=>setPwdTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800 text-center text-slate-800 text-center text-slate-800">取消</button><button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center text-white text-white text-white text-white text-white text-white">確認</button></div></div>
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl text-slate-800">
+            <RotateCcw size={48} className="text-slate-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-1">重設密碼？</h3>
+            <p className="text-xs text-slate-500 mb-6">將密碼重置回該員的員工編號</p>
+            <div className="flex gap-3 text-center">
+              <button onClick={()=>setPwdTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-800">取消</button>
+              <button onClick={async () => { 
+                try {
+                  await fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { 
+                    method: 'PUT', 
+                    headers: fetchOptions.headers, 
+                    body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) 
+                  });
+                  onRefresh(); 
+                  setPwdTarget(null);
+                  setNotification({ type: 'success', text: '密碼已重設為員工編號' });
+                } catch(e) {
+                  setNotification({ type: 'error', text: '重設失敗' });
+                }
+              }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors">確認重設</button>
+            </div>
+          </div>
         </div>
       )}
-      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-        <div className="bg-teal-600 p-8 text-white flex justify-between items-center text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white"><div><h1 className="text-2xl font-black text-white text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white">人員管理中心</h1><p className="text-sm opacity-90 italic text-left text-white text-white text-white text-white text-white text-white text-white text-white text-white">維護員工資料</p></div><Users size={40} className="opacity-40 text-white text-white text-white text-white text-white text-white text-white text-white text-white" /></div>
-        <div className="px-8 pt-6 flex gap-3 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold border border-emerald-100 transition-colors text-left text-emerald-600 text-emerald-600"><FileSpreadsheet size={16}/> 匯出 Excel</button>
+
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden text-left text-slate-800">
+        <div className="bg-teal-600 p-8 text-white flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black">人員管理中心</h1>
+            <p className="text-sm opacity-90 italic">維護員工資料與層級組織</p>
+          </div>
+          <Users size={40} className="opacity-40" />
         </div>
+        
+        <div className="px-8 pt-6 flex justify-end gap-3 text-left">
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors">
+            <FileSpreadsheet size={16}/> 匯出 Excel名單
+          </button>
+        </div>
+
         <form onSubmit={async e => {
-          e.preventDefault(); const url = editingId ? `${NGROK_URL}/api/employees/${editingId}` : `${NGROK_URL}/api/employees`;
-          await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(formData) });
-          onRefresh(); setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:'', gender:'', birthDate:'', hireDate:''}); setIsCustomDept(false);
-        }} className="p-8 space-y-6 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-            <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-slate-50 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
-            <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-slate-50 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
-            <input type="text" placeholder="職稱" required className="p-3 rounded-xl border bg-slate-50 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
-            {isCustomDept ? <input type="text" placeholder="輸入新部門" className="p-3 rounded-xl border bg-white text-left text-slate-800 text-slate-800 text-slate-800" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} onBlur={()=>!formData.dept && setIsCustomDept(false)}/> :
-            <select required className="p-3 rounded-xl border bg-slate-50 text-left text-slate-800 text-slate-800 text-slate-800" value={formData.dept} onChange={e=>{if(e.target.value==='_custom'){setIsCustomDept(true);setFormData({...formData,dept:''})} else setFormData({...formData,dept:e.target.value})}}><option value="" disabled>單位</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}<option value="_custom">+ 新增單位</option></select>}
+          e.preventDefault(); 
+          const url = editingId ? `${NGROK_URL}/api/employees/${editingId}` : `${NGROK_URL}/api/employees`;
+          try {
+            await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(formData) });
+            setNotification({ type: 'success', text: editingId ? '資料更新成功' : '人員新增成功' });
+            onRefresh(); 
+            setEditingId(null); 
+            setFormData({name:'', empId:'', jobTitle:'', dept:'', gender:'', birthDate:'', hireDate:''}); 
+            setIsCustomDept(false);
+          } catch(err) {
+            setNotification({ type: 'error', text: '操作失敗' });
+          }
+        }} className="p-8 space-y-6 text-left border-b bg-slate-50/30">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-left">
+            <input type="text" placeholder="員編" required className="p-3 rounded-xl border bg-white font-bold outline-none focus:ring-2 focus:ring-teal-500" value={formData.empId} onChange={e=>setFormData({...formData, empId:e.target.value})} />
+            <input type="text" placeholder="姓名" required className="p-3 rounded-xl border bg-white font-bold outline-none focus:ring-2 focus:ring-teal-500" value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} />
+            <input type="text" placeholder="職稱" required className="p-3 rounded-xl border bg-white font-bold outline-none focus:ring-2 focus:ring-teal-500" value={formData.jobTitle} onChange={e=>setFormData({...formData, jobTitle:e.target.value})} />
+            {isCustomDept ? (
+              <input type="text" placeholder="輸入新部門" className="p-3 rounded-xl border bg-white font-bold outline-none focus:ring-2 focus:ring-teal-500" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})} onBlur={()=>!formData.dept && setIsCustomDept(false)}/> 
+            ) : (
+              <select required className="p-3 rounded-xl border bg-white font-bold outline-none focus:ring-2 focus:ring-teal-500" value={formData.dept} onChange={e=>{
+                if(e.target.value==='_custom'){ setIsCustomDept(true); setFormData({...formData, dept:''}) } 
+                else { setFormData({...formData, dept:e.target.value}) }
+              }}>
+                <option value="" disabled>單位</option>
+                {availableDepts.map(d=><option key={d} value={d}>{d}</option>)}
+                <option value="_custom">+ 新增單位</option>
+              </select>
+            )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-             <div className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">性別</label><select className="w-full p-2.5 rounded-xl border mt-1 text-left text-slate-800 text-slate-800 text-slate-800" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}><option value="">請選擇</option><option value="男">男</option><option value="女">女</option></select></div>
-             <div className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">到職日</label><input type="date" className="w-full p-2 rounded-xl border mt-1 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.hireDate} onChange={e=>setFormData({...formData, hireDate:e.target.value})} /></div>
-             <div className="text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">生日</label><input type="date" className="w-full p-2 rounded-xl border mt-1 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800" value={formData.birthDate} onChange={e=>setFormData({...formData, birthDate:e.target.value})} /></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+             <div>
+               <label className="text-[10px] font-black text-slate-400 uppercase">性別</label>
+               <select className="w-full p-2.5 rounded-xl border bg-white font-bold mt-1 outline-none focus:ring-2 focus:ring-teal-500" value={formData.gender} onChange={e=>setFormData({...formData, gender:e.target.value})}>
+                 <option value="">請選擇</option><option value="男">男</option><option value="女">女</option>
+               </select>
+             </div>
+             <div>
+               <label className="text-[10px] font-black text-slate-400 uppercase">到職日</label>
+               <input type="date" className="w-full p-2 rounded-xl border bg-white font-bold mt-1 outline-none focus:ring-2 focus:ring-teal-500" value={formData.hireDate} onChange={e=>setFormData({...formData, hireDate:e.target.value})} />
+             </div>
+             <div>
+               <label className="text-[10px] font-black text-slate-400 uppercase">生日</label>
+               <input type="date" className="w-full p-2 rounded-xl border bg-white font-bold mt-1 outline-none focus:ring-2 focus:ring-teal-500" value={formData.birthDate} onChange={e=>setFormData({...formData, birthDate:e.target.value})} />
+             </div>
           </div>
-          <div className="flex gap-4 pt-2 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800"><button type="submit" className="flex-1 py-4 bg-teal-600 text-white rounded-2xl font-black text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white text-white">{editingId ? '更新資料' : '新增人員'}</button></div>
+          <div className="flex gap-4 pt-2">
+            {editingId && (
+              <button type="button" onClick={() => { setEditingId(null); setFormData({name:'',empId:'',jobTitle:'',dept:'', gender:'', birthDate:'', hireDate:''}); }} className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black hover:bg-slate-200 transition-colors">
+                取消編輯
+              </button>
+            )}
+            <button type="submit" className="flex-1 py-4 bg-teal-600 text-white rounded-2xl font-black shadow-lg hover:bg-teal-700 transition-colors">
+              {editingId ? '更新資料' : '新增人員'}
+            </button>
+          </div>
         </form>
-        <div className="overflow-x-auto border-t text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-          <table className="w-full text-sm text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400"><tr><th className="px-8 py-4 text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">員編</th><th className="px-4 py-4 text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">姓名</th><th className="px-4 py-4 text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">職稱/單位</th><th className="px-4 py-4 text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">帳號</th><th className="px-8 py-4 text-right text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">操作</th></tr></thead>
-            <tbody className="divide-y divide-slate-100 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-              {filtered.map(emp => (
-                <tr key={emp.id} className="hover:bg-slate-50 text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800 text-slate-800">
-                  <td className="px-8 py-4 font-mono font-bold text-slate-600 text-left text-slate-600 text-left text-slate-600 text-left text-slate-600 text-left text-slate-600 text-left text-slate-600 text-left text-slate-600">{emp.empId}</td>
-                  <td className="px-4 py-4 font-black text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800">{emp.name}</td>
-                  <td className="px-4 py-4 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800"><div className="font-bold text-left text-slate-800 text-left text-slate-800 text-left text-slate-800">{emp.jobTitle}</div><div className="text-[10px] text-slate-400 text-left text-slate-400 text-left text-slate-400 text-left text-slate-400">{emp.dept}</div></td>
-                  <td className="px-4 py-4 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800"><button onClick={()=>setPwdTarget(emp)} className="text-[10px] font-black text-slate-500 hover:text-slate-800 text-left text-slate-500 text-left text-slate-500 text-left text-slate-500 text-left text-slate-500">重設密碼</button></td>
-                  <td className="px-8 py-4 text-right flex justify-end gap-2 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800 text-left text-slate-800"><button onClick={()=>{setEditingId(emp.id);setFormData(emp);}} className="p-2 text-slate-300 hover:text-slate-600 text-left text-slate-300 text-left text-slate-300 text-left text-slate-300 text-left text-slate-300"><Edit2 size={16} /></button></td>
+
+        <div className="overflow-x-auto border-t">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
+              <tr>
+                <th className="px-8 py-4">員編</th>
+                <th className="px-4 py-4">姓名</th>
+                <th className="px-4 py-4">職稱/單位</th>
+                <th className="px-4 py-4">帳號設定</th>
+                <th className="px-8 py-4 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-16 text-center text-slate-400 font-bold italic">
+                    目前無符合條件的人員資料，請由上方表單新增。
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map(emp => (
+                  <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-4 font-mono font-bold text-slate-600">{emp.empId}</td>
+                    <td className="px-4 py-4 font-black text-slate-800">{emp.name}</td>
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-slate-800">{emp.jobTitle}</div>
+                      <div className="text-[10px] text-slate-400">{emp.dept}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <button onClick={()=>setPwdTarget(emp)} className="text-[10px] font-black px-2 py-1 bg-slate-100 text-slate-500 rounded hover:bg-slate-200 hover:text-slate-800 transition-colors">重設密碼</button>
+                    </td>
+                    <td className="px-8 py-4 text-right flex justify-end gap-2">
+                      <button onClick={()=>{setEditingId(emp.id);setFormData(emp);}} className="p-2 text-slate-400 hover:text-teal-600 bg-white rounded-lg shadow-sm border transition-colors" title="編輯"><Edit2 size={16} /></button>
+                      <button onClick={async ()=>{
+                         if(window.confirm(`確定要刪除「${emp.name}」嗎？這項操作無法復原。`)) {
+                           try {
+                             await fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers });
+                             setNotification({ type: 'success', text: '已刪除人員' });
+                             onRefresh();
+                           } catch (e) {
+                             setNotification({ type: 'error', text: '刪除失敗' });
+                           }
+                         }
+                      }} className="p-2 text-slate-400 hover:text-rose-600 bg-white rounded-lg shadow-sm border transition-colors" title="刪除"><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -698,10 +814,11 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession }) =>
   const handleProcess = async (record, action) => {
     try {
       const newStatus = action === 'approve' ? 'pending_manager' : 'rejected';
-      await fetch(`${NGROK_URL}/api/records/${record.id}`, {
+      // ⚠️ 修正了後端 API 路由，補上了 /status 並傳遞 opinion
+      await fetch(`${NGROK_URL}/api/records/${record.id}/status`, {
         method: 'PUT',
         headers: fetchOptions.headers,
-        body: JSON.stringify({ ...record, status: newStatus })
+        body: JSON.stringify({ status: newStatus, opinion: action === 'approve' ? '同意代理' : '婉拒代理' })
       });
       setNotification({ type: 'success', text: action === 'approve' ? '已同意代理' : '已拒絕代理' });
       onRefresh();
@@ -758,10 +875,11 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   const handleProcess = async (record, action) => {
     try {
       const newStatus = action === 'approve' ? 'approved' : 'rejected';
-      await fetch(`${NGROK_URL}/api/records/${record.id}`, {
+      // ⚠️ 修正了後端 API 路由，補上了 /status 並傳遞 opinion
+      await fetch(`${NGROK_URL}/api/records/${record.id}/status`, {
         method: 'PUT',
         headers: fetchOptions.headers,
-        body: JSON.stringify({ ...record, status: newStatus })
+        body: JSON.stringify({ status: newStatus, opinion: action === 'approve' ? '核准' : '駁回' })
       });
       setNotification({ type: 'success', text: action === 'approve' ? '已核准' : '已駁回' });
       onRefresh();
@@ -812,9 +930,39 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   );
 };
 
-// 補齊：單據查詢畫面
+// 單據查詢畫面
 const InquiryView = ({ records, userSession }) => {
-  const myRecords = records.filter(r => userSession.empId === 'root' || r.empId === userSession.empId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const myRecords = useMemo(() => {
+    let filtered = records.filter(r => userSession.empId === 'root' || r.empId === userSession.empId);
+
+    // 單號或關鍵字過濾
+    if (searchTerm) {
+      filtered = filtered.filter(r => 
+        r.serialId?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        r.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    // 表單類型過濾
+    if (filterType !== 'all') {
+      filtered = filtered.filter(r => r.formType === filterType);
+    }
+    // 狀態過濾
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'pending') {
+        // 將待代理與待簽核均視為「待處理」
+        filtered = filtered.filter(r => ['pending', 'pending_substitute', 'pending_manager'].includes(r.status));
+      } else {
+        filtered = filtered.filter(r => r.status === filterStatus);
+      }
+    }
+
+    return filtered.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [records, userSession, searchTerm, filterType, filterStatus]);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-800">
       <div className="bg-white rounded-3xl shadow-xl border overflow-hidden">
@@ -822,15 +970,55 @@ const InquiryView = ({ records, userSession }) => {
           <div><h1 className="text-2xl font-black">單據查詢</h1></div>
           <ClipboardList size={40} className="opacity-40" />
         </div>
-        <div className="p-8">
+        <div className="p-8 space-y-6">
+          
+          {/* 搜尋與篩選區域 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border">
+            <div className="flex items-center bg-white rounded-xl border px-3">
+              <Search size={18} className="text-slate-400" />
+              <input
+                type="text"
+                placeholder="搜尋單號或姓名..."
+                className="w-full p-2 outline-none bg-transparent font-bold text-sm text-slate-700"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <select
+              className="p-2.5 rounded-xl border bg-white font-bold text-sm text-slate-700 outline-none"
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+            >
+              <option value="all">所有單據類型</option>
+              <option value="請假">請假單</option>
+              <option value="加班">加班單</option>
+            </select>
+            <select
+              className="p-2.5 rounded-xl border bg-white font-bold text-sm text-slate-700 outline-none"
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+            >
+              <option value="all">所有狀態</option>
+              <option value="pending">待處理 (簽核/代理中)</option>
+              <option value="approved">已核准</option>
+              <option value="rejected">已駁回</option>
+              <option value="canceled">已撤銷</option>
+            </select>
+          </div>
+
+          {/* 單據列表 */}
           <div className="space-y-4">
             {myRecords.length === 0 ? (
-               <div className="text-center text-slate-400 py-10 font-bold">無單據紀錄</div>
+               <div className="text-center text-slate-400 py-10 font-bold">查無符合條件的單據</div>
             ) : myRecords.map(r => (
-              <div key={r.id} className="p-4 border rounded-2xl flex items-center justify-between">
+              <div key={r.id} className="p-4 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 hover:border-fuchsia-300 transition-colors">
                 <div>
-                  <div className="text-xs font-mono text-slate-500">{r.serialId}</div>
-                  <div className="font-bold">{r.formType} - {r.totalHours}H</div>
+                  <div className="text-xs font-mono text-slate-500 mb-1">{r.serialId} {userSession.empId === 'root' && `- ${r.name}`}</div>
+                  <div className="font-bold flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>{r.formType}</span>
+                    <span>{r.startDate} {r.startHour}:{r.startMin} ~ {r.endDate} {r.endHour}:{r.endMin} ({r.totalHours}H)</span>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1 truncate max-w-md">原因: {r.reason}</div>
                 </div>
                 <StatusBadge status={r.status} />
               </div>
@@ -842,7 +1030,7 @@ const InquiryView = ({ records, userSession }) => {
   );
 };
 
-// 補齊：修改密碼畫面
+// 修改密碼畫面
 const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
   const [pwd, setPwd] = useState({ new: '', confirm: '' });
   const handleSubmit = async (e) => {
@@ -859,15 +1047,15 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
      } catch(e) { setNotification({type:'error', text:'修改失敗'}); }
   };
   return (
-    <div className="bg-white rounded-3xl shadow-xl border p-8 max-w-lg mx-auto mt-10">
+    <div className="bg-white rounded-3xl shadow-xl border p-8 max-w-lg mx-auto mt-10 text-slate-800 text-left">
       <div className="flex items-center gap-3 mb-6">
         <KeyRound size={28} className="text-slate-400"/>
         <h2 className="text-2xl font-black">修改密碼</h2>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
-         <input type="password" placeholder="新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" value={pwd.new} onChange={e=>setPwd({...pwd, new:e.target.value})} />
-         <input type="password" placeholder="確認新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" value={pwd.confirm} onChange={e=>setPwd({...pwd, confirm:e.target.value})} />
-         <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-blue-700">確認修改</button>
+         <input type="password" placeholder="新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500" value={pwd.new} onChange={e=>setPwd({...pwd, new:e.target.value})} />
+         <input type="password" placeholder="確認新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500" value={pwd.confirm} onChange={e=>setPwd({...pwd, confirm:e.target.value})} />
+         <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-colors">確認修改</button>
       </form>
     </div>
   );
@@ -948,6 +1136,7 @@ const App = () => {
         </nav>
         <div className="mt-auto space-y-4 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900">
           <div className="p-4 bg-slate-50 rounded-3xl border flex items-center gap-3 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900"><div className="px-2 min-w-[40px] h-10 bg-sky-100 rounded-2xl flex items-center justify-center font-black text-sky-600 text-[10px] text-sky-600 text-sky-600 text-sky-600 text-sky-600">{typeof userSession.dept === 'string' ? userSession.dept.substring(0, 2) : '部'}</div><div className="overflow-hidden text-left text-slate-800 text-slate-800 text-slate-800 text-slate-800"><p className="text-xs font-black truncate text-left text-slate-800 text-slate-800 text-slate-800">{userSession.name}</p><p className="text-[10px] text-slate-400 font-mono text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400">{userSession.empId}</p></div></div>
+          <button onClick={() => { setActiveMenu('change-password'); }} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 transition-all text-left"><KeyRound size={20} /> 修改密碼</button>
           <button onClick={() => setUserSession(null)} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all text-left text-rose-500 text-rose-500 text-rose-500 text-rose-500 text-rose-500 text-rose-500"><LogOut size={20} /> 登出系統</button>
         </div>
       </aside>
@@ -959,9 +1148,10 @@ const App = () => {
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
-          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
+          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} />}
+          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
         </div>
       </main>
     </div>
