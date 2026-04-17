@@ -6,7 +6,7 @@ import {
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
   CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone,
-  Paperclip, UploadCloud
+  Paperclip, UploadCloud, Activity
 } from 'lucide-react';
 
 // --- API 設定 ---
@@ -209,43 +209,45 @@ const canManagerApproveRecord = (userSession, r, employees) => {
 // --- Helper Components ---
 
 const StatusBadge = ({ status }) => {
-  // 針對已結案狀態，改用圓章樣式
+  // 針對已結案狀態，改用圓章樣式 (雙層圓圈邊框)
   if (['approved', 'rejected', 'canceled'].includes(status)) {
     let stampConfig = { color: '', icon: null, label: '' };
     if (status === 'approved') {
-      stampConfig = { color: 'text-emerald-600 border-emerald-500 bg-emerald-50/80', icon: Check, label: '已核准' };
+      stampConfig = { color: 'text-emerald-600 border-emerald-600', icon: Check, label: '已核准' };
     } else if (status === 'rejected') {
-      stampConfig = { color: 'text-rose-600 border-rose-500 bg-rose-50/80', icon: X, label: '已駁回' };
+      stampConfig = { color: 'text-rose-600 border-rose-600', icon: X, label: '已駁回' };
     } else if (status === 'canceled') {
-      stampConfig = { color: 'text-slate-500 border-slate-400 bg-slate-50/80', icon: RotateCcw, label: '已撤銷' };
+      stampConfig = { color: 'text-slate-400 border-slate-400', icon: RotateCcw, label: '已撤銷' };
     }
 
     const IconComponent = stampConfig.icon;
 
     return (
-      <div className={`w-11 h-11 rounded-full border-2 flex flex-col items-center justify-center -rotate-[10deg] ${stampConfig.color} shadow-sm shrink-0 mx-1 opacity-90`}>
-        <IconComponent size={14} strokeWidth={4} className="mb-0.5 opacity-80" />
-        <span className="text-[8px] font-black leading-none tracking-widest scale-90">{stampConfig.label}</span>
+      <div className={`w-11 h-11 rounded-full border-[1.5px] flex flex-col items-center justify-center -rotate-[15deg] ${stampConfig.color} bg-transparent shrink-0 opacity-80 relative mx-1`}>
+        <div className={`absolute inset-[2px] rounded-full border ${stampConfig.color} opacity-40`}></div>
+        <IconComponent size={14} strokeWidth={4} className="mb-0.5" />
+        <span className="text-[8px] font-black leading-none">{stampConfig.label}</span>
       </div>
     );
   }
 
-  // 待簽核維持膠囊狀，調整對齊截圖的文字
-  const styles = {
-    pending_substitute: "bg-amber-50 text-amber-600 border-amber-200 shadow-sm",
-    pending_manager: "bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm",
-    pending: "bg-indigo-50 text-indigo-600 border-indigo-200 shadow-sm" // 相容舊資料
+  // 進行中狀態：純淨膠囊樣式
+  const dynamicStyles = {
+    pending_substitute: "bg-amber-50 text-amber-600 border-transparent",
+    pending_manager: "bg-indigo-50 text-indigo-600 border-transparent",
+    pending: "bg-indigo-50 text-indigo-600 border-transparent"
   };
+
   const labels = { 
     pending_substitute: "待代理",
     pending_manager: "待簽核",
     pending: "待簽核" 
   };
   
-  const currentStyle = styles[status] || styles.pending;
+  const currentStyle = dynamicStyles[status] || dynamicStyles.pending;
   const currentLabel = labels[status] || labels.pending;
   
-  return <span className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${currentStyle} whitespace-nowrap`}>{currentLabel}</span>;
+  return <span className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${currentStyle} whitespace-nowrap shadow-sm`}>{currentLabel}</span>;
 };
 
 const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
@@ -748,7 +750,7 @@ const AnnouncementListView = ({ announcements }) => {
   );
 };
 
-const LoginView = ({ employees, onLogin, apiError }) => {
+const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -771,14 +773,16 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
       
       if (password.trim() === dynamicPassword) {
-        onLogin({
+        const rootUser = {
           id: 'root',
           empId: 'root',
           name: '系統管理員',
           jobTitle: '最高管理員',
           dept: '系統維護部',
           hireDate: fiveYearsAgo.toISOString() 
-        });
+        };
+        await onLogAction(rootUser, '登入/登出', '系統管理員登入成功');
+        onLogin(rootUser);
       } else {
         setError('帳號或密碼不正確');
       }
@@ -797,7 +801,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
       const validPassword = (user?.password && user.password !== "") ? user.password : user?.empId;
       
       if (user && validPassword === password.trim()) {
-        // 直接登入，不再產生 token 或寫入系統登入單
+        await onLogAction(user, '登入/登出', '使用者登入成功');
         onLogin(user);
       } else { 
         setError('帳號或密碼不正確'); 
@@ -839,7 +843,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
   );
 };
 
-const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts }) => {
+const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -906,7 +910,6 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     };
   }, [totalHours, formData.category]);
 
-  // 新增：計算當月已核准加班時數與防呆邏輯
   const currentMonthOTHours = useMemo(() => {
     if (!formData.startDate) return 0;
     const targetMonth = formData.startDate.substring(0, 7); // 取得 YYYY-MM 格式
@@ -935,6 +938,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending_manager', createdAt: new Date().toISOString() }) 
       });
       if(!res.ok) throw new Error('API Error');
+      await onLogAction(userSession, '表單申請', `送出加班申請單 (${currentSerialId})`);
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
       setNotification({ type: 'success', text: '加班申請已送出' });
       onRefresh();
@@ -949,7 +953,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
             <h3 className="text-xl font-black mb-2 text-slate-900">確定要刪除申請？</h3>
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
-            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); await onLogAction(userSession, '單據撤銷', `刪除加班申請單 (${withdrawTarget.serialId})`); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
           </div>
         </div>
       )}
@@ -961,7 +965,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
             <div className="flex gap-3">
               <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
-              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行抽單撤銷' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功撤銷該單據' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '撤銷失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認撤銷</button>
+              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行抽單撤銷' }) }); if (!res.ok) throw new Error(); await onLogAction(userSession, '單據撤銷', `抽單撤銷加班申請 (${cancelTarget.serialId})`); setNotification({ type: 'success', text: '已成功撤銷該單據' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '撤銷失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認撤銷</button>
             </div>
           </div>
         </div>
@@ -1095,7 +1099,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   );
 };
 
-const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
+const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts, onLogAction }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -1220,7 +1224,6 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     if (totalHours <= 0 || submitting) return;
     setSubmitting(true);
     try {
-      // --- 防護機制：送單前即時二次驗證餘額 ---
       const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, {
         ...fetchOptions,
         cache: 'no-store'
@@ -1241,10 +1244,10 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
         onRefresh();
         return;
       }
-      // ----------------------------------------
 
       const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
       if(!res.ok) throw new Error('API error');
+      await onLogAction(userSession, '表單申請', `送出請假申請單 (${currentSerialId})`);
       setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null }));
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1260,7 +1263,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
             <h3 className="text-xl font-black mb-2 text-slate-900">確定要刪除申請？</h3>
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{withdrawTarget.serialId}</p>
-            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
+            <div className="flex gap-3"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">取消</button><button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); if (!res.ok) throw new Error(); await onLogAction(userSession, '單據撤銷', `刪除請假申請單 (${withdrawTarget.serialId})`); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl text-white">確認刪除</button></div>
           </div>
         </div>
       )}
@@ -1272,7 +1275,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
             <div className="flex gap-3">
               <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
-              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功完成銷假' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '銷假失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認銷假</button>
+              <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); if (!res.ok) throw new Error(); await onLogAction(userSession, '單據撤銷', `抽單撤銷請假申請 (${cancelTarget.serialId})`); setNotification({ type: 'success', text: '已成功完成銷假' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '銷假失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認銷假</button>
             </div>
           </div>
         </div>
@@ -1560,7 +1563,7 @@ const InquiryView = ({ records, userSession }) => {
   );
 };
 
-const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh }) => {
+const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh, onLogAction }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ current: '', new: '', confirm: '' });
   const [shows, setShows] = useState({ cur: false, new: false, con: false });
@@ -1571,8 +1574,9 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
     if (formData.current !== (userSession.password || userSession.empId)) return setNotification({ type: 'error', text: '舊密碼錯誤' });
     setLoading(true);
     try {
-      const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...userSession, password: formData.new.trim() }) });
+      const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PATCH', headers: fetchOptions.headers, body: JSON.stringify({ password: formData.new.trim() }) });
       if (res.ok) { 
+        await onLogAction(userSession, '密碼變更', '自行變更登入密碼');
         setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); 
         onRefresh(); 
         setTimeout(() => onLogout(), 2000); 
@@ -1604,7 +1608,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh 
 };
 
 // 新增：代理人確認中心
-const SubstituteView = ({ records, onRefresh, setNotification, userSession }) => {
+const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -1620,6 +1624,8 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession }) =>
     try {
       const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
       if(!res.ok) throw new Error('API error');
+      const actionText = status === 'pending_manager' ? '同意' : '拒絕';
+      await onLogAction(userSession, '代理確認', `${actionText}代理單據 (${selectedRecord?.serialId})`);
       setNotification({ type: 'success', text: status === 'pending_manager' ? '已同意代理，單據送交主管簽核' : '已拒絕代理，單據退回申請人' });
       setSelectedId(null); setOpinion(''); onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
@@ -1712,7 +1718,7 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession }) =>
 };
 
 
-const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees }) => {
+const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees, onLogAction }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -1726,6 +1732,8 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
     try {
       const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
       if(!res.ok) throw new Error('API error');
+      const actionText = status === 'approved' ? '核准' : '駁回';
+      await onLogAction(userSession, '主管簽核', `${actionText}單據 (${selectedRecord?.serialId})`);
       setNotification({ type: 'success', text: '簽核作業完成' });
       setSelectedId(null); setOpinion(''); onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
@@ -1842,7 +1850,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   );
 };
 
-const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession, availableDepts }) => {
+const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession, availableDepts, onLogAction }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '', gender: '', birthDate: '', hireDate: '' });
   const [showDetails, setShowDetails] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -1875,7 +1883,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
 
   useEffect(() => { if (!window.XLSX) { const script = document.createElement('script'); script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"; script.async = true; document.head.appendChild(script); } }, []);
   const handleExport = () => { if (!window.XLSX) return; const data = filteredEmployees.map(emp => ({ "姓名": emp.name, "員編": emp.empId, "職稱": emp.jobTitle, "單位": emp.dept, "性別": emp.gender || '', "出生年月日": emp.birthDate ? emp.birthDate.split('T')[0] : '', "到職日": emp.hireDate ? emp.hireDate.split('T')[0] : '' })); const ws = window.XLSX.utils.json_to_sheet(data); const wb = window.XLSX.utils.book_new(); window.XLSX.utils.book_append_sheet(wb, ws, "員工名單"); window.XLSX.writeFile(wb, `員工清單_${new Date().toISOString().split('T')[0]}.xlsx`); };
-  const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "", gender: row["性別"] || "", birthDate: row["出生年月日"] || null, hireDate: row["到職日"] || null }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
+  const handleImport = async (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (evt) => { const bstr = evt.target.result; const wb = window.XLSX.read(bstr, { type: 'binary' }); const jsonData = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]); setLoading(true); for (const row of jsonData) { const payload = { name: row["姓名"], empId: row["員編"]?.toString(), jobTitle: row["職稱"] || "", dept: row["單位"] || "", gender: row["性別"] || "", birthDate: row["出生年月日"] || null, hireDate: row["到職日"] || null }; if (payload.name && payload.empId) await fetch(`${NGROK_URL}/api/employees`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) }); } await onLogAction(userSession, '人事管理', `批次匯入員工資料`); onRefresh(); setNotification({ type: 'success', text: '匯入完成' }); setLoading(false); e.target.value = ""; }; reader.readAsBinaryString(file); };
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left font-sans text-slate-900">
       {pwdTarget && (
@@ -1886,7 +1894,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
             <p className="text-xs text-slate-400 mb-8 font-bold text-center">為 {pwdTarget.name} 還原為員編密碼</p>
             <div className="flex gap-3 text-left">
               <button onClick={()=>setPwdTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900 text-center">取消</button>
-              <button onClick={() => { fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ ...pwdTarget, password: pwdTarget.empId }) }).then(onRefresh); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center">確認</button>
+              <button onClick={async () => { await fetch(`${NGROK_URL}/api/employees/${pwdTarget.id}`, { method: 'PATCH', headers: fetchOptions.headers, body: JSON.stringify({ password: pwdTarget.empId }) }); await onLogAction(userSession, '密碼變更', `重設員工密碼 (${pwdTarget.empId} ${pwdTarget.name})`); onRefresh(); setPwdTarget(null); }} className="flex-1 py-3 font-black text-white bg-teal-600 rounded-xl text-white text-center">確認</button>
             </div>
           </div>
         </div>
@@ -1911,8 +1919,11 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
           };
 
           try {
-            const res = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) });
+            const res = await fetch(url, { method: editingId ? 'PATCH' : 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) });
             if (!res.ok) throw new Error('伺服器更新失敗');
+            
+            const actionDesc = editingId ? '更新' : '新增';
+            await onLogAction(userSession, '人事管理', `${actionDesc}員工資料 (${payload.empId} ${payload.name})`);
             
             onRefresh(); 
             setEditingId(null); 
@@ -2019,7 +2030,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                       setIsCustomDept(false);
                       window.scrollTo({top:0,behavior:'smooth'});
                     }} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><Edit2 size={16} /></button>
-                    <button onClick={() => { if(window.confirm("確定刪除？")) fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers }).then(onRefresh); }} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
+                    <button onClick={async () => { if(window.confirm("確定刪除？")) { await fetch(`${NGROK_URL}/api/employees/${emp.id}`, { method: 'DELETE', headers: fetchOptions.headers }); await onLogAction(userSession, '人事管理', `刪除員工資料 (${emp.empId} ${emp.name})`); onRefresh(); } }} className="p-2 text-slate-300 hover:text-rose-600 transition-colors"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}
@@ -2031,28 +2042,31 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   );
 };
 
-const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification }) => {
+const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification, userSession, onLogAction }) => {
   const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });
   const [editingId, setEditingId] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) return setNotification({ type: 'error', text: '公告標題不可為空' });
 
     if (editingId) {
       setAnnouncements(prev => prev.map(a => a.id === editingId ? { ...formData, id: editingId } : a));
+      await onLogAction(userSession, '系統公告', `更新公告：${formData.title}`);
       setNotification({ type: 'success', text: '公告更新成功' });
     } else {
       setAnnouncements(prev => [{ ...formData, id: Date.now() }, ...prev]);
+      await onLogAction(userSession, '系統公告', `發布新公告：${formData.title}`);
       setNotification({ type: 'success', text: '公告新增成功' });
     }
     setFormData({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });
     setEditingId(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id, title) => {
     if(window.confirm('確定要刪除這則公告嗎？')) {
       setAnnouncements(prev => prev.filter(a => a.id !== id));
+      await onLogAction(userSession, '系統公告', `刪除公告：${title}`);
       setNotification({ type: 'success', text: '公告已刪除' });
     }
   };
@@ -2131,7 +2145,7 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
                   </div>
                   <div className="flex items-center gap-1 border-l pl-4 border-slate-200">
                     <button onClick={()=>{setEditingId(ann.id); setFormData(ann); window.scrollTo({top:0,behavior:'smooth'});}} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Edit2 size={16} /></button>
-                    <button onClick={() => handleDelete(ann.id)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(ann.id, ann.title)} className="p-2 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"><Trash2 size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -2146,11 +2160,189 @@ const AnnouncementManagement = ({ announcements, setAnnouncements, setNotificati
   );
 };
 
+// 新增：系統操作日誌 View
+const SystemLogView = ({ sysLogs }) => {
+  const [filters, setFilters] = useState({ actionType: '', keyword: '', startDate: '', endDate: '' });
+
+  const displayLogs = useMemo(() => {
+    return sysLogs.filter(log => {
+      if (filters.actionType && log.actionType !== filters.actionType) return false;
+      if (filters.startDate && log.createdAt < filters.startDate) return false;
+      if (filters.endDate && log.createdAt > filters.endDate + 'T23:59:59') return false;
+      if (filters.keyword) {
+        const kw = filters.keyword.toLowerCase();
+        return (log.name?.toLowerCase().includes(kw) || log.empId?.toLowerCase().includes(kw) || log.details?.toLowerCase().includes(kw));
+      }
+      return true;
+    });
+  }, [sysLogs, filters]);
+
+  const handleReset = () => setFilters({ actionType: '', keyword: '', startDate: '', endDate: '' });
+
+  // 整理日誌資料以供匯出使用
+  const formatLogsData = () => {
+    return displayLogs.map(log => {
+      const d = new Date(log.createdAt);
+      const formattedDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+      return {
+        "操作時間": formattedDate,
+        "操作者姓名": log.name || '',
+        "員編": log.empId || '',
+        "動作類型": log.actionType || '',
+        "詳細內容": log.details || ''
+      };
+    });
+  };
+
+  // 實作匯出 TXT 功能
+  const handleExportTXT = () => {
+    const data = formatLogsData();
+    let txtContent = "系統操作日誌\n";
+    txtContent += "==============================================================\n";
+    data.forEach(item => {
+      txtContent += `[${item["操作時間"]}] 員編:${item["員編"]} 姓名:${item["操作者姓名"]} | 動作:${item["動作類型"]} | 內容:${item["詳細內容"]}\n`;
+    });
+
+    const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `系統操作日誌_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 實作匯出 JSON 功能
+  const handleExportJSON = () => {
+    const data = formatLogsData();
+    const jsonContent = JSON.stringify(data, null, 2);
+    
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `系統操作日誌_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const getActionStyle = (type) => {
+    switch (type) {
+      case '登入/登出': return 'text-sky-600 bg-sky-50 border-sky-100';
+      case '表單申請': return 'text-blue-600 bg-blue-50 border-blue-100';
+      case '單據撤銷': return 'text-slate-600 bg-slate-100 border-slate-200';
+      case '代理確認': return 'text-amber-600 bg-amber-50 border-amber-100';
+      case '主管簽核': return 'text-indigo-600 bg-indigo-50 border-indigo-100';
+      case '人事管理': return 'text-teal-600 bg-teal-50 border-teal-100';
+      case '密碼變更': return 'text-rose-600 bg-rose-50 border-rose-100';
+      case '系統公告': return 'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100';
+      default: return 'text-gray-600 bg-gray-50 border-gray-100';
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-slate-800 px-8 py-10 text-white flex justify-between items-center">
+          <div><h1 className="text-2xl font-black text-white text-left">系統操作日誌</h1><p className="text-sm opacity-90 italic text-slate-300 text-left">最高權限管理員專屬，追蹤全站重要操作軌跡</p></div><Activity size={40} className="opacity-30 text-white" />
+        </div>
+        
+        <div className="p-8 border-b border-slate-100 bg-slate-50/50 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">動作類型</label>
+              <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.actionType} onChange={e => setFilters({...filters, actionType: e.target.value})}>
+                <option value="">全部</option>
+                <option value="登入/登出">登入/登出</option>
+                <option value="表單申請">表單申請</option>
+                <option value="單據撤銷">單據撤銷</option>
+                <option value="代理確認">代理確認</option>
+                <option value="主管簽核">主管簽核</option>
+                <option value="人事管理">人事管理</option>
+                <option value="密碼變更">密碼變更</option>
+                <option value="系統公告">系統公告</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">關鍵字搜尋</label>
+              <input type="text" placeholder="姓名、員編或詳細內容..." className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.keyword} onChange={e => setFilters({...filters, keyword: e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">起始日期 (從)</label>
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase">結束日期 (至)</label>
+              <input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} />
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end pt-2">
+            <button type="button" onClick={handleExportTXT} className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200 shadow-sm"><FileText size={16}/> 匯出 TXT</button>
+            <button type="button" onClick={handleExportJSON} className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 transition-colors border border-sky-200 shadow-sm"><Download size={16}/> 匯出 JSON</button>
+            <button type="button" onClick={handleReset} className="px-6 py-3 rounded-xl font-bold text-slate-500 bg-slate-200 hover:bg-slate-300 transition-colors">清除重設</button>
+          </div>
+        </div>
+
+        <div className="p-8 space-y-4 text-left">
+          {displayLogs.length > 0 ? (
+            <div className="overflow-x-auto pb-4">
+              <table className="w-full text-left whitespace-nowrap border-separate" style={{ borderSpacing: 0 }}>
+                <thead>
+                  <tr>
+                    <th className="bg-slate-50 px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest rounded-l-2xl border-y border-l border-slate-200">操作時間</th>
+                    <th className="bg-slate-50 px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-y border-slate-200">操作者</th>
+                    <th className="bg-slate-50 px-4 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-y border-slate-200">動作類型</th>
+                    <th className="bg-slate-50 px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest rounded-r-2xl border-y border-r border-slate-200 w-full">詳細內容</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr className="h-2"></tr>
+                  {displayLogs.map(log => {
+                    const d = new Date(log.createdAt);
+                    const formattedDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                    return (
+                      <tr key={log.id || log.serialId} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-6 py-4 font-mono font-bold text-[11px] text-slate-500 border-b border-slate-100">{formattedDate}</td>
+                        <td className="px-4 py-4 border-b border-slate-100">
+                          <div className="font-black text-slate-800">{log.name}</div>
+                          <div className="text-[10px] text-slate-500 font-bold font-mono">{log.empId}</div>
+                        </td>
+                        <td className="px-4 py-4 border-b border-slate-100">
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-black border ${getActionStyle(log.actionType)}`}>
+                            {log.actionType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-xs text-slate-700 border-b border-slate-100 whitespace-normal min-w-[250px]">
+                          {log.details}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3">
+              <Search size={48} className="opacity-20 mb-2 text-slate-300" />
+              <p>查無符合條件的操作日誌</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- App Component ---
 
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
   const [records, setRecords] = useState([]);
+  const [sysLogs, setSysLogs] = useState([]); // 新增：系統日誌獨立 State
   const [employees, setEmployees] = useState([]);
   
   const [announcements, setAnnouncements] = useState([
@@ -2180,6 +2372,31 @@ const App = () => {
 
   useEffect(() => { if (notification) { const timer = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(timer); } }, [notification]);
   
+  // --- 系統日誌寫入核心 ---
+  const handleLogAction = async (user, type, details) => {
+    if (!user) return;
+    const logRecord = {
+      serialId: `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      formType: '系統日誌',
+      empId: user.empId,
+      name: user.name,
+      actionType: type,
+      details: details,
+      createdAt: new Date().toISOString()
+    };
+    
+    try {
+      await fetch(`${NGROK_URL}/api/records`, {
+        method: 'POST',
+        headers: fetchOptions.headers,
+        body: JSON.stringify(logRecord)
+      });
+    } catch (e) {
+      console.warn('無法寫入系統日誌:', e);
+    }
+  };
+  // -------------------------
+
   const fetchData = async () => { 
     try { 
       setLoading(true);
@@ -2197,10 +2414,14 @@ const App = () => {
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
-      let fetchedRecords = Array.isArray(resRec) ? resRec : [];
+      let rawRecords = Array.isArray(resRec) ? resRec : [];
 
-      fetchedRecords = fetchedRecords
-        .filter(r => r.formType !== '系統登入') // 過濾掉系統登入紀錄，確保不會出現在任何列表
+      // 分離日誌與一般單據
+      const logs = rawRecords.filter(r => r.formType === '系統日誌').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setSysLogs(logs);
+
+      let fetchedRecords = rawRecords
+        .filter(r => r.formType !== '系統日誌')
         .map(r => {
           let updatedR = { ...r };
           if (!updatedR.dept || updatedR.dept === '未設定') {
@@ -2209,12 +2430,9 @@ const App = () => {
               updatedR.dept = emp.dept;
             }
           }
-          
-          // 過濾後端附加上去的「[主管意見]」或「[代理人意見]」，讓事由欄位保持乾淨
           if (updatedR.reason) {
             updatedR.reason = updatedR.reason.replace(/\s*\[(?:主管|代理人)意見\][:：]?[\s\S]*$/, '');
           }
-          
           return updatedR;
         });
       
@@ -2273,10 +2491,11 @@ const App = () => {
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
   
-  if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{
+  if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogAction={handleLogAction} onLogin={async u=>{
     setUserSession(u);
     setActiveMenu('welcome');
     setNotification({type:'success',text:`${u.name} 登入成功`});
+    await fetchData(); // <--- 確保切換帳號時，強制拉取最新資料！
   }} />;
 
   return (
@@ -2310,6 +2529,9 @@ const App = () => {
               <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
               <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
+              {userSession.empId === 'root' && (
+                <button onClick={() => { setActiveMenu('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Activity size={20} /> 系統操作日誌</button>
+              )}
             </>
           )}
         </nav>
@@ -2321,7 +2543,7 @@ const App = () => {
               <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tighter">{userSession.empId}</p>
             </div>
           </div>
-          <button onClick={() => setUserSession(null)} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left text-rose-500">
+          <button onClick={async () => { await handleLogAction(userSession, '登入/登出', '使用者登出系統'); setUserSession(null); }} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left text-rose-500">
             <LogOut size={20} /> 登出系統
           </button>
         </div>
@@ -2330,14 +2552,15 @@ const App = () => {
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} employees={employees} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={announcements} />}
-          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} />}
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
-          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} />}
+          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
+          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
+          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
-          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
-          {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
-          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} />}
-          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
+          {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} onLogAction={handleLogAction} />}
+          {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
+          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} />}
+          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
+          {activeMenu === 'system-logs' && userSession.empId === 'root' && <SystemLogView sysLogs={sysLogs} />}
         </div>
       </main>
     </div>
