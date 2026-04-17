@@ -360,8 +360,19 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black mb-2">確定刪除？</h3>
-            <div className="flex gap-3 mt-8"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">取消</button><button onClick={async () => { try { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setWithdrawTarget(null); onRefresh(); } catch(e) {}} } className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl">確認</button></div>
+            <h3 className="text-xl font-black mb-2">確定刪除申請？</h3>
+            <p className="text-xs text-slate-500 mb-6">單號：{withdrawTarget.serialId}</p>
+            <div className="flex gap-3 mt-8"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">取消</button><button onClick={async () => { try { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(e) { setNotification({ type: 'error', text: '操作失敗' }); }} } className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl">確認刪除</button></div>
+          </div>
+        </div>
+      )}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <Undo2 size={48} className="text-indigo-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2">確定撤銷核准 (抽單)？</h3>
+            <p className="text-xs text-slate-500 mb-6">單號：{cancelTarget.serialId}</p>
+            <div className="flex gap-3 mt-8"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">取消</button><button onClick={async () => { try { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行撤銷' }) }); setNotification({ type: 'success', text: '已成功撤銷單據' }); setCancelTarget(null); onRefresh(); } catch(e) { setNotification({ type: 'error', text: '操作失敗' }); }} } className="flex-1 py-3 font-black text-white bg-indigo-600 rounded-xl">確認撤銷</button></div>
           </div>
         </div>
       )}
@@ -411,8 +422,9 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                 <div className="font-black text-xs">{r.totalHours}H</div>
                 <div className="flex justify-end items-center gap-1 min-w-[140px]">
                   <StatusBadge status={r.status} />
-                  <div className="flex items-center justify-end gap-1 w-16 shrink-0">
-                    {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-1.5 text-rose-400 hover:bg-rose-50 rounded"><Trash2 size={16}/></button>}
+                  <div className="flex items-center justify-end gap-1 w-20 shrink-0">
+                    {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="刪除"><Trash2 size={16}/></button>}
+                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all" title="抽單"><Undo2 size={12}/> 抽單</button>}
                   </div>
                 </div>
               </div>
@@ -426,6 +438,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
 const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
   const [formData, setFormData] = useState({ name: userSession.name, empId: userSession.empId, dept: userSession.dept || '', jobTitle: userSession.jobTitle || '', substitute: '', category: 'annual', startDate: '', startHour: '09', startMin: '00', endDate: '', endHour: '18', endMin: '00', reason: '' });
 
   const totalHours = useMemo(() => {
@@ -441,6 +455,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     try {
       await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
       setNotification({ type: 'success', text: '申請已送出' }); onRefresh();
+      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
     } catch (err) { setNotification({ type: 'error', text: '失敗' }); } finally { setSubmitting(false); }
   };
 
@@ -448,6 +463,27 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
+      {withdrawTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <AlertTriangle size={48} className="text-rose-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2">確定刪除申請？</h3>
+            <p className="text-xs text-slate-500 mb-6">單號：{withdrawTarget.serialId}</p>
+            <div className="flex gap-3 mt-8"><button onClick={() => setWithdrawTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">取消</button><button onClick={async () => { try { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(e) { setNotification({ type: 'error', text: '操作失敗' }); }} } className="flex-1 py-3 font-black text-white bg-rose-500 rounded-xl">確認刪除</button></div>
+          </div>
+        </div>
+      )}
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <Undo2 size={48} className="text-emerald-500 mx-auto mb-4" />
+            <h3 className="text-xl font-black mb-2">確定銷假 (抽單)？</h3>
+            <p className="text-xs text-slate-500 mb-6">單號：{cancelTarget.serialId}</p>
+            <div className="flex gap-3 mt-8"><button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl">取消</button><button onClick={async () => { try { await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); setNotification({ type: 'success', text: '已完成銷假作業' }); setCancelTarget(null); onRefresh(); } catch(e) { setNotification({ type: 'error', text: '操作失敗' }); }} } className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl">確認銷假</button></div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-3xl shadow-xl border overflow-hidden">
         <div className="bg-emerald-500 px-8 py-10 text-white relative flex justify-between items-center">
           <div><h1 className="text-2xl font-black">請假申請單</h1><p className="text-sm opacity-80">填寫請假時段與理由</p></div>
@@ -465,7 +501,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left">
             <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-emerald-600 mb-2 font-black">開始</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
             <div className="lg:col-span-5 text-left"><label className="text-xs font-bold text-rose-500 mb-2 font-black">結束</label><div className="flex gap-2"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold" value={formData.endDate} onChange={e=>setFormData({...formData, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
-            <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black"><span className="text-[9px] opacity-80 uppercase">時數</span><div className="flex items-baseline gap-1"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
+            <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black"><span className="text-[9px] opacity-80 uppercase">時數</span><div className="flex items-baseline gap-1 font-black"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
           </div>
           <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">原因</label><textarea required rows="2" className="w-full p-4 rounded-xl border bg-white font-bold" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
           <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'}`}>送出請假申請</button>
@@ -481,14 +517,20 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           {recentRecords.map(r => (
             <div key={r.id} className="p-4 md:px-6 md:py-2 rounded-2xl bg-white border border-slate-100 hover:border-emerald-200 transition-all group">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_1.2fr_2.5fr_0.6fr_1.8fr] gap-2 md:gap-4 items-center">
-                <div className="font-mono font-bold text-slate-500 text-xs truncate">{r.serialId}</div>
+                <div className="flex flex-col">
+                   <div className="font-mono font-bold text-slate-500 text-xs truncate">{r.serialId}</div>
+                   {r.attachmentName && <span className="text-[9px] text-sky-600 font-bold flex items-center gap-1"><Paperclip size={10} />附件</span>}
+                </div>
                 <div className="font-bold text-slate-700 text-xs truncate">{r.dept}</div>
                 <div className="font-bold text-[11px] text-slate-600 truncate">{LEAVE_CATEGORIES.find(c => c.id === r.category)?.label}</div>
                 <div className="font-bold text-[10px] text-slate-600 truncate">{r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}` : `${r.startDate}~${r.endDate}`}</div>
                 <div className="font-black text-xs">{r.totalHours}H</div>
                 <div className="flex justify-end items-center gap-1 min-w-[140px]">
                   <StatusBadge status={r.status} />
-                  <div className="flex items-center justify-end gap-1 w-16 shrink-0"></div>
+                  <div className="flex items-center justify-end gap-1 w-20 shrink-0">
+                    {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="刪除"><Trash2 size={16}/></button>}
+                    {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-2 py-1 flex items-center gap-1 text-[9px] font-black text-slate-500 bg-slate-50 hover:bg-slate-700 hover:text-white rounded transition-all" title="銷假"><Undo2 size={12}/> 銷假</button>}
+                  </div>
                 </div>
               </div>
             </div>
@@ -499,6 +541,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   );
 };
 
+// 其餘 InquiryView, PersonnelManagement 等視圖省略修改以保持程式碼精簡，內容維持原樣
 const InquiryView = ({ records, userSession }) => {
   const [filters, setFilters] = useState({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
   const [searchResults, setSearchResults] = useState([]);
@@ -528,7 +571,7 @@ const InquiryView = ({ records, userSession }) => {
             <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">起日</label><input type="date" className="w-full h-11 px-4 rounded-xl border bg-white font-bold" value={filters.startDate} onChange={e=>setFilters({...filters,startDate:e.target.value})} /></div>
             <div className="space-y-1"><label className="text-[10px] font-black text-slate-400 uppercase">迄日</label><input type="date" className="w-full h-11 px-4 rounded-xl border bg-white font-bold" value={filters.endDate} onChange={e=>setFilters({...filters,endDate:e.target.value})} /></div>
           </div>
-          <button type="submit" className="w-full py-4 rounded-xl font-black text-white bg-fuchsia-500 hover:bg-fuchsia-600 transition-all">執行查詢</button>
+          <button type="submit" className="w-full py-4 rounded-xl font-black text-white bg-fuchsia-500 hover:bg-fuchsia-600 transition-all flex items-center justify-center gap-2">執行查詢</button>
         </form>
         <div className="p-8 space-y-2">
           {hasSearched && searchResults.length > 0 ? (
@@ -778,8 +821,6 @@ const App = () => {
   const leaveSerialId = useMemo(() => `${new Date().toISOString().split('T')[0].replace(/-/g,'')}-LV${String(records.filter(r=>r.serialId?.includes('LV')).length + 1).padStart(3,'0')}`, [records]);
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500 font-sans"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">載入中...</span></div>;
-  
-  // 修正點：若無 Session，渲染 LoginView
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogin={u=>{ setUserSession(u); setActiveMenu('welcome'); setNotification({type:'success',text:`${u.name} 登入成功`}); }} />;
 
   return (
@@ -799,11 +840,11 @@ const App = () => {
           <button onClick={() => setActiveMenu('substitute')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'substitute' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><UserCheck size={20} /> 代理確認</button>
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
-          <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
+          <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2">管理區域</p>
-              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管審核</button>
+              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
             </>
           )}
