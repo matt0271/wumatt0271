@@ -1046,7 +1046,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
         {recentSubmissions.length > 0 ? (
           <div className="space-y-4">{recentSubmissions.map(r => (
             <div key={r.id} className="p-4 rounded-2xl bg-slate-50 border hover:bg-white transition-all text-slate-900">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1.5fr_1fr_1.5fr_2.5fr_1fr_auto] gap-4 items-center w-full">
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">單號</p><p className="font-mono font-bold text-slate-600 truncate">{r.serialId}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                 <div><p className="text-[10px] font-black text-slate-400 uppercase">類型</p><p className={`font-black text-xs ${r.appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}`}>{r.appType === 'pre' ? '事前' : '事後'}</p></div>
@@ -1297,7 +1297,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <div className="bg-emerald-500 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black shadow-lg"><span className="text-[9px] opacity-80 uppercase">總時數</span><div className="flex items-baseline gap-1"><span className="text-xl">{totalHours || "0"}</span><span className="text-[9px]">HR</span></div></div>
           </div>
           <div className="px-2 text-[11px] text-emerald-600 font-bold -mt-2">
-             * 系統僅計算工作日 09:00~18:00 (自動扣除午休 12:30~13:30、週末及國定假日)。
+              * 系統僅計算工作日 09:00~18:00 (自動扣除午休 12:30~13:30、週末及國定假日)。
           </div>
           
           <div className="space-y-4">
@@ -1422,7 +1422,7 @@ const InquiryView = ({ records, userSession }) => {
 
   const handleReset = () => {
     setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
-    searchResults([]);
+    setSearchResults([]);
     setHasSearched(false);
   };
 
@@ -2133,16 +2133,18 @@ const App = () => {
   
   // 新增：從 sessionStorage 讀取初始狀態
   const [userSession, setUserSession] = useState(() => {
-    const savedSession = sessionStorage.getItem('docflow_user_session');
+    const savedSession = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('docflow_user_session') : null;
     return savedSession ? JSON.parse(savedSession) : null;
   });
 
   // 新增：當 userSession 變更時，同步寫入或清除 sessionStorage
   useEffect(() => {
-    if (userSession) {
-      sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession));
-    } else {
-      sessionStorage.removeItem('docflow_user_session');
+    if (typeof sessionStorage !== 'undefined') {
+      if (userSession) {
+        sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession));
+      } else {
+        sessionStorage.removeItem('docflow_user_session');
+      }
     }
   }, [userSession]);
 
@@ -2287,7 +2289,7 @@ const App = () => {
               <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tighter">{userSession.empId}</p>
             </div>
           </div>
-          <button onClick={() => setUserSession(null)} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left text-rose-500">
+          <button onClick={() => setUserSession(null)} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left">
             <LogOut size={20} /> 登出系統
           </button>
         </div>
