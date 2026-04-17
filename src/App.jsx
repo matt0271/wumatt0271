@@ -230,11 +230,13 @@ const StatusBadge = ({ status }) => {
     };
     const config = stampConfig[status];
     return (
-      <div className={`relative inline-flex items-center justify-center ${config.rotate} opacity-80 pointer-events-none select-none mx-2 my-1`}>
-        <div className={`w-[52px] h-[52px] relative flex flex-col items-center justify-center border-[2px] rounded-full font-black text-[12px] leading-none bg-white/40 backdrop-blur-sm outline outline-1 outline-offset-2 ${config.color} shadow-sm overflow-hidden`}>
-          {config.icon}
-          <span className="mb-0.5 relative z-10">{currentLabel.substring(0, 1)}</span>
-          <span className="relative z-10">{currentLabel.substring(1)}</span>
+      <div className="w-[84px] h-[64px] flex items-center justify-center shrink-0">
+        <div className={`relative inline-flex items-center justify-center ${config.rotate} opacity-80 pointer-events-none select-none`}>
+          <div className={`w-[52px] h-[52px] relative flex flex-col items-center justify-center border-[2px] rounded-full font-black text-[12px] leading-none bg-white/40 backdrop-blur-sm outline outline-1 outline-offset-2 ${config.color} shadow-sm overflow-hidden`}>
+            {config.icon}
+            <span className="mb-0.5 relative z-10">{currentLabel.substring(0, 1)}</span>
+            <span className="relative z-10">{currentLabel.substring(1)}</span>
+          </div>
         </div>
       </div>
     );
@@ -247,7 +249,13 @@ const StatusBadge = ({ status }) => {
     pending: "bg-indigo-50 text-indigo-700 border-indigo-200"
   };
   const currentStyle = styles[status] || styles.pending;
-  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${currentStyle} whitespace-nowrap shadow-sm`}>{currentLabel}</span>;
+  return (
+    <div className="w-[84px] h-[64px] flex items-center justify-center shrink-0">
+      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${currentStyle} whitespace-nowrap shadow-sm`}>
+        {currentLabel}
+      </span>
+    </div>
+  );
 };
 
 const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
