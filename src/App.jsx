@@ -255,11 +255,11 @@ const WelcomeView = ({ userSession, records, setActiveMenu, isAdmin, announcemen
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
         <div className="bg-white p-6 md:p-8 rounded-3xl border shadow-sm flex items-center justify-between hover:shadow-md transition-all text-left">
           <div className="flex items-center gap-5 text-left"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><CalendarDays size={28} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">特休餘額</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800">{userSession.hireDate ? remainAnnual : '-'}</span><span className="text-sm font-bold text-slate-500">HR</span></div></div></div>
-          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">{userSession.hireDate ? `總額度 ${totalAnnual} HR` : '未設定到職日'}</span>{userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 {usedAnnual} HR</span>}</div>
+          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">{userSession.hireDate ? `總額度 ${totalAnnual} HR` : '未設定到職日'}</span>{userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">已休 ${usedAnnual} HR</span>}</div>
         </div>
         <div className="bg-white p-6 md:p-8 rounded-3xl border shadow-sm flex items-center justify-between hover:shadow-md transition-all text-left">
           <div className="flex items-center gap-5 text-left"><div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Timer size={28} /></div><div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">補休餘額</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800">{remainComp}</span><span className="text-sm font-bold text-slate-500">HR</span></div></div></div>
-          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">累計 {earnedComp} HR</span><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">已用 {usedComp} HR</span></div>
+          <div className="text-right flex flex-col gap-1.5"><span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">累計 ${earnedComp} HR</span><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded-lg">已用 ${usedComp} HR</span></div>
         </div>
       </div>
 
@@ -359,6 +359,7 @@ const LoginView = ({ employees, onLogin, apiError }) => {
 
 const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [appType, setAppType] = useState('pre');
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [formData, setFormData] = useState({ name: userSession.name, empId: userSession.empId, dept: userSession.dept || '', category: 'regular', compensationType: 'leave', startDate: '', startHour: '18', startMin: '30', endDate: '', endHour: '20', endMin: '30', reason: '' });
@@ -515,7 +516,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
             <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">部門</label><select required className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>部門</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
             <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">職稱</label><input type="text" className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.jobTitle} readOnly /></div>
             <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400">假別</label><select className="w-full h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900" value={formData.category} onChange={e=>setFormData({...formData, category:e.target.value})}>{LEAVE_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">代理</label><select required className="w-full h-12 px-4 rounded-xl border text-left text-slate-900 text-slate-900" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})}><option value="" disabled>代理人</option>{employees.filter(e=>e.dept===formData.dept && e.empId!==formData.empId).map(e=>(<option key={e.empId} value={e.name}>{e.name}</option>))}</select></div>
+            <div className="space-y-1.5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase text-left text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400 text-slate-400">代理</label><select required className="w-full h-12 px-4 rounded-xl border text-left text-slate-900 text-slate-900" value={formData.substitute} onChange={e=>setFormData({...formData, substitute:e.target.value})}><option value="" disabled>代理人</option>{employees.filter(e=>e.dept===formData.dept && e.empId!==formData.empId).map(e=>(<option key={e.empId} value={e.name}>{e.name}</option>))}</select></div>
           </div>
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-12 gap-4 items-end text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900">
             <div className="lg:col-span-5 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><label className="text-xs font-bold text-emerald-600 mb-2 font-black text-left text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600 text-emerald-600">開始</label><div className="flex gap-2 text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900"><input type="date" required className="flex-1 h-12 px-4 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} /><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</select><select className="h-12 w-20 rounded-xl border font-bold text-left text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900 text-slate-900" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</select></div></div>
@@ -690,6 +691,188 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   );
 };
 
+// 補齊：代理確認畫面
+const SubstituteView = ({ records, onRefresh, setNotification, userSession }) => {
+  const pendingRecords = records.filter(r => r.formType === '請假' && r.status === 'pending_substitute' && r.substitute === userSession.name);
+
+  const handleProcess = async (record, action) => {
+    try {
+      const newStatus = action === 'approve' ? 'pending_manager' : 'rejected';
+      await fetch(`${NGROK_URL}/api/records/${record.id}`, {
+        method: 'PUT',
+        headers: fetchOptions.headers,
+        body: JSON.stringify({ ...record, status: newStatus })
+      });
+      setNotification({ type: 'success', text: action === 'approve' ? '已同意代理' : '已拒絕代理' });
+      onRefresh();
+    } catch (e) {
+      setNotification({ type: 'error', text: '處理失敗' });
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-800">
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden">
+        <div className="bg-amber-500 px-8 py-10 text-white flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black">代理確認</h1>
+            <p className="text-sm opacity-90 italic mt-1">需由您確認代理的請假單</p>
+          </div>
+          <UserCheck size={40} className="opacity-40" />
+        </div>
+        <div className="p-8">
+          {pendingRecords.length === 0 ? (
+            <div className="text-center text-slate-400 py-10 font-bold">目前沒有需要您代理的單據</div>
+          ) : (
+            <div className="space-y-4">
+              {pendingRecords.map(r => (
+                <div key={r.id} className="p-4 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-slate-500">{r.serialId}</span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600">{r.name}</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-700">
+                      {r.startDate} {r.startHour}:{r.startMin} ~ {r.endDate} {r.endHour}:{r.endMin} ({r.totalHours}H)
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">事由: {r.reason}</div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <button onClick={() => handleProcess(r, 'reject')} className="flex-1 md:flex-none px-4 py-2 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-colors">婉拒</button>
+                    <button onClick={() => handleProcess(r, 'approve')} className="flex-1 md:flex-none px-4 py-2 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-colors">同意代理</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 補齊：主管簽核畫面
+const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees }) => {
+  const pendingRecords = records.filter(r => canManagerApproveRecord(userSession, r, employees));
+
+  const handleProcess = async (record, action) => {
+    try {
+      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      await fetch(`${NGROK_URL}/api/records/${record.id}`, {
+        method: 'PUT',
+        headers: fetchOptions.headers,
+        body: JSON.stringify({ ...record, status: newStatus })
+      });
+      setNotification({ type: 'success', text: action === 'approve' ? '已核准' : '已駁回' });
+      onRefresh();
+    } catch (e) {
+      setNotification({ type: 'error', text: '處理失敗' });
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-800">
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden">
+        <div className="bg-indigo-600 px-8 py-10 text-white flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-black">主管簽核</h1>
+            <p className="text-sm opacity-90 italic mt-1">待您審核的各項申請單</p>
+          </div>
+          <ShieldCheck size={40} className="opacity-40" />
+        </div>
+        <div className="p-8">
+          {pendingRecords.length === 0 ? (
+            <div className="text-center text-slate-400 py-10 font-bold">目前沒有需要簽核的單據</div>
+          ) : (
+            <div className="space-y-4">
+              {pendingRecords.map(r => (
+                <div key={r.id} className="p-4 border rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-slate-500">{r.serialId}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>{r.formType}</span>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600">{r.name} ({r.dept})</span>
+                    </div>
+                    <div className="text-sm font-bold text-slate-700">
+                      {r.startDate} {r.startHour}:{r.startMin} ~ {r.endDate} {r.endHour}:{r.endMin} ({r.totalHours}H)
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">事由: {r.reason}</div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <button onClick={() => handleProcess(r, 'reject')} className="flex-1 md:flex-none px-4 py-2 bg-rose-50 text-rose-600 font-bold rounded-xl hover:bg-rose-100 transition-colors">駁回</button>
+                    <button onClick={() => handleProcess(r, 'approve')} className="flex-1 md:flex-none px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors">核准</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 補齊：單據查詢畫面
+const InquiryView = ({ records, userSession }) => {
+  const myRecords = records.filter(r => userSession.empId === 'root' || r.empId === userSession.empId).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-800">
+      <div className="bg-white rounded-3xl shadow-xl border overflow-hidden">
+        <div className="bg-fuchsia-600 px-8 py-10 text-white flex items-center justify-between">
+          <div><h1 className="text-2xl font-black">單據查詢</h1></div>
+          <ClipboardList size={40} className="opacity-40" />
+        </div>
+        <div className="p-8">
+          <div className="space-y-4">
+            {myRecords.length === 0 ? (
+               <div className="text-center text-slate-400 py-10 font-bold">無單據紀錄</div>
+            ) : myRecords.map(r => (
+              <div key={r.id} className="p-4 border rounded-2xl flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-mono text-slate-500">{r.serialId}</div>
+                  <div className="font-bold">{r.formType} - {r.totalHours}H</div>
+                </div>
+                <StatusBadge status={r.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 補齊：修改密碼畫面
+const ChangePasswordView = ({ userSession, setNotification, onLogout }) => {
+  const [pwd, setPwd] = useState({ new: '', confirm: '' });
+  const handleSubmit = async (e) => {
+     e.preventDefault();
+     if(pwd.new !== pwd.confirm) return setNotification({type:'error', text:'新密碼不一致'});
+     try {
+       await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, {
+         method: 'PUT',
+         headers: fetchOptions.headers,
+         body: JSON.stringify({ ...userSession, password: pwd.new })
+       });
+       setNotification({type:'success', text:'密碼修改成功，請重新登入'});
+       onLogout();
+     } catch(e) { setNotification({type:'error', text:'修改失敗'}); }
+  };
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border p-8 max-w-lg mx-auto mt-10">
+      <div className="flex items-center gap-3 mb-6">
+        <KeyRound size={28} className="text-slate-400"/>
+        <h2 className="text-2xl font-black">修改密碼</h2>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+         <input type="password" placeholder="新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" value={pwd.new} onChange={e=>setPwd({...pwd, new:e.target.value})} />
+         <input type="password" placeholder="確認新密碼" required className="w-full p-4 bg-slate-50 border rounded-2xl font-bold" value={pwd.confirm} onChange={e=>setPwd({...pwd, confirm:e.target.value})} />
+         <button className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-blue-700">確認修改</button>
+      </form>
+    </div>
+  );
+};
+
 // --- App Component ---
 
 const App = () => {
@@ -779,7 +962,6 @@ const App = () => {
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} />}
-          {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} />}
         </div>
       </main>
     </div>
