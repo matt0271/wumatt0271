@@ -209,14 +209,6 @@ const canManagerApproveRecord = (userSession, r, employees) => {
 // --- Helper Components ---
 
 const StatusBadge = ({ status }) => {
-  const styles = {
-    approved: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    rejected: "bg-rose-50 text-rose-700 border-rose-100",
-    pending_substitute: "bg-amber-50 text-amber-700 border-amber-100",
-    pending_manager: "bg-indigo-50 text-indigo-700 border-indigo-100",
-    pending: "bg-indigo-50 text-indigo-700 border-indigo-100", // 相容舊資料
-    canceled: "bg-slate-100 text-slate-500 border-slate-200"
-  };
   const labels = { 
     approved: "已核准", 
     rejected: "已駁回", 
@@ -225,9 +217,37 @@ const StatusBadge = ({ status }) => {
     pending: "待簽核",
     canceled: "已撤銷"
   };
-  const currentStyle = styles[status] || styles.pending;
   const currentLabel = labels[status] || labels.pending;
-  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${currentStyle} whitespace-nowrap`}>{currentLabel}</span>;
+
+  // 判斷是否為「已結案」狀態，若是則使用圖章樣式
+  const finalized = ['approved', 'rejected', 'canceled'].includes(status);
+
+  if (finalized) {
+    const stampConfig = {
+      approved: { color: "border-emerald-600 text-emerald-900 outline-emerald-600", rotate: "-rotate-6", icon: <Check size={36} strokeWidth={4} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-emerald-400 opacity-50" /> },
+      rejected: { color: "border-rose-600 text-rose-900 outline-rose-600", rotate: "rotate-6", icon: <X size={36} strokeWidth={4} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-rose-400 opacity-50" /> },
+      canceled: { color: "border-slate-500 text-slate-900 outline-slate-500", rotate: "-rotate-3", icon: <RotateCcw size={28} strokeWidth={4} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-400 opacity-50" /> }
+    };
+    const config = stampConfig[status];
+    return (
+      <div className={`relative inline-flex items-center justify-center ${config.rotate} opacity-80 pointer-events-none select-none mx-2 my-1`}>
+        <div className={`w-[52px] h-[52px] relative flex flex-col items-center justify-center border-[2px] rounded-full font-black text-[12px] leading-none bg-white/40 backdrop-blur-sm outline outline-1 outline-offset-2 ${config.color} shadow-sm overflow-hidden`}>
+          {config.icon}
+          <span className="mb-0.5 relative z-10">{currentLabel.substring(0, 1)}</span>
+          <span className="relative z-10">{currentLabel.substring(1)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 進行中的狀態維持原本的圓角 Badge 樣式
+  const styles = {
+    pending_substitute: "bg-amber-50 text-amber-700 border-amber-200",
+    pending_manager: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    pending: "bg-indigo-50 text-indigo-700 border-indigo-200"
+  };
+  const currentStyle = styles[status] || styles.pending;
+  return <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${currentStyle} whitespace-nowrap shadow-sm`}>{currentLabel}</span>;
 };
 
 const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
@@ -931,7 +951,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <Undo2 size={48} className="text-slate-400 mx-auto mb-4" />
             <h3 className="text-xl font-black mb-2 text-slate-900">確定要抽單 (撤銷核准)？</h3>
-            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <p className="text-sm text-slate-500 mb-2 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <p className="text-xs text-orange-600 bg-orange-50 py-2 rounded-lg font-bold mb-8 text-center">撤銷後，將同步扣除本單 {cancelTarget.totalHours} 小時的時數/額度！</p>
             <div className="flex gap-3">
               <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
               <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行抽單撤銷' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功撤銷該單據' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '撤銷失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認撤銷</button>
@@ -1037,7 +1058,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
                   {['pending', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors" title="刪除單據"><Trash2 size={16}/></button>}
-                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="p-2 text-slate-500 hover:bg-slate-200 rounded-xl transition-colors" title="抽單(撤銷)"><Undo2 size={16}/></button>}
+                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-700 hover:text-white rounded-xl transition-colors" title="抽單(撤銷)"><Undo2 size={14}/> 撤銷</button>}
                 </div>
               </div>
             </div>
@@ -1221,7 +1242,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
             <Undo2 size={48} className="text-slate-400 mx-auto mb-4" />
             <h3 className="text-xl font-black mb-2 text-slate-900">確定要辦理銷假 (抽單)？</h3>
-            <p className="text-sm text-slate-500 mb-8 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <p className="text-sm text-slate-500 mb-2 font-bold text-center">單號：{cancelTarget.serialId}</p>
+            <p className="text-xs text-emerald-600 bg-emerald-50 py-2 rounded-lg font-bold mb-8 text-center">銷假後，本單請假的 {cancelTarget.totalHours} 小時將自動回補至您的額度！</p>
             <div className="flex gap-3">
               <button onClick={() => setCancelTarget(null)} className="flex-1 py-3 font-bold bg-slate-100 rounded-xl text-slate-900">返回</button>
               <button onClick={async () => { try { const res = await fetch(`${NGROK_URL}/api/records/${cancelTarget.id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: 'canceled', opinion: '申請人自行銷假' }) }); if (!res.ok) throw new Error(); setNotification({ type: 'success', text: '已成功完成銷假' }); setCancelTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '銷假失敗，請檢查網路連線' }); } }} className="flex-1 py-3 font-black text-white bg-slate-700 rounded-xl text-white">確認銷假</button>
@@ -1349,7 +1371,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                 <div className="flex justify-end items-center gap-3 col-span-2 sm:col-span-3 md:col-span-1">
                   <StatusBadge status={r.status} />
                   {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && <button onClick={() => setWithdrawTarget(r)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl transition-colors" title="刪除單據"><Trash2 size={16}/></button>}
-                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="p-2 text-slate-500 hover:bg-slate-200 rounded-xl transition-colors" title="銷假(抽單)"><Undo2 size={16}/></button>}
+                  {r.status === 'approved' && <button onClick={() => setCancelTarget(r)} className="px-3 py-1.5 flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-700 hover:text-white rounded-xl transition-colors" title="銷假(抽單)"><Undo2 size={14}/> 銷假</button>}
                 </div>
               </div>
             </div>
