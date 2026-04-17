@@ -1,4 +1,5 @@
-﻿import React, { useState, useMemo, useEffect, useRef } from 'react';
+﻿// 觸發重新編譯以解決環境快取問題
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
   CalendarDays, LayoutDashboard, Menu, X, ShieldCheck, Check, Search, 
@@ -1065,7 +1066,11 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                   <tr key={r.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4 font-mono font-bold text-slate-600 border-b border-slate-100">{r.serialId}</td>
                     <td className="px-4 py-4 font-bold text-slate-700 border-b border-slate-100">{r.dept || '未設定'}</td>
-                    <td className="px-4 py-4 font-black text-[11px] text-blue-600 border-b border-slate-100">{r.appType === 'pre' ? '事前' : '事後'}</td>
+                    <td className="px-4 py-4 border-b border-slate-100">
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-black tracking-widest ${r.appType === 'pre' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
+                        {r.appType === 'pre' ? '事前' : '事後'}
+                      </span>
+                    </td>
                     <td className="px-4 py-4 font-black text-[11px] text-slate-700 border-b border-slate-100">{OT_CATEGORIES.find(c => c.id === r.category)?.label || '未設定'}</td>
                     <td className="px-4 py-4 font-bold text-[11px] text-slate-600 border-b border-slate-100">
                       {r.startDate === r.endDate ? (
@@ -2337,6 +2342,7 @@ const SystemLogView = ({ sysLogs }) => {
   );
 };
 
+
 // --- App Component ---
 
 const App = () => {
@@ -2374,14 +2380,20 @@ const App = () => {
   
   // --- 系統日誌寫入核心 ---
   const handleLogAction = async (user, type, details) => {
-    if (!user) return;
+    if (!user || !user.empId) return;
+    
+    const logId = `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const logRecord = {
-      serialId: `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      id: logId, // 必須要有明確的 id 確保寫入 JSON-Server
+      serialId: logId,
       formType: '系統日誌',
       empId: user.empId,
-      name: user.name,
+      name: user.name || '未知使用者',
+      dept: user.dept || '系統',
       actionType: type,
       details: details,
+      status: 'approved', // 加入狀態與時數，防止後端過濾掉不完整的單據
+      totalHours: 0,
       createdAt: new Date().toISOString()
     };
     
