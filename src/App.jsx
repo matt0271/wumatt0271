@@ -60,6 +60,7 @@ const ANNOUNCEMENT_TYPES = [
   { id: 'safety', label: '安全健康提醒', colorClass: 'bg-orange-50 text-orange-600' },
   { id: 'event', label: '節日與活動', colorClass: 'bg-fuchsia-50 text-fuchsia-600' },
   { id: 'finance', label: '財務相關公告', colorClass: 'bg-blue-50 text-blue-600' },
+  { id: 'shared_doc', label: '單據共享', colorClass: 'bg-sky-100 text-sky-700' }, // 新增分享類別樣式
 ];
 
 // --- 特休計算 Helpers (包含預警計算與動態簽核路由邏輯) ---
@@ -966,18 +967,25 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     e.preventDefault();
     if (totalHours <= 0 || submitting || isOverLimit) return;
     setSubmitting(true);
+
+    // 【自動路由】加班單初始送單判斷
+    let initialStatus = 'pending_manager';
+    if (userSession.jobTitle === '總經理') initialStatus = 'pending_assignment';
+    else if (userSession.jobTitle === '協理') initialStatus = 'pending_gm';
+    else if (["經理", "副理"].includes(userSession.jobTitle)) initialStatus = 'pending_director';
+
     try {
       const res = await fetch(`${NGROK_URL}/api/records`, { 
         method: 'POST', 
         headers: fetchOptions.headers, 
         body: JSON.stringify({ 
           ...formData, 
-          sharedWith: formData.sharedWith.join(','), // 轉換成逗號分隔字串存入資料庫
+          sharedWith: formData.sharedWith.join(','), 
           serialId: currentSerialId, 
           formType: '加班', 
           appType, 
           totalHours, 
-          status: 'pending_manager', 
+          status: initialStatus, 
           createdAt: new Date().toISOString() 
         }) 
       });
@@ -1194,7 +1202,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                     <td className="px-6 py-4 border-b border-slate-100 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <StatusBadge status={r.status} />
-                        {['pending', 'pending_manager'].includes(r.status) && (
+                        {['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status) && (
                           <button onClick={() => setWithdrawTarget(r)} className="px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-md text-[10px] font-black transition-colors">刪除</button>
                         )}
                         {r.status === 'approved' && (
@@ -1603,7 +1611,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                     <td className="px-6 py-4 border-b border-slate-100 text-right">
                       <div className="flex items-center justify-end gap-3">
                         <StatusBadge status={r.status} />
-                        {['pending', 'pending_substitute', 'pending_manager'].includes(r.status) && (
+                        {['pending', 'pending_substitute', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status) && (
                           <button onClick={() => setWithdrawTarget(r)} className="px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-md text-[10px] font-black transition-colors">刪除</button>
                         )}
                         {r.status === 'approved' && (
@@ -1939,6 +1947,7 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   const pendingRecords = useMemo(() => {
     return records.filter(r => canManagerApproveRecord(userSession, r, employees));
   }, [records, userSession, employees]);
+  
   const handleUpdate = async (status) => {
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
@@ -1946,17 +1955,42 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
     
     // 如果是核准操作，且單據目前狀態是 pending 或 pending_manager，則將狀態改為 pending_assignment (待交辦)
     let targetStatus = status;
-    if (status === 'approved' && ['pending', 'pending_manager'].includes(selectedRecord?.status)) {
-      targetStatus = 'pending_assignment';
+    if (status === 'approved') {
+        const r = selectedRecord;
+        const applicant = employees.find(emp => emp.empId === r.empId);
+        const days = (parseFloat(r.totalHours) || 0) / 8;
+        const isUnitManager = ["經理", "副理"].includes(applicant?.jobTitle);
+        
+        if (r.formType === '請假') {
+            if (r.status === 'pending_manager' || r.status === 'pending') {
+                if (days > 3) targetStatus = 'pending_director';
+                else targetStatus = 'pending_assignment';
+            } else if (r.status === 'pending_director') {
+                if (isUnitManager && days >= 1) targetStatus = 'pending_gm';
+                else if (days > 5) targetStatus = 'pending_gm';
+                else targetStatus = 'pending_assignment';
+            } else if (r.status === 'pending_gm') {
+                targetStatus = 'pending_assignment';
+            } else if (r.status === 'pending_assignment') {
+                targetStatus = 'approved';
+            }
+        } else {
+            // 加班單
+            if (['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status)) {
+                targetStatus = 'pending_assignment';
+            } else if (r.status === 'pending_assignment') {
+                targetStatus = 'approved';
+            }
+        }
     }
 
     try {
       const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion }) });
       if(!res.ok) throw new Error('API error');
-      const actionText = targetStatus === 'approved' ? '核准 (結案)' : (targetStatus === 'pending_assignment' ? '核准 (送交辦)' : '駁回');
+      const actionText = targetStatus === 'approved' ? '核准 (結案)' : (targetStatus === 'pending_assignment' ? '核准 (送交辦)' : (status === 'rejected' ? '駁回' : '核准 (呈送上級)'));
       const logActionType = userSession.empId === '9002' ? '交辦審核' : '主管簽核';
       await onLogAction(userSession, logActionType, `${actionText}單據 (${selectedRecord?.serialId})`);
-      setNotification({ type: 'success', text: targetStatus === 'pending_assignment' ? '已核准並送交辦' : '簽核作業完成' });
+      setNotification({ type: 'success', text: targetStatus === 'approved' ? '簽核完成 (已結案)' : '已核准並呈送下一階段' });
       setSelectedId(null); setOpinion(''); onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
   };
@@ -2724,6 +2758,44 @@ const App = () => {
     return `${dateStr}-LV${String(maxCount + 1).padStart(3, '0')}`;
   }, [records]);
 
+  // --- 新增：將被分享的單據轉換為虛擬公告 ---
+  const sharedAnnouncements = useMemo(() => {
+    if (!userSession || userSession.empId === 'root') return [];
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return records
+      .filter(r => {
+        if (!r.sharedWith) return false;
+        const sharedList = r.sharedWith.split(',');
+        if (!sharedList.includes(userSession.empId)) return false;
+        if (r.empId === userSession.empId) return false; // 排除自己
+        
+        if (r.createdAt) {
+          const createdDate = new Date(r.createdAt);
+          if (createdDate < thirtyDaysAgo) return false; // 僅顯示近30天
+        }
+        return true;
+      })
+      .map(r => ({
+        id: `shared-${r.id || r.serialId}`,
+        type: 'shared_doc',
+        title: `[${r.formType}分享] ${r.name} 授權您檢視單據 (${r.serialId})`,
+        date: r.createdAt ? r.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        endDate: '', 
+        isNew: true,
+        content: `【單據共享通知】\n\n申請人：${r.name} (${r.dept})\n單據類型：${r.formType}\n單號：${r.serialId}\n時間：${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}\n時數：${r.totalHours} 小時\n事由：${r.reason || '未填寫'}\n\n※ 系統提示：這是一則自動產生的分享通知。您可以前往左側選單的「單據查詢」，檢視此單據的即時簽核進度或下載相關證明附件。`
+      }));
+  }, [records, userSession]);
+
+  // 將真實公告與虛擬分享公告合併，並依日期排序
+  const combinedAnnouncements = useMemo(() => {
+    return [...sharedAnnouncements, ...announcements].sort((a, b) => {
+      return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
+  }, [announcements, sharedAnnouncements]);
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
   
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogAction={handleLogAction} onLogin={async u=>{
@@ -2785,8 +2857,8 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={announcements} employees={employees} />}
-          {activeMenu === 'announcement-list' && <AnnouncementListView announcements={announcements} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} />}
+          {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} />}
           {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} />}
