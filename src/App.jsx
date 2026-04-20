@@ -1931,10 +1931,64 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
+  
   const pendingRecords = useMemo(() => {
     return records.filter(r => canManagerApproveRecord(userSession, r, employees));
   }, [records, userSession, employees]);
+
+  // 新增：9002 專屬的本月交辦統計資料
+  const gmStats = useMemo(() => {
+    if (!userSession || userSession.empId !== '9002') return null;
+    const currentMonthStr = new Date().toISOString().substring(0, 7); // 格式為 YYYY-MM
+    let ot = 0, lv = 0, count = 0;
+    
+    records.forEach(r => {
+      // 假設 9002 要統計的是所有狀態為「已核准 (approved)」且是本月的紀錄
+      if (r.status === 'approved' && r.createdAt && r.createdAt.startsWith(currentMonthStr)) {
+        count++;
+        if (r.formType === '加班') ot += parseFloat(r.totalHours) || 0;
+        if (r.formType === '請假') lv += parseFloat(r.totalHours) || 0;
+      }
+    });
+    return { ot, lv, count, month: currentMonthStr };
+  }, [records, userSession]);
   
+  // 載入 Excel 匯出模組
+  useEffect(() => { 
+    if (userSession?.empId === '9002' && !window.XLSX) { 
+      const script = document.createElement('script'); 
+      script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"; 
+      script.async = true; 
+      document.head.appendChild(script); 
+    } 
+  }, [userSession]);
+
+  // 實作匯出功能
+  const handleExportStats = () => {
+    if (!window.XLSX) return setNotification({ type: 'error', text: 'Excel 模組載入中，請稍後再試' });
+    if (!gmStats) return;
+    
+    const exportData = records.filter(r => r.status === 'approved' && r.createdAt && r.createdAt.startsWith(gmStats.month))
+      .map(r => ({
+        "單號": r.serialId,
+        "單據類型": r.formType,
+        "申請人": r.name,
+        "部門": r.dept,
+        "時數 (HR)": r.totalHours,
+        "假別/類別": r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || r.category) : (r.compensationType === 'leave' ? '換補休' : '計薪'),
+        "時間起迄": r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin}~${r.endHour}:${r.endMin}` : `${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`,
+        "事由": r.reason || '',
+        "結案日期": r.createdAt ? r.createdAt.split('T')[0] : ''
+      }));
+      
+    if (exportData.length === 0) return setNotification({ type: 'error', text: '本月尚無結案資料可供匯出' });
+    
+    const ws = window.XLSX.utils.json_to_sheet(exportData);
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, ws, `${gmStats.month} 結案明細`);
+    window.XLSX.writeFile(wb, `交辦結案明細_${gmStats.month}.xlsx`);
+  };
+
   const handleUpdate = async (status) => {
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
@@ -1997,6 +2051,44 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
           </div>
           <ShieldCheck size={40} className="opacity-40 text-white" />
         </div>
+        
+        {/* 新增：9002 專屬統計區塊 */}
+        {userSession.empId === '9002' && gmStats && (
+          <div className="px-8 pt-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                <BarChart3 size={18} className="text-purple-500" /> 本月 ({gmStats.month}) 全公司交辦結案統計
+              </h3>
+              <button onClick={handleExportStats} className="flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-[11px] font-black border border-purple-200 transition-colors shadow-sm active:scale-95">
+                <Download size={14} /> 匯出結案明細 (Excel)
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-purple-50 border border-purple-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-purple-600 uppercase mb-1">本月交辦總件數</p>
+                  <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-purple-900">{gmStats.count}</span><span className="text-xs font-bold text-purple-500">件</span></div>
+                </div>
+                <ClipboardCheck size={28} className="text-purple-200" />
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-blue-600 uppercase mb-1">結案加班總時數</p>
+                  <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-blue-900">{gmStats.ot}</span><span className="text-xs font-bold text-blue-500">HR</span></div>
+                </div>
+                <Clock size={28} className="text-blue-200" />
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex items-center justify-between shadow-sm">
+                <div>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">結案請假總時數</p>
+                  <div className="flex items-baseline gap-1"><span className="text-2xl font-black text-emerald-900">{gmStats.lv}</span><span className="text-xs font-bold text-emerald-500">HR</span></div>
+                </div>
+                <CalendarDays size={28} className="text-emerald-200" />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="p-8 space-y-4 text-left">
           {pendingRecords.length > 0 ? pendingRecords.map(r => (
             <div key={r.id} onClick={() => setSelectedId(r.id)} className={`p-5 rounded-2xl border transition-all cursor-pointer text-left ${selectedId === r.id ? 'bg-indigo-50 border-indigo-300 ring-2 ring-inset ring-indigo-200' : 'bg-slate-50 hover:bg-white hover:border-indigo-200 border-slate-100'}`}>
