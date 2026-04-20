@@ -156,16 +156,39 @@ const calculatePTOStats = (empId, hireDateStr, records) => {
 
 // 簽核路由規則引擎：判斷指定單據是否應由目前的主管簽核
 const canManagerApproveRecord = (userSession, r, employees) => {
-  if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
   if (!userSession) return false;
   if (userSession.empId === 'root') return true;
 
-  const applicant = employees.find(emp => emp.empId === r.empId);
+  // 待交辦階段：只有 9002 專員能簽核結案
+  if (r.status === 'pending_assignment') {
+    return userSession.empId === '9002';
+  }
 
-  // 請假申請的層級判斷
+  if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
+
+  const applicant = employees.find(emp => emp.empId === r.empId);
+  const isApplicantManager = ["協理", "經理", "副理"].includes(applicant?.jobTitle);
+  const isSameDept = r.dept === userSession.dept;
+
+  // --- 針對總經理 (9001) 的專屬檢視邏輯 ---
+  if (userSession.empId === '9001' || userSession.jobTitle === '總經理') {
+    // 1. 當然包含自己部門的員工 (全看)
+    if (isSameDept) return true;
+    
+    // 2. 所有部門主管 (協/經/副理) 申請的加班單與假單
+    if (isApplicantManager) return true;
+    
+    // 3. 一般基層員工的請假單：只帶出請假天數超過 5 日的 (不看所有基層假單)
+    if (r.formType === '請假') {
+      const days = (parseFloat(r.totalHours) || 0) / 8;
+      if (days > 5) return true;
+    }
+    return false;
+  }
+
+  // --- 一般主管 (協理 / 經副理) 檢視邏輯 ---
   if (r.formType === '請假') {
     const days = (parseFloat(r.totalHours) || 0) / 8;
-    const isApplicantManager = ["協理", "經理", "副理"].includes(applicant?.jobTitle);
     let targetLevel = '';
 
     if (isApplicantManager && days >= 1) {
@@ -178,9 +201,8 @@ const canManagerApproveRecord = (userSession, r, employees) => {
       targetLevel = '經副理'; // 請假天數3日(含)以下
     }
 
-    if (targetLevel === '總經理') {
-      return userSession.jobTitle === '總經理';
-    }
+    if (targetLevel === '總經理') return false; // 總經理層級前面已處理，一般主管不需看到
+
     if (targetLevel === '協理') {
       if (userSession.jobTitle !== '協理') return false;
       if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
@@ -194,9 +216,6 @@ const canManagerApproveRecord = (userSession, r, employees) => {
     return false;
   } else {
     // 加班及其他單據維持原有的跨部門兼管與部門簽核邏輯
-    if (userSession.jobTitle === '總經理') {
-      return applicant?.jobTitle === '協理';
-    }
     if (userSession.jobTitle === '協理') {
       if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
       if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
@@ -236,12 +255,14 @@ const StatusBadge = ({ status }) => {
   const dynamicStyles = {
     pending_substitute: "bg-amber-50 text-amber-600 border-transparent",
     pending_manager: "bg-indigo-50 text-indigo-600 border-transparent",
+    pending_assignment: "bg-purple-50 text-purple-600 border-purple-200", // 待交辦專屬樣式
     pending: "bg-indigo-50 text-indigo-600 border-transparent"
   };
 
   const labels = { 
     pending_substitute: "待代理",
     pending_manager: "待簽核",
+    pending_assignment: "待交辦",
     pending: "待簽核" 
   };
   
@@ -291,11 +312,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   }, [records, userSession, isAdmin, employees]);
 
   const processingOtCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && (r.status === 'pending' || r.status === 'pending_manager')).length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && ['pending', 'pending_manager', 'pending_assignment'].includes(r.status)).length;
   }, [records, userSession.empId]);
 
   const processingLvCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && (r.status === 'pending' || r.status === 'pending_substitute' || r.status === 'pending_manager')).length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && ['pending', 'pending_substitute', 'pending_manager', 'pending_assignment'].includes(r.status)).length;
   }, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
@@ -332,7 +353,15 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     const team = employees.filter(emp => {
       if (emp.empId === userSession.empId) return false; 
       if (userSession.empId === 'root') return true;
-      if (userSession.jobTitle === '總經理') return emp.jobTitle === '協理';
+      
+      const isEmpManager = ["協理", "經理", "副理"].includes(emp.jobTitle);
+      const isSameDept = emp.dept === userSession.dept;
+
+      // 總經理看自己部門或所有部門主管
+      if (userSession.empId === '9001' || userSession.jobTitle === '總經理') {
+        return isSameDept || isEmpManager;
+      }
+
       if (userSession.jobTitle === '協理') {
         if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(emp.dept);
         if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept);
@@ -570,7 +599,9 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
                 <ShieldCheck size={28} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">待主管簽核</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  {userSession.empId === '9002' ? '待交辦審核' : '待主管簽核'}
+                </p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-black text-slate-800">{managerCount}</span>
                   <span className="text-sm font-bold text-slate-500">件</span>
@@ -578,7 +609,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
               </div>
             </div>
             <div className="text-right flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> 前往簽核</span>
+              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"><ArrowRight size={12}/> {userSession.empId === '9002' ? '前往交辦審核' : '前往簽核'}</span>
             </div>
           </div>
         )}
@@ -1100,7 +1131,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
           
           <div className={`${appType === 'pre' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-orange-50 border-orange-500 text-orange-800'} border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-1 text-left shadow-sm transition-colors`}>
             <h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'}`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4>
-            <p>A. 加班申請須事前由直屬主管核准，始得進行加班。</p>
+            <p>A. 申請人→經副理(請假天數3日(含)以下)→協理(請假天數5日(含)以下)→總經理(請假天數5日以上)→交辦(總經理室的專員9002)。 單位主管一天(含)以上由總經理核定。</p>
             <p>B. 此單於加班後七個工作日內交至財務行政部辦理，逾期不受理。</p>
             <p>C. 加班費將依勞基法規定倍率計算 (平日 1.34/1.67、休息日 1.34/1.67/2.67、國定假日加發一日工資)；補休則依工作時數 1:1 計算。</p>
             <p>D. 每月加班時數上限不得超過 46 小時。</p>
@@ -1511,7 +1542,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="bg-emerald-50 border-l-4 border-emerald-500 p-5 rounded-r-2xl text-[11px] font-bold text-emerald-800 space-y-3 text-left shadow-sm">
             <div>
               <h4 className="flex items-center gap-2 text-emerald-900 font-black mb-1 text-sm"><Info size={16} className="text-emerald-600"/> 簽核流程：</h4>
-              <p className="leading-relaxed">申請人→經副理(請假天數3日(含)以下)→協理(請假天數5日(含)以下)→總經理(請假天數5日以上)→交辦(財務行政部)。 單位主管一天(含)以上由總經理核定。</p>
+              <p className="leading-relaxed">申請人→經副理(請假天數3日(含)以下)→協理(請假天數5日(含)以下)→總經理(請假天數5日以上)→交辦(總經理室的專員9002)。 單位主管一天(含)以上由總經理核定。</p>
             </div>
             <div className="pt-3 border-t border-emerald-200">
               <p className="font-black text-emerald-900 mb-2">連續日期之請假單不可分開簽核，並均須檢附相關證明文件或說明事項：</p>
@@ -1660,6 +1691,7 @@ const InquiryView = ({ records, userSession }) => {
                 <option value="">全部</option>
                 <option value="pending_substitute">待代理確認</option>
                 <option value="pending_manager">待主管簽核</option>
+                <option value="pending_assignment">待交辦(9002)</option>
                 <option value="approved">已核准</option>
                 <option value="rejected">已駁回</option>
                 <option value="canceled">已撤銷(銷假)</option>
@@ -1911,12 +1943,20 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
     setUpdating(true);
+    
+    // 如果是核准操作，且單據目前狀態是 pending 或 pending_manager，則將狀態改為 pending_assignment (待交辦)
+    let targetStatus = status;
+    if (status === 'approved' && ['pending', 'pending_manager'].includes(selectedRecord?.status)) {
+      targetStatus = 'pending_assignment';
+    }
+
     try {
-      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
+      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion }) });
       if(!res.ok) throw new Error('API error');
-      const actionText = status === 'approved' ? '核准' : '駁回';
-      await onLogAction(userSession, '主管簽核', `${actionText}單據 (${selectedRecord?.serialId})`);
-      setNotification({ type: 'success', text: '簽核作業完成' });
+      const actionText = targetStatus === 'approved' ? '核准 (結案)' : (targetStatus === 'pending_assignment' ? '核准 (送交辦)' : '駁回');
+      const logActionType = userSession.empId === '9002' ? '交辦審核' : '主管簽核';
+      await onLogAction(userSession, logActionType, `${actionText}單據 (${selectedRecord?.serialId})`);
+      setNotification({ type: 'success', text: targetStatus === 'pending_assignment' ? '已核准並送交辦' : '簽核作業完成' });
       setSelectedId(null); setOpinion(''); onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
   };
@@ -1927,8 +1967,12 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         <div className="bg-indigo-600 p-8 text-white flex justify-between items-center text-left">
           <div className="space-y-1 text-left text-white">
             <div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待審核名單</span></div>
-            <h1 className="text-2xl font-black text-white">主管審核中心</h1>
-            <p className="text-sm opacity-90 font-medium italic text-white">審核員工提交之加班或請假申請單</p>
+            <h1 className="text-2xl font-black text-white">
+              {userSession.empId === '9002' ? '交辦審核中心' : '主管審核中心'}
+            </h1>
+            <p className="text-sm opacity-90 font-medium italic text-white">
+              {userSession.empId === '9002' ? '確認並結案由主管核准後之交辦事項' : '審核員工提交之加班或請假申請單'}
+            </p>
           </div>
           <ShieldCheck size={40} className="opacity-40 text-white" />
         </div>
@@ -2016,14 +2060,14 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
             </div>
           )}
           <div className="flex-1 flex flex-col space-y-4 text-left">
-            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm shrink-0"><MessageSquare size={18} className="text-indigo-600" /> 主管簽核意見 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span></div>
+            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm shrink-0"><MessageSquare size={18} className="text-indigo-600" /> {selectedRecord?.status === 'pending_assignment' ? '交辦備註' : '主管簽核意見'} <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span></div>
             <textarea placeholder="填寫具體簽核意見或指示..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900 flex-1 min-h-[100px]" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
           </div>
           <div className="w-full lg:w-72 flex flex-col justify-end gap-3 text-left shrink-0">
             <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-indigo-600 font-bold">{selectedRecord?.serialId}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
               <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">駁回</span></button>
-              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">核准</span></button>
+              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">{selectedRecord?.status === 'pending_assignment' ? '交辦確認(結案)' : '核准(送交辦)'}</span></button>
             </div>
           </div>
         </div>
@@ -2419,6 +2463,7 @@ const SystemLogView = ({ sysLogs }) => {
       case '單據撤銷': return 'text-slate-600 bg-slate-100 border-slate-200';
       case '代理確認': return 'text-amber-600 bg-amber-50 border-amber-100';
       case '主管簽核': return 'text-indigo-600 bg-indigo-50 border-indigo-100';
+      case '交辦審核': return 'text-purple-600 bg-purple-50 border-purple-100';
       case '人事管理': return 'text-teal-600 bg-teal-50 border-teal-100';
       case '密碼變更': return 'text-rose-600 bg-rose-50 border-rose-100';
       case '系統公告': return 'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100';
@@ -2444,6 +2489,7 @@ const SystemLogView = ({ sysLogs }) => {
                 <option value="單據撤銷">單據撤銷</option>
                 <option value="代理確認">代理確認</option>
                 <option value="主管簽核">主管簽核</option>
+                <option value="交辦審核">交辦審核</option>
                 <option value="人事管理">人事管理</option>
                 <option value="密碼變更">密碼變更</option>
                 <option value="系統公告">系統公告</option>
@@ -2643,7 +2689,8 @@ const App = () => {
     return [...new Set(depts)];
   }, [employees]);
   
-  const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
+  // 總經理室專員 9002 視同具備管理員權限
+  const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || userSession.empId === '9002' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
 
   const otSerialId = useMemo(() => {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
@@ -2714,7 +2761,7 @@ const App = () => {
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
-              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> 主管簽核</button>
+              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> {userSession.empId === '9002' ? '交辦審核' : '主管簽核'}</button>
               <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
               {userSession.empId === 'root' && (
