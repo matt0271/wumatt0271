@@ -849,6 +849,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [appType, setAppType] = useState('pre');
+  const [shareDept, setShareDept] = useState('');
+  const [shareEmp, setShareEmp] = useState('');
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
@@ -951,6 +953,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
       if(!res.ok) throw new Error('API Error');
       await onLogAction(userSession, '表單申請', `送出加班申請單 (${currentSerialId})`);
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', sharedWith: [] }));
+      setShareDept('');
+      setShareEmp('');
       setNotification({ type: 'success', text: '加班申請已送出' });
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
@@ -1029,20 +1033,68 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
           <div className="space-y-4">
             <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
             
-            {/* 新增：單據分享設定 */}
-            <div className="space-y-1 text-left">
+            {/* 新增：單據分享設定 (連動下拉選單) */}
+            <div className="space-y-2 text-left">
               <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
                 <Eye size={12}/> 開放檢視權限給特定同仁 (選填)
               </label>
-              <select multiple className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100 h-24 text-sm" value={formData.sharedWith} onChange={e => {
-                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                setFormData({...formData, sharedWith: selected});
-              }}>
-                {employees.filter(emp => emp.empId !== userSession.empId).map(emp => (
-                  <option key={emp.empId} value={emp.empId} className="p-1">{emp.name} ({emp.dept})</option>
-                ))}
-              </select>
-              <p className="text-[10px] text-slate-400 font-bold px-1">※ 按住 Ctrl (Windows) 或 Command (Mac) 可多選。被選取的同仁將能在「單據查詢」中查看此單據。</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select 
+                  className="flex-1 p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  value={shareDept} 
+                  onChange={e => { setShareDept(e.target.value); setShareEmp(''); }}
+                >
+                  <option value="">-- 選擇部門 --</option>
+                  {availableDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                
+                <select 
+                  className="flex-1 p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  value={shareEmp} 
+                  onChange={e => setShareEmp(e.target.value)}
+                  disabled={!shareDept}
+                >
+                  <option value="">-- 選擇員工 --</option>
+                  {employees.filter(emp => emp.dept === shareDept && emp.empId !== userSession.empId).map(emp => (
+                    <option key={emp.empId} value={emp.empId}>{emp.name} ({emp.empId})</option>
+                  ))}
+                </select>
+                
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (shareEmp && !formData.sharedWith.includes(shareEmp)) {
+                      setFormData({...formData, sharedWith: [...formData.sharedWith, shareEmp]});
+                      setShareEmp('');
+                    }
+                  }}
+                  disabled={!shareEmp}
+                  className="px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm disabled:bg-slate-300 transition-colors whitespace-nowrap"
+                >
+                  加入分享
+                </button>
+              </div>
+              
+              {/* 已選擇的分享對象標籤 */}
+              {formData.sharedWith.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  {formData.sharedWith.map(id => {
+                    const emp = employees.find(e => e.empId === id);
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
+                        {emp ? `${emp.name} (${emp.dept})` : id}
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData({...formData, sharedWith: formData.sharedWith.filter(v => v !== id)})}
+                          className="text-slate-400 hover:text-rose-500 focus:outline-none ml-1 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
           
@@ -1137,6 +1189,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const fileInputRef = useRef(null);
+  const [shareDept, setShareDept] = useState('');
+  const [shareEmp, setShareEmp] = useState('');
   const [formData, setFormData] = useState({ 
     name: userSession.name, 
     empId: userSession.empId, 
@@ -1296,6 +1350,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
       await onLogAction(userSession, '表單申請', `送出請假申請單 (${currentSerialId})`);
       setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
       setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null, sharedWith: [] }));
+      setShareDept('');
+      setShareEmp('');
       if (fileInputRef.current) fileInputRef.current.value = '';
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
@@ -1370,20 +1426,68 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="space-y-4">
             <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
             
-            {/* 新增：單據分享設定 */}
-            <div className="space-y-1 text-left">
+            {/* 新增：單據分享設定 (連動下拉選單) */}
+            <div className="space-y-2 text-left">
               <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
                 <Eye size={12}/> 開放檢視權限給特定同仁 (選填)
               </label>
-              <select multiple className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50 h-24 text-sm" value={formData.sharedWith} onChange={e => {
-                const selected = Array.from(e.target.selectedOptions, option => option.value);
-                setFormData({...formData, sharedWith: selected});
-              }}>
-                {employees.filter(emp => emp.empId !== userSession.empId).map(emp => (
-                  <option key={emp.empId} value={emp.empId} className="p-1">{emp.name} ({emp.dept})</option>
-                ))}
-              </select>
-              <p className="text-[10px] text-slate-400 font-bold px-1">※ 按住 Ctrl (Windows) 或 Command (Mac) 可多選。被選取的同仁將能在「單據查詢」中查看此單據。</p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select 
+                  className="flex-1 p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  value={shareDept} 
+                  onChange={e => { setShareDept(e.target.value); setShareEmp(''); }}
+                >
+                  <option value="">-- 選擇部門 --</option>
+                  {availableDepts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                
+                <select 
+                  className="flex-1 p-3 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  value={shareEmp} 
+                  onChange={e => setShareEmp(e.target.value)}
+                  disabled={!shareDept}
+                >
+                  <option value="">-- 選擇員工 --</option>
+                  {employees.filter(emp => emp.dept === shareDept && emp.empId !== userSession.empId).map(emp => (
+                    <option key={emp.empId} value={emp.empId}>{emp.name} ({emp.empId})</option>
+                  ))}
+                </select>
+                
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    if (shareEmp && !formData.sharedWith.includes(shareEmp)) {
+                      setFormData({...formData, sharedWith: [...formData.sharedWith, shareEmp]});
+                      setShareEmp('');
+                    }
+                  }}
+                  disabled={!shareEmp}
+                  className="px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm disabled:bg-slate-300 transition-colors whitespace-nowrap"
+                >
+                  加入分享
+                </button>
+              </div>
+              
+              {/* 已選擇的分享對象標籤 */}
+              {formData.sharedWith.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2 p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  {formData.sharedWith.map(id => {
+                    const emp = employees.find(e => e.empId === id);
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shadow-sm">
+                        {emp ? `${emp.name} (${emp.dept})` : id}
+                        <button 
+                          type="button" 
+                          onClick={() => setFormData({...formData, sharedWith: formData.sharedWith.filter(v => v !== id)})}
+                          className="text-slate-400 hover:text-rose-500 focus:outline-none ml-1 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1 text-left">
