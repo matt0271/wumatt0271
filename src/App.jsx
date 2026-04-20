@@ -2430,7 +2430,7 @@ const App = () => {
       let rawLogs = Array.isArray(resLogs) ? resLogs : []; // 獨立的 logs 資料
 
       // 直接把抓回來的日誌存入 state
-      setSysLogs(rawLogs);
+      setSysLogs(rawLogs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
 
       let fetchedRecords = rawRecords.map(r => {
           let updatedR = { ...r };
