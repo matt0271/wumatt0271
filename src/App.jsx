@@ -2382,23 +2382,21 @@ const App = () => {
   const handleLogAction = async (user, type, details) => {
     if (!user || !user.empId) return;
     
-    const logId = `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    // 注意：把 id 拿掉了，讓 MySQL 自動產生 AUTO_INCREMENT ID
     const logRecord = {
-      id: logId, // 必須要有明確的 id 確保寫入 JSON-Server
-      serialId: logId,
+      serialId: `LOG-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
       formType: '系統日誌',
       empId: user.empId,
       name: user.name || '未知使用者',
       dept: user.dept || '系統',
       actionType: type,
       details: details,
-      status: 'approved', // 加入狀態與時數，防止後端過濾掉不完整的單據
-      totalHours: 0,
       createdAt: new Date().toISOString()
     };
     
     try {
-      await fetch(`${NGROK_URL}/api/records`, {
+      // API 路徑改為對準專屬的 /api/logs
+      await fetch(`${NGROK_URL}/api/logs`, {
         method: 'POST',
         headers: fetchOptions.headers,
         body: JSON.stringify(logRecord)
@@ -2420,21 +2418,21 @@ const App = () => {
         ]);
       };
 
-      const [resEmp, resRec] = await Promise.all([ 
+      // 多抓取一支 API: /api/logs
+      const [resEmp, resRec, resLogs] = await Promise.all([ 
         fetchWithTimeout(`${NGROK_URL}/api/employees?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []), 
-        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []) 
+        fetchWithTimeout(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []),
+        fetchWithTimeout(`${NGROK_URL}/api/logs?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' }).then(r => r.ok ? r.json() : []) 
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       let rawRecords = Array.isArray(resRec) ? resRec : [];
+      let rawLogs = Array.isArray(resLogs) ? resLogs : []; // 獨立的 logs 資料
 
-      // 分離日誌與一般單據
-      const logs = rawRecords.filter(r => r.formType === '系統日誌').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setSysLogs(logs);
+      // 直接把抓回來的日誌存入 state
+      setSysLogs(rawLogs);
 
-      let fetchedRecords = rawRecords
-        .filter(r => r.formType !== '系統日誌')
-        .map(r => {
+      let fetchedRecords = rawRecords.map(r => {
           let updatedR = { ...r };
           if (!updatedR.dept || updatedR.dept === '未設定') {
             const emp = fetchedEmployees.find(e => e.empId === updatedR.empId);
@@ -2455,6 +2453,7 @@ const App = () => {
       setApiError(true);
       setEmployees([]); 
       setRecords([]);
+      setSysLogs([]);
     } finally {
       setLoading(false);
     }
