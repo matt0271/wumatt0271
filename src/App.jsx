@@ -160,70 +160,35 @@ const canManagerApproveRecord = (userSession, r, employees) => {
   if (!userSession) return false;
   if (userSession.empId === 'root') return true;
 
-  // 待交辦階段：只有 9002 專員能簽核結案
+  // 絕對不可簽核自己的單據 (防球員兼裁判)
+  if (r.empId === userSession.empId) return false;
+
+  // 1. 交辦階段：只有 9002 專員能簽核結案
   if (r.status === 'pending_assignment') {
     return userSession.empId === '9002';
   }
 
-  if (r.status !== 'pending_manager' && r.status !== 'pending') return false;
-
-  const applicant = employees.find(emp => emp.empId === r.empId);
-  const isApplicantManager = ["協理", "經理", "副理"].includes(applicant?.jobTitle);
-  const isSameDept = r.dept === userSession.dept;
-
-  // --- 針對總經理 (9001) 的專屬檢視邏輯 ---
-  if (userSession.empId === '9001' || userSession.jobTitle === '總經理') {
-    // 1. 當然包含自己部門的員工 (全看)
-    if (isSameDept) return true;
-    
-    // 2. 所有部門主管 (協/經/副理) 申請的加班單與假單
-    if (isApplicantManager) return true;
-    
-    // 3. 一般基層員工的請假單：只帶出請假天數超過 5 日的 (不看所有基層假單)
-    if (r.formType === '請假') {
-      const days = (parseFloat(r.totalHours) || 0) / 8;
-      if (days > 5) return true;
-    }
-    return false;
+  // 2. 總經理階段：只有 9001 (總經理) 能簽核
+  if (r.status === 'pending_gm') {
+    return userSession.empId === '9001' || userSession.jobTitle === '總經理';
   }
 
-  // --- 一般主管 (協理 / 經副理) 檢視邏輯 ---
-  if (r.formType === '請假') {
-    const days = (parseFloat(r.totalHours) || 0) / 8;
-    let targetLevel = '';
-
-    if (isApplicantManager && days >= 1) {
-      targetLevel = '總經理'; // 單位主管一天(含)以上由總經理核定
-    } else if (days > 5) {
-      targetLevel = '總經理'; // 請假天數5日以上
-    } else if (days > 3 && days <= 5) {
-      targetLevel = '協理'; // 請假天數5日(含)以下
-    } else {
-      targetLevel = '經副理'; // 請假天數3日(含)以下
-    }
-
-    if (targetLevel === '總經理') return false; // 總經理層級前面已處理，一般主管不需看到
-
-    if (targetLevel === '協理') {
-      if (userSession.jobTitle !== '協理') return false;
-      if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
-      if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
-      return r.dept === userSession.dept;
-    }
-    if (targetLevel === '經副理') {
-      if (!["經理", "副理"].includes(userSession.jobTitle)) return false;
-      return r.dept === userSession.dept;
-    }
-    return false;
-  } else {
-    // 加班及其他單據維持原有的跨部門兼管與部門簽核邏輯
-    if (userSession.jobTitle === '協理') {
-      if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
-      if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
-      return r.dept === userSession.dept;
-    }
+  // 3. 協理階段：該部門的協理簽核
+  if (r.status === 'pending_director') {
+    if (userSession.jobTitle !== '協理') return false;
+    // 跨部門兼管邏輯
+    if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
+    if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
     return r.dept === userSession.dept;
   }
+
+  // 4. 經副理階段：該部門的經理/副理簽核
+  if (r.status === 'pending_manager' || r.status === 'pending') {
+    if (!["經理", "副理"].includes(userSession.jobTitle)) return false;
+    return r.dept === userSession.dept;
+  }
+
+  return false;
 };
 
 
@@ -256,14 +221,18 @@ const StatusBadge = ({ status }) => {
   const dynamicStyles = {
     pending_substitute: "bg-amber-50 text-amber-600 border-transparent",
     pending_manager: "bg-indigo-50 text-indigo-600 border-transparent",
-    pending_assignment: "bg-purple-50 text-purple-600 border-purple-200", // 待交辦專屬樣式
-    pending: "bg-indigo-50 text-indigo-600 border-transparent"
+    pending_director: "bg-fuchsia-50 text-fuchsia-600 border-transparent",
+    pending_gm: "bg-rose-50 text-rose-600 border-transparent",
+    pending_assignment: "bg-purple-50 text-purple-600 border-purple-200", 
+    pending: "bg-slate-50 text-slate-600 border-transparent"
   };
 
   const labels = { 
     pending_substitute: "待代理",
-    pending_manager: "待簽核",
-    pending_assignment: "待交辦",
+    pending_manager: "待經副理",
+    pending_director: "待協理",
+    pending_gm: "待總經理",
+    pending_assignment: "待交辦(9002)",
     pending: "待簽核" 
   };
   
@@ -296,7 +265,7 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 
 // --- View Components ---
 
-const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees }) => {
+const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees, readAnns, markAnnAsRead }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   const currentDate = new Date().toLocaleDateString('zh-TW', {
@@ -313,11 +282,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   }, [records, userSession, isAdmin, employees]);
 
   const processingOtCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && ['pending', 'pending_manager', 'pending_assignment'].includes(r.status)).length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && ['pending', 'pending_manager', 'pending_director', 'pending_gm', 'pending_assignment'].includes(r.status)).length;
   }, [records, userSession.empId]);
 
   const processingLvCount = useMemo(() => {
-    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && ['pending', 'pending_substitute', 'pending_manager', 'pending_assignment'].includes(r.status)).length;
+    return records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && ['pending', 'pending_substitute', 'pending_manager', 'pending_director', 'pending_gm', 'pending_assignment'].includes(r.status)).length;
   }, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => {
@@ -491,7 +460,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
             return (
             <div 
               key={ann.id} 
-              onClick={() => setSelectedAnnouncement(ann)}
+              onClick={() => { setSelectedAnnouncement(ann); markAnnAsRead(ann.id); }}
               className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group"
             >
               <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -500,7 +469,10 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
                 </span>
                 {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
               </div>
-              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-sky-600 transition-colors truncate">{ann.title}</p>
+              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-sky-600 transition-colors truncate flex items-center gap-2">
+                {!readAnns.includes(ann.id) && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" title="未讀"></span>}
+                {ann.title}
+              </p>
               <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date} 發布</span>
             </div>
             );
@@ -711,7 +683,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   );
 };
 
-const AnnouncementListView = ({ announcements }) => {
+const AnnouncementListView = ({ announcements, readAnns, markAnnAsRead }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   const activeAnnouncements = useMemo(() => {
@@ -761,7 +733,7 @@ const AnnouncementListView = ({ announcements }) => {
             return (
             <div 
               key={ann.id} 
-              onClick={() => setSelectedAnnouncement(ann)}
+              onClick={() => { setSelectedAnnouncement(ann); markAnnAsRead(ann.id); }}
               className="p-5 sm:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 hover:bg-slate-50 transition-colors cursor-pointer group"
             >
               <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -770,7 +742,10 @@ const AnnouncementListView = ({ announcements }) => {
                 </span>
                 {ann.isNew && <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black animate-pulse uppercase tracking-wider">New</span>}
               </div>
-              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-yellow-600 transition-colors truncate">{ann.title}</p>
+              <p className="text-sm font-bold text-slate-700 flex-1 group-hover:text-yellow-600 transition-colors truncate flex items-center gap-2">
+                {!readAnns.includes(ann.id) && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" title="未讀"></span>}
+                {ann.title}
+              </p>
               <span className="text-[10px] font-bold text-slate-400 font-mono shrink-0">{ann.date} 發布</span>
             </div>
             );
@@ -1698,7 +1673,9 @@ const InquiryView = ({ records, userSession }) => {
               <select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-fuchsia-500" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}>
                 <option value="">全部</option>
                 <option value="pending_substitute">待代理確認</option>
-                <option value="pending_manager">待主管簽核</option>
+                <option value="pending_manager">待經副理簽核</option>
+                <option value="pending_director">待協理簽核</option>
+                <option value="pending_gm">待總經理簽核</option>
                 <option value="pending_assignment">待交辦(9002)</option>
                 <option value="approved">已核准</option>
                 <option value="rejected">已駁回</option>
@@ -1829,8 +1806,8 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh,
   );
 };
 
-// 新增：代理人確認中心
-const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction }) => {
+// 代理人確認中心 (SubstituteView)
+const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction, employees }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -1843,8 +1820,18 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
     if (!selectedId) return;
     if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '拒絕原因為必填' });
     setUpdating(true);
+    
+    let targetStatus = status;
+    if (status === 'pending_manager') {
+        const applicant = employees.find(emp => emp.empId === selectedRecord.empId);
+        if (applicant?.jobTitle === '總經理') targetStatus = 'pending_assignment';
+        else if (applicant?.jobTitle === '協理') targetStatus = 'pending_gm';
+        else if (["經理", "副理"].includes(applicant?.jobTitle)) targetStatus = 'pending_director';
+        else targetStatus = 'pending_manager';
+    }
+
     try {
-      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status, opinion }) });
+      const res = await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion }) });
       if(!res.ok) throw new Error('API error');
       const actionText = status === 'pending_manager' ? '同意' : '拒絕';
       await onLogAction(userSession, '代理確認', `${actionText}代理單據 (${selectedRecord?.serialId})`);
@@ -2624,14 +2611,28 @@ const App = () => {
     return savedSession ? JSON.parse(savedSession) : null;
   });
 
-  // 新增：當 userSession 變更時，同步寫入或清除 sessionStorage
+  // --- 新增：追蹤未讀的公告 ---
+  const [readAnns, setReadAnns] = useState([]);
+
+  // 新增：當 userSession 變更時，同步寫入或清除 sessionStorage 並載入未讀清單
   useEffect(() => {
     if (userSession) {
       sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession));
+      setReadAnns(JSON.parse(localStorage.getItem(`readAnns_${userSession.empId}`) || '[]'));
     } else {
       sessionStorage.removeItem('docflow_user_session');
     }
   }, [userSession]);
+
+  const markAnnAsRead = (annId) => {
+    if (!userSession) return;
+    setReadAnns(prev => {
+      if (prev.includes(annId)) return prev;
+      const next = [...prev, annId];
+      localStorage.setItem(`readAnns_${userSession.empId}`, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => { if (notification) { const timer = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(timer); } }, [notification]);
   
@@ -2796,6 +2797,23 @@ const App = () => {
     });
   }, [announcements, sharedAnnouncements]);
 
+  // --- 左側選單提示數字計算 ---
+  const unreadAnnCount = useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const activeAnns = combinedAnnouncements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
+    return activeAnns.filter(ann => !readAnns.includes(ann.id)).length;
+  }, [combinedAnnouncements, readAnns]);
+
+  const menuSubstituteCount = useMemo(() => {
+    if (!userSession) return 0;
+    return records.filter(r => r.formType === '請假' && r.status === 'pending_substitute' && r.substitute === userSession.name).length;
+  }, [records, userSession]);
+
+  const menuManagerCount = useMemo(() => {
+    if (!isAdmin || !userSession) return 0;
+    return records.filter(r => canManagerApproveRecord(userSession, r, employees)).length;
+  }, [records, userSession, isAdmin, employees]);
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
   
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogAction={handleLogAction} onLogin={async u=>{
@@ -2824,8 +2842,17 @@ const App = () => {
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
           <button onClick={() => setActiveMenu('welcome')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'welcome' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Sparkles size={20} /> 首頁總覽</button>
-          <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Bell size={20} /> 資訊公告</button>
-          <button onClick={() => setActiveMenu('substitute')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'substitute' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><UserCheck size={20} /> 代理確認</button>
+          
+          <button onClick={() => setActiveMenu('announcement-list')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement-list' ? 'bg-yellow-50 text-yellow-600 border-yellow-500 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+            <Bell size={20} /> 資訊公告
+            {unreadAnnCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{unreadAnnCount}</span>}
+          </button>
+
+          <button onClick={() => setActiveMenu('substitute')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'substitute' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+            <UserCheck size={20} /> 代理確認
+            {menuSubstituteCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{menuSubstituteCount}</span>}
+          </button>
+          
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
@@ -2833,7 +2860,10 @@ const App = () => {
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
-              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ShieldCheck size={20} /> {userSession.empId === '9002' ? '交辦審核' : '主管簽核'}</button>
+              <button onClick={() => setActiveMenu('approval')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'approval' ? 'bg-indigo-50 text-indigo-600 border-indigo-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+                <ShieldCheck size={20} /> {userSession.empId === '9002' ? '交辦審核' : '主管簽核'}
+                {menuManagerCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{menuManagerCount}</span>}
+              </button>
               <button onClick={() => setActiveMenu('announcement')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'announcement' ? 'bg-rose-50 text-rose-600 border-rose-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Megaphone size={20} /> 公告維護</button>
               <button onClick={() => setActiveMenu('personnel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'personnel' ? 'bg-teal-50 text-teal-600 border-teal-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Users size={20} /> 人員管理</button>
               {userSession.empId === 'root' && (
@@ -2857,9 +2887,9 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} />}
-          {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} />}
-          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
+          {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
+          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
