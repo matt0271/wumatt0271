@@ -861,7 +861,8 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     endDate: '', 
     endHour: '', 
     endMin: '00', 
-    reason: '' 
+    reason: '',
+    sharedWith: [] // 新增分享檢視名單
   });
 
   const handleEmpIdChange = (id) => {
@@ -936,11 +937,20 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
       const res = await fetch(`${NGROK_URL}/api/records`, { 
         method: 'POST', 
         headers: fetchOptions.headers, 
-        body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '加班', appType, totalHours, status: 'pending_manager', createdAt: new Date().toISOString() }) 
+        body: JSON.stringify({ 
+          ...formData, 
+          sharedWith: formData.sharedWith.join(','), // 轉換成逗號分隔字串存入資料庫
+          serialId: currentSerialId, 
+          formType: '加班', 
+          appType, 
+          totalHours, 
+          status: 'pending_manager', 
+          createdAt: new Date().toISOString() 
+        }) 
       });
       if(!res.ok) throw new Error('API Error');
       await onLogAction(userSession, '表單申請', `送出加班申請單 (${currentSerialId})`);
-      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
+      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', sharedWith: [] }));
       setNotification({ type: 'success', text: '加班申請已送出' });
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
@@ -1016,7 +1026,25 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             </div>
           </div>
 
-          <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+          <div className="space-y-4">
+            <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">原因說明</label><textarea required rows="2" placeholder="請描述加班具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
+            
+            {/* 新增：單據分享設定 */}
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
+                <Eye size={12}/> 開放檢視權限給特定同仁 (選填)
+              </label>
+              <select multiple className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100 h-24 text-sm" value={formData.sharedWith} onChange={e => {
+                const selected = Array.from(e.target.selectedOptions, option => option.value);
+                setFormData({...formData, sharedWith: selected});
+              }}>
+                {employees.filter(emp => emp.empId !== userSession.empId).map(emp => (
+                  <option key={emp.empId} value={emp.empId} className="p-1">{emp.name} ({emp.dept})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 font-bold px-1">※ 按住 Ctrl (Windows) 或 Command (Mac) 可多選。被選取的同仁將能在「單據查詢」中查看此單據。</p>
+            </div>
+          </div>
           
           <div className={`${appType === 'pre' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-orange-50 border-orange-500 text-orange-800'} border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-1 text-left shadow-sm transition-colors`}>
             <h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'}`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4>
@@ -1124,7 +1152,8 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
     endMin: '00', 
     reason: '',
     attachmentName: '',
-    attachmentData: null
+    attachmentData: null,
+    sharedWith: [] // 新增分享檢視名單
   });
 
   const handleEmpIdChange = (id) => {
@@ -1250,11 +1279,23 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
         return;
       }
 
-      const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify({ ...formData, serialId: currentSerialId, formType: '請假', totalHours, status: 'pending_substitute', createdAt: new Date().toISOString() }) });
+      const res = await fetch(`${NGROK_URL}/api/records`, { 
+        method: 'POST', 
+        headers: fetchOptions.headers, 
+        body: JSON.stringify({ 
+          ...formData, 
+          sharedWith: formData.sharedWith.join(','), // 轉換成逗號分隔字串存入資料庫
+          serialId: currentSerialId, 
+          formType: '請假', 
+          totalHours, 
+          status: 'pending_substitute', 
+          createdAt: new Date().toISOString() 
+        }) 
+      });
       if(!res.ok) throw new Error('API error');
       await onLogAction(userSession, '表單申請', `送出請假申請單 (${currentSerialId})`);
       setNotification({ type: 'success', text: '請假申請已提交代理人確認' });
-      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null }));
+      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', attachmentName: '', attachmentData: null, sharedWith: [] }));
       if (fileInputRef.current) fileInputRef.current.value = '';
       onRefresh();
     } catch (err) { setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); } finally { setSubmitting(false); }
@@ -1329,6 +1370,22 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
           <div className="space-y-4">
             <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase">請假理由</label><textarea required rows="3" className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50" placeholder="請輸入詳細請假原因..." value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
             
+            {/* 新增：單據分享設定 */}
+            <div className="space-y-1 text-left">
+              <label className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-1">
+                <Eye size={12}/> 開放檢視權限給特定同仁 (選填)
+              </label>
+              <select multiple className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-emerald-50 h-24 text-sm" value={formData.sharedWith} onChange={e => {
+                const selected = Array.from(e.target.selectedOptions, option => option.value);
+                setFormData({...formData, sharedWith: selected});
+              }}>
+                {employees.filter(emp => emp.empId !== userSession.empId).map(emp => (
+                  <option key={emp.empId} value={emp.empId} className="p-1">{emp.name} ({emp.dept})</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 font-bold px-1">※ 按住 Ctrl (Windows) 或 Command (Mac) 可多選。被選取的同仁將能在「單據查詢」中查看此單據。</p>
+            </div>
+
             <div className="space-y-1 text-left">
               <label className="text-[10px] font-black text-slate-400 uppercase">證明文件 (選填)</label>
               <div 
@@ -1447,7 +1504,13 @@ const InquiryView = ({ records, userSession }) => {
     if (e) e.preventDefault();
     
     const results = records.filter(r => {
-      if (userSession.empId !== 'root' && r.empId !== userSession.empId) return false;
+      // 權限判斷擴充：是本人申請、是 Root，或是被指定分享的人
+      const isApplicant = r.empId === userSession.empId;
+      const isRoot = userSession.empId === 'root';
+      const isSharedWithMe = r.sharedWith && r.sharedWith.split(',').includes(userSession.empId);
+      
+      if (!isRoot && !isApplicant && !isSharedWithMe) return false;
+
       if (filters.formType && r.formType !== filters.formType) return false;
       if (filters.serialId && r.serialId && !r.serialId.toLowerCase().includes(filters.serialId.toLowerCase())) return false;
       if (filters.status && r.status !== filters.status) return false;
@@ -1470,7 +1533,7 @@ const InquiryView = ({ records, userSession }) => {
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-fuchsia-500 px-8 py-10 text-white flex justify-between items-center">
-          <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據</p></div><Search size={40} className="opacity-30" />
+          <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據或被分享的單據</p></div><Search size={40} className="opacity-30" />
         </div>
         
         <form onSubmit={handleSearch} className="p-8 border-b border-slate-100 bg-slate-50/50 space-y-6">
@@ -1522,7 +1585,7 @@ const InquiryView = ({ records, userSession }) => {
           ) : searchResults.length > 0 ? (
             searchResults.map(r => (
               <div key={r.id} className="bg-slate-50 p-6 rounded-2xl border hover:border-fuchsia-300 transition-all shadow-sm">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-[1fr_1fr_1.5fr_1fr_2.5fr_1fr_auto] gap-4 items-center w-full">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">類型</p>
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (r.appType === 'post' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')}`}>
@@ -1530,9 +1593,20 @@ const InquiryView = ({ records, userSession }) => {
                     </span>
                   </div>
                   <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">申請人/部門</p>
+                    <p className="font-bold text-slate-800 truncate">{r.name}</p>
+                    <p className="text-[10px] font-bold text-slate-500 truncate">{r.dept || '未設定'}</p>
+                  </div>
+                  <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">單號</p>
                     <p className="font-mono font-bold text-fuchsia-600 flex flex-col items-start">
                       {r.serialId}
+                      {/* 若為別人分享的單據，顯示標記 */}
+                      {r.empId !== userSession.empId && userSession.empId !== 'root' && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded transition-colors" title={`此單據由 ${r.name} 分享給您`}>
+                          <Eye size={10} /> 共享檢視
+                        </span>
+                      )}
                       {r.attachmentName && (
                         <a href={r.attachmentData} download={r.attachmentName} onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-1.5 py-0.5 rounded transition-colors">
                           <Paperclip size={10} /> 附件
@@ -1540,11 +1614,10 @@ const InquiryView = ({ records, userSession }) => {
                       )}
                     </p>
                   </div>
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase">部門</p><p className="font-bold text-slate-700 truncate">{r.dept || '未設定'}</p></div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase">時間</p>
                     {r.startDate === r.endDate ? (
-                      <p className="font-bold text-xs text-slate-600">{r.startDate} {r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</p>
+                      <p className="font-bold text-xs text-slate-600">{r.startDate} <br/><span className="text-[10px] font-bold text-slate-500">{r.startHour}:{r.startMin}~{r.endHour}:{r.endMin}</span></p>
                     ) : (
                       <div className="font-bold text-[11px] text-slate-600 flex flex-col leading-tight gap-0.5">
                         <span>{r.startDate} {r.startHour}:{r.startMin} ~</span>
