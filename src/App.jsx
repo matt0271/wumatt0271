@@ -370,7 +370,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     return announcements.filter(ann => !ann.endDate || ann.endDate >= todayStr);
   }, [announcements]);
 
-  const displayAnnouncements = activeAnnouncements.slice(0, 5);
+  const displayAnnouncements = activeAnnouncements.slice(0, 3);
 
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 text-left font-sans relative">
@@ -448,7 +448,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
             <Bell size={20} className="text-rose-500" />
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">最新公告</h2>
           </div>
-          {activeAnnouncements.length > 5 && (
+          {activeAnnouncements.length > 3 && (
             <button onClick={() => setActiveMenu('announcement-list')} className="text-[10px] font-bold text-yellow-600 hover:text-yellow-700 flex items-center gap-1 transition-colors">
               查看全部 <ArrowRight size={12} />
             </button>
@@ -479,7 +479,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           }) : (
             <div className="p-8 text-center text-slate-400 text-sm font-bold italic">目前無最新公告</div>
           )}
-          {activeAnnouncements.length > 5 && (
+          {activeAnnouncements.length > 3 && (
             <div 
               onClick={() => setActiveMenu('announcement-list')} 
               className="p-4 bg-slate-50/50 hover:bg-yellow-50 transition-colors cursor-pointer text-center group border-t border-slate-100"
