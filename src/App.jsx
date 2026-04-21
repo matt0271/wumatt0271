@@ -7,9 +7,8 @@ import {
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
   CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone,
-  Paperclip, UploadCloud, Activity
+  Paperclip, UploadCloud, Activity, GitMerge, CheckCircle2 as CheckIcon, Circle as CircleIcon, Clock as ClockIcon
 } from 'lucide-react';
-import { GitMerge, CheckCircle2 as CheckIcon, Circle as CircleIcon, Clock as ClockIcon } from 'lucide-react';
 
 // --- API 設定 ---
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
@@ -61,15 +60,15 @@ const ANNOUNCEMENT_TYPES = [
   { id: 'safety', label: '安全健康提醒', colorClass: 'bg-orange-50 text-orange-600' },
   { id: 'event', label: '節日與活動', colorClass: 'bg-fuchsia-50 text-fuchsia-600' },
   { id: 'finance', label: '財務相關公告', colorClass: 'bg-blue-50 text-blue-600' },
-  { id: 'shared_doc', label: '單據共享', colorClass: 'bg-sky-100 text-sky-700' }, // 新增分享類別樣式
+  { id: 'shared_doc', label: '單據共享', colorClass: 'bg-sky-100 text-sky-700' },
 ];
 
-// --- 特休計算 Helpers (包含預警計算與動態簽核路由邏輯) ---
+// --- 特休計算 Helpers ---
 const getNextAnniversary = (hireDateStr) => {
   if (!hireDateStr) return null;
   const hireDate = new Date(hireDateStr);
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // 歸零時間以精準比較日期
+  today.setHours(0, 0, 0, 0); 
   let nextAnniv = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate());
   if (nextAnniv < today) {
     nextAnniv.setFullYear(today.getFullYear() + 1);
@@ -87,18 +86,16 @@ const getProjectedPTO = (hireDateStr, nextAnniversaryDate) => {
   const hireDate = new Date(hireDateStr);
   const years = nextAnniversaryDate.getFullYear() - hireDate.getFullYear();
   let days = 0;
-  // 依勞基法規定
   if (years >= 10) days = 15 + (years - 9);
   else if (years >= 5) days = 15;
   else if (years >= 3) days = 14;
   else if (years >= 2) days = 10;
   else if (years >= 1) days = 7;
   else days = 3;
-  if (days > 30) days = 30; // 勞基法上限30天
-  return days * 8; // 轉換為小時
+  if (days > 30) days = 30; 
+  return days * 8; 
 };
 
-// 計算單一員工的特休與補休結餘
 const calculatePTOStats = (empId, hireDateStr, records) => {
   let usedAnn = 0;
   let earnedCmp = 0;
@@ -156,42 +153,26 @@ const calculatePTOStats = (empId, hireDateStr, records) => {
   };
 };
 
-// 簽核路由規則引擎：判斷指定單據是否應由目前的主管簽核
 const canManagerApproveRecord = (userSession, r, employees) => {
   if (!userSession) return false;
   if (userSession.empId === 'root') return true;
-
-  // 絕對不可簽核自己的單據 (防球員兼裁判)
   if (r.empId === userSession.empId) return false;
-
-  // 1. 交辦階段：只有 9002 專員能簽核結案
-  if (r.status === 'pending_assignment') {
-    return userSession.empId === '9002';
-  }
-
-  // 2. 總經理階段：只有 9001 (總經理) 能簽核
-  if (r.status === 'pending_gm') {
-    return userSession.empId === '9001' || userSession.jobTitle === '總經理';
-  }
-
-  // 3. 協理階段：該部門的協理簽核
+  if (r.status === 'pending_assignment') return userSession.empId === '9002';
+  
+  const userRank = userSession.jobTitle || '';
+  if (r.status === 'pending_gm') return userSession.empId === '9001' || userRank.includes('總經理');
   if (r.status === 'pending_director') {
-    if (userSession.jobTitle !== '協理') return false;
-    // 跨部門兼管邏輯
+    if (!userRank.includes('協理')) return false;
     if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(r.dept);
     if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(r.dept);
     return r.dept === userSession.dept;
   }
-
-  // 4. 經副理階段：該部門的經理/副理簽核
   if (r.status === 'pending_manager' || r.status === 'pending') {
-    if (!["經理", "副理"].includes(userSession.jobTitle)) return false;
+    if (!userRank.includes("經理") && !userRank.includes("副理")) return false;
     return r.dept === userSession.dept;
   }
-
   return false;
 };
-
 
 // --- Helper Components ---
 
@@ -200,16 +181,11 @@ const StatusBadge = ({ status, onClick }) => {
   const hoverClass = isClickable ? 'cursor-pointer hover:scale-105 hover:shadow-md transition-all' : '';
   const titleText = isClickable ? '點擊檢視單據流程' : '';
 
-  // 針對已結案狀態，改用圓章樣式 (雙層圓圈邊框)
   if (['approved', 'rejected', 'canceled'].includes(status)) {
     let stampConfig = { color: '', icon: null, label: '' };
-    if (status === 'approved') {
-      stampConfig = { color: 'text-emerald-600 border-emerald-600', icon: Check, label: '已核准' };
-    } else if (status === 'rejected') {
-      stampConfig = { color: 'text-rose-600 border-rose-600', icon: X, label: '已駁回' };
-    } else if (status === 'canceled') {
-      stampConfig = { color: 'text-slate-400 border-slate-400', icon: RotateCcw, label: '已撤銷' };
-    }
+    if (status === 'approved') stampConfig = { color: 'text-emerald-600 border-emerald-600', icon: Check, label: '已核准' };
+    else if (status === 'rejected') stampConfig = { color: 'text-rose-600 border-rose-600', icon: X, label: '已駁回' };
+    else if (status === 'canceled') stampConfig = { color: 'text-slate-400 border-slate-400', icon: RotateCcw, label: '已撤銷' };
 
     const IconComponent = stampConfig.icon;
 
@@ -226,7 +202,6 @@ const StatusBadge = ({ status, onClick }) => {
     );
   }
 
-  // 進行中狀態：純淨膠囊樣式
   const dynamicStyles = {
     pending_substitute: "bg-amber-50 text-amber-600 border-transparent",
     pending_manager: "bg-indigo-50 text-indigo-600 border-transparent",
@@ -259,17 +234,39 @@ const StatusBadge = ({ status, onClick }) => {
   );
 };
 
-// --- 新增：流程追蹤 Modal 組件 (動態隱藏節點版) ---
+const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
+  <div className="space-y-1 text-left">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{label}</label>
+    <div className="relative group">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600 transition-colors">
+        <Icon size={18} />
+      </div>
+      <input 
+        type={shows[showKey] ? 'text' : 'password'} 
+        required 
+        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-slate-200 bg-white text-slate-900 font-bold outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 transition-all text-left [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" 
+        value={value} 
+        onChange={e => onChange(field, e.target.value)} 
+      />
+      <button type="button" onClick={() => onToggle(showKey)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+        {shows[showKey] ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  </div>
+);
+
+// --- 流程追蹤 Modal 組件 (動態隱藏節點版) ---
 const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
   if (!isOpen || !record) return null;
 
-  // 確認 employees 有被正確傳入，否則給予預設空陣列避免錯誤
   const safeEmployees = Array.isArray(employees) ? employees : [];
   const applicant = safeEmployees.find(e => e.empId === record.empId);
   const days = (parseFloat(record.totalHours) || 0) / 8;
-  const applicantRank = applicant?.jobTitle || "";
+  const applicantRank = record.jobTitle || applicant?.jobTitle || "";
+  const isGM = applicantRank.includes('總經理');
+  const isDirector = applicantRank.includes('協理');
+  const isManager = applicantRank.includes('經理') || applicantRank.includes('副理');
 
-  // 定義所有可能的節點狀態
   const statusHierarchy = [
     { id: 'submitted', label: '申請人送出' },
     { id: 'pending_substitute', label: '職務代理人' },
@@ -280,31 +277,28 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
     { id: 'approved', label: '已結案' }
   ];
 
-  // 根據邏輯判斷哪些節點是「真實必要」的，並過濾掉不需經過的流程
   const getRequiredNodes = () => {
     let nodes = ['submitted'];
 
     if (record.formType === '加班') {
-      if (applicantRank === '總經理') {
+      if (isGM) {
         // 直接到交辦
-      } else if (applicantRank === '協理') {
+      } else if (isDirector) {
         nodes.push('pending_gm');
-      } else if (["經理", "副理"].includes(applicantRank)) {
+      } else if (isManager) {
         nodes.push('pending_director');
       } else {
         nodes.push('pending_manager');
       }
     } else {
-      // 請假單流程
       nodes.push('pending_substitute');
 
       let current = '';
-      if (["總經理"].includes(applicantRank)) current = 'pending_assignment';
-      else if (["協理"].includes(applicantRank)) current = 'pending_gm';
-      else if (["經理", "副理"].includes(applicantRank)) current = 'pending_director';
+      if (isGM) current = 'pending_assignment';
+      else if (isDirector) current = 'pending_gm';
+      else if (isManager) current = 'pending_director';
       else current = 'pending_manager';
 
-      // 依天數與層級建構完整必要路徑
       let step = current;
       while (step && step !== 'pending_assignment') {
           nodes.push(step);
@@ -312,7 +306,7 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
               if (days > 3) step = 'pending_director';
               else step = 'pending_assignment';
           } else if (step === 'pending_director') {
-              if (["經理", "副理"].includes(applicantRank) && days >= 1) step = 'pending_gm';
+              if (isManager && days >= 1) step = 'pending_gm';
               else if (days > 5) step = 'pending_gm';
               else step = 'pending_assignment';
           } else if (step === 'pending_gm') {
@@ -323,13 +317,21 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
       }
     }
 
-    nodes.push('pending_assignment');
-    nodes.push('approved');
+    nodes.push('pending_assignment', 'approved');
     return [...new Set(nodes)];
   };
 
   const requiredNodes = getRequiredNodes();
-  const currentStatusIdx = requiredNodes.indexOf(record.status === 'pending' ? 'pending_manager' : record.status);
+  let currentStatusIdx = requiredNodes.indexOf(record.status === 'pending' ? 'pending_manager' : record.status);
+
+  if (currentStatusIdx === -1 && !['approved', 'rejected', 'canceled'].includes(record.status)) {
+    requiredNodes.splice(Math.max(1, requiredNodes.length - 2), 0, record.status);
+    currentStatusIdx = requiredNodes.indexOf(record.status);
+  }
+
+  if (['rejected', 'canceled'].includes(record.status)) {
+    currentStatusIdx = requiredNodes.length > 2 ? 2 : 1; 
+  }
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -350,8 +352,7 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
             const nodeInfo = statusHierarchy.find(h => h.id === nodeId);
             const isLast = index === requiredNodes.length - 1;
             
-            // 判斷該節點目前的進度狀態
-            let stepStatus = "pending"; // 未到
+            let stepStatus = "pending"; 
             if (record.status === 'rejected') {
                 stepStatus = (index === currentStatusIdx) ? "error" : (index < currentStatusIdx ? "done" : "pending");
             } else if (record.status === 'canceled') {
@@ -389,7 +390,7 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
                     stepStatus === "error" ? "text-rose-600" :
                     "text-slate-400"
                   }`}>
-                    {nodeInfo?.label}
+                    {nodeInfo?.label || nodeId}
                     {stepStatus === "current" && <span className="text-[10px] px-2 py-0.5 bg-sky-100 text-sky-600 rounded-full font-bold">審核中</span>}
                     {stepStatus === "error" && nodeId === record.status && <span className="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full font-bold">已駁回</span>}
                   </h4>
@@ -414,30 +415,9 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
   );
 };
 
-const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
-  <div className="space-y-1 text-left">
-    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">{label}</label>
-    <div className="relative group">
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600 transition-colors">
-        <Icon size={18} />
-      </div>
-      <input 
-        type={shows[showKey] ? 'text' : 'password'} 
-        required 
-        className="w-full pl-12 pr-12 py-4 rounded-2xl border border-slate-200 bg-white text-slate-900 font-bold outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-500 transition-all text-left [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" 
-        value={value} 
-        onChange={e => onChange(field, e.target.value)} 
-      />
-      <button type="button" onClick={() => onToggle(showKey)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-        {shows[showKey] ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
-  </div>
-);
-
 // --- View Components ---
 
-const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees, readAnns, markAnnAsRead }) => {
+const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, announcements, employees, readAnns, markAnnAsRead, setWorkflowTarget }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
   const currentDate = new Date().toLocaleDateString('zh-TW', {
@@ -496,15 +476,15 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       if (emp.empId === userSession.empId) return false; 
       if (userSession.empId === 'root') return true;
       
-      const isEmpManager = ["協理", "經理", "副理"].includes(emp.jobTitle);
+      const isEmpManager = emp.jobTitle?.includes("經理") || emp.jobTitle?.includes("副理") || emp.jobTitle?.includes("協理");
       const isSameDept = emp.dept === userSession.dept;
+      const userRank = userSession.jobTitle || '';
 
-      // 總經理看自己部門或所有部門主管
-      if (userSession.empId === '9001' || userSession.jobTitle === '總經理') {
+      if (userSession.empId === '9001' || userRank.includes('總經理')) {
         return isSameDept || isEmpManager;
       }
 
-      if (userSession.jobTitle === '協理') {
+      if (userRank.includes('協理')) {
         if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(emp.dept);
         if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept);
       }
@@ -930,6 +910,103 @@ const AnnouncementListView = ({ announcements, readAnns, markAnnAsRead }) => {
   );
 };
 
+// --- 新增：休假月曆 View ---
+const CalendarView = ({ records, userSession }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const deptLeaves = useMemo(() => {
+    return records.filter(r => {
+      if (r.formType !== '請假' || r.status !== 'approved') return false;
+      // 依要求：同部門的員工才看得到對方的假
+      if (userSession.empId !== 'root' && r.dept !== userSession.dept) return false;
+      return true;
+    });
+  }, [records, userSession]);
+
+  const monthNames = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
+  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+
+  const days = [];
+  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-sky-500 px-8 py-10 text-white flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black">休假月曆</h1>
+            <p className="text-sm opacity-90 italic mt-1">檢視 {userSession.empId === 'root' ? '全公司' : userSession.dept} 同仁的已核准休假</p>
+          </div>
+          <Calendar size={40} className="opacity-30" />
+        </div>
+
+        <div className="p-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <button onClick={prevMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="rotate-90 text-slate-600" size={20}/></button>
+              <h2 className="text-xl font-black text-slate-800 w-40 text-center tracking-wide">
+                {currentDate.getFullYear()} 年 {monthNames[currentDate.getMonth()]}
+              </h2>
+              <button onClick={nextMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="-rotate-90 text-slate-600" size={20}/></button>
+            </div>
+            <button onClick={goToToday} className="px-5 py-2.5 bg-sky-50 text-sky-600 font-bold rounded-xl hover:bg-sky-100 transition-colors shadow-sm active:scale-95">回到本月</button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(day => (
+              <div key={day} className="text-center font-black text-slate-400 text-xs uppercase tracking-widest py-2 bg-slate-50 rounded-lg">{day}</div>
+            ))}
+            {days.map((day, idx) => {
+              if (!day) return <div key={`empty-${idx}`} className="min-h-[110px] bg-slate-50/30 rounded-2xl border border-slate-100/50"></div>;
+              
+              const dateStr = formatDate(day);
+              const isToday = dateStr === formatDate(new Date());
+              // 若這天落在請假的起始日與結束日之間
+              const leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
+
+              return (
+                <div key={dateStr} className={`min-h-[110px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors ${isToday ? 'border-sky-300 bg-sky-50/30 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
+                  <div className={`text-xs font-black px-1.5 ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>
+                    {day.getDate()}
+                  </div>
+                  <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                    {leavesToday.map(r => {
+                      const catLabel = LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || r.category;
+                      const daysCount = (parseFloat(r.totalHours) || 0) / 8;
+                      return (
+                        <div key={r.id} className="px-1.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-md text-[9px] font-bold truncate shrink-0" title={`${r.name} - ${catLabel}\n${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`}>
+                          {r.name}、{catLabel}、{daysCount}天
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -1043,7 +1120,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
     endHour: '', 
     endMin: '00', 
     reason: '',
-    sharedWith: [] // 新增分享檢視名單
+    sharedWith: [] 
   });
 
   const handleEmpIdChange = (id) => {
@@ -1117,9 +1194,10 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
     // 【自動路由】加班單初始送單判斷
     let initialStatus = 'pending_manager';
-    if (userSession.jobTitle === '總經理') initialStatus = 'pending_assignment';
-    else if (userSession.jobTitle === '協理') initialStatus = 'pending_gm';
-    else if (["經理", "副理"].includes(userSession.jobTitle)) initialStatus = 'pending_director';
+    const userRank = userSession.jobTitle || '';
+    if (userRank.includes('總經理')) initialStatus = 'pending_assignment';
+    else if (userRank.includes('協理')) initialStatus = 'pending_gm';
+    else if (userRank.includes('經理') || userRank.includes('副理')) initialStatus = 'pending_director';
 
     try {
       const res = await fetch(`${NGROK_URL}/api/records`, { 
@@ -1148,6 +1226,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900">
+      
       {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
@@ -1545,6 +1624,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
+      
       {withdrawTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
@@ -1821,6 +1901,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
+      
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-fuchsia-500 px-8 py-10 text-white flex justify-between items-center">
           <div><h1 className="text-2xl font-black text-white text-left">申請單據查詢</h1><p className="text-sm opacity-90 italic text-white text-left">設定條件查詢您的歷史單據或被分享的單據</p></div><Search size={40} className="opacity-30" />
@@ -1996,9 +2077,10 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
     let targetStatus = status;
     if (status === 'pending_manager') {
         const applicant = employees.find(emp => emp.empId === selectedRecord.empId);
-        if (applicant?.jobTitle === '總經理') targetStatus = 'pending_assignment';
-        else if (applicant?.jobTitle === '協理') targetStatus = 'pending_gm';
-        else if (["經理", "副理"].includes(applicant?.jobTitle)) targetStatus = 'pending_director';
+        const applicantRank = applicant?.jobTitle || '';
+        if (applicantRank.includes('總經理')) targetStatus = 'pending_assignment';
+        else if (applicantRank.includes('協理')) targetStatus = 'pending_gm';
+        else if (applicantRank.includes('經理') || applicantRank.includes('副理')) targetStatus = 'pending_director';
         else targetStatus = 'pending_manager';
     }
 
@@ -2015,6 +2097,7 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
 
   return (
     <div className="space-y-6 pb-20 text-left font-sans text-slate-900">
+      
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-amber-500 p-8 text-white flex justify-between items-center text-left">
           <div className="space-y-1 text-left text-white">
@@ -2172,14 +2255,14 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
         const r = selectedRecord;
         const applicant = employees.find(emp => emp.empId === r.empId);
         const days = (parseFloat(r.totalHours) || 0) / 8;
-        const isUnitManager = ["經理", "副理"].includes(applicant?.jobTitle);
+        const applicantRank = applicant?.jobTitle || '';
         
         if (r.formType === '請假') {
             if (r.status === 'pending_manager' || r.status === 'pending') {
                 if (days > 3) targetStatus = 'pending_director';
                 else targetStatus = 'pending_assignment';
             } else if (r.status === 'pending_director') {
-                if (isUnitManager && days >= 1) targetStatus = 'pending_gm';
+                if ((applicantRank.includes('經理') || applicantRank.includes('副理')) && days >= 1) targetStatus = 'pending_gm';
                 else if (days > 5) targetStatus = 'pending_gm';
                 else targetStatus = 'pending_assignment';
             } else if (r.status === 'pending_gm') {
@@ -2850,104 +2933,12 @@ const SystemLogView = ({ sysLogs }) => {
   );
 };
 
-// --- 新增：休假月曆 View ---
-const CalendarView = ({ records, userSession }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  const deptLeaves = useMemo(() => {
-    return records.filter(r => {
-      if (r.formType !== '請假' || r.status !== 'approved') return false;
-      if (userSession.empId !== 'root' && r.dept !== userSession.dept) return false;
-      return true;
-    });
-  }, [records, userSession]);
-
-  const monthNames = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
-  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
-
-  const days = [];
-  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-
-  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  const goToToday = () => setCurrentDate(new Date());
-
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
-      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-sky-500 px-8 py-10 text-white flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-black">休假月曆</h1>
-            <p className="text-sm opacity-90 italic mt-1">檢視 {userSession.empId === 'root' ? '全公司' : userSession.dept} 同仁的已核准休假</p>
-          </div>
-          <Calendar size={40} className="opacity-30" />
-        </div>
-
-        <div className="p-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
-              <button onClick={prevMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="rotate-90 text-slate-600" size={20}/></button>
-              <h2 className="text-xl font-black text-slate-800 w-40 text-center tracking-wide">
-                {currentDate.getFullYear()} 年 {monthNames[currentDate.getMonth()]}
-              </h2>
-              <button onClick={nextMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="-rotate-90 text-slate-600" size={20}/></button>
-            </div>
-            <button onClick={goToToday} className="px-5 py-2.5 bg-sky-50 text-sky-600 font-bold rounded-xl hover:bg-sky-100 transition-colors shadow-sm active:scale-95">回到本月</button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map(day => (
-              <div key={day} className="text-center font-black text-slate-400 text-xs uppercase tracking-widest py-2 bg-slate-50 rounded-lg">{day}</div>
-            ))}
-            {days.map((day, idx) => {
-              if (!day) return <div key={`empty-${idx}`} className="min-h-[110px] bg-slate-50/30 rounded-2xl border border-slate-100/50"></div>;
-              
-              const dateStr = formatDate(day);
-              const isToday = dateStr === formatDate(new Date());
-              const leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
-
-              return (
-                <div key={dateStr} className={`min-h-[110px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors ${isToday ? 'border-sky-300 bg-sky-50/30 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
-                  <div className={`text-xs font-black px-1.5 ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>
-                    {day.getDate()}
-                  </div>
-                  <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                    {leavesToday.map(r => (
-                      <div key={r.id} className="px-1.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-md text-[9px] font-bold truncate shrink-0" title={`${r.name} - ${r.category}\n${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`}>
-                        {r.name}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
 // --- App Component ---
 
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
   const [records, setRecords] = useState([]);
-  const [sysLogs, setSysLogs] = useState([]); // 新增：系統日誌獨立 State
+  const [sysLogs, setSysLogs] = useState([]); 
   const [employees, setEmployees] = useState([]);
   
   // 新增：全局 WorkflowModal 追蹤對象
@@ -3200,6 +3191,10 @@ const App = () => {
             {unreadAnnCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{unreadAnnCount}</span>}
           </button>
 
+          <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'calendar' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+            <Calendar size={20} /> 休假月曆
+          </button>
+
           <button onClick={() => setActiveMenu('substitute')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'substitute' ? 'bg-amber-50 text-amber-600 border-amber-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
             <UserCheck size={20} /> 代理確認
             {menuSubstituteCount > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{menuSubstituteCount}</span>}
@@ -3208,7 +3203,6 @@ const App = () => {
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
-          <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'calendar' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Calendar size={20} /> 休假月曆</button>
           <button onClick={() => setActiveMenu('change-password')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'change-password' ? 'bg-slate-100 text-slate-700 border-slate-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><KeyRound size={20} /> 修改密碼</button>
           {isAdmin && (
             <>
@@ -3238,15 +3232,16 @@ const App = () => {
           </button>
         </div>
       </aside>
+
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
+          {activeMenu === 'calendar' && <CalendarView records={records} userSession={userSession} />}
           {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
-          {activeMenu === 'calendar' && <CalendarView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} onLogAction={handleLogAction} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
