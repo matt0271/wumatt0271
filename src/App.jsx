@@ -229,7 +229,7 @@ const StatusBadge = ({ status, onClick }) => {
       title={titleText}
       className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${currentStyle} whitespace-nowrap shadow-sm flex items-center justify-center gap-1 ${isClickable ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:scale-105 transition-all active:scale-95' : ''}`}
     >
-      {currentLabel} {isClickable && <GitMerge size={10} className="opacity-70 ml-0.5" />}
+      {currentLabel} {isClickable && <Search size={10} className="opacity-70 ml-0.5" />}
     </span>
   );
 };
@@ -338,7 +338,7 @@ const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
       <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-left flex flex-col max-h-[90vh]">
         <div className="bg-slate-800 p-6 flex justify-between items-center text-white shrink-0">
           <div className="flex items-center gap-3">
-            <GitMerge size={24} className="text-sky-400" />
+            <Search size={24} className="text-sky-400" />
             <div>
               <h3 className="font-black text-lg">單據流程追蹤</h3>
               <p className="text-[10px] opacity-60 font-mono">#{record.serialId}</p>
