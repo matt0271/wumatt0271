@@ -9,6 +9,7 @@ import {
   CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone,
   Paperclip, UploadCloud, Activity
 } from 'lucide-react';
+import { GitMerge, CheckCircle2 as CheckIcon, Circle as CircleIcon, Clock as ClockIcon } from 'lucide-react';
 
 // --- API 設定 ---
 const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev'; 
@@ -194,7 +195,11 @@ const canManagerApproveRecord = (userSession, r, employees) => {
 
 // --- Helper Components ---
 
-const StatusBadge = ({ status }) => {
+const StatusBadge = ({ status, onClick }) => {
+  const isClickable = !!onClick;
+  const hoverClass = isClickable ? 'cursor-pointer hover:scale-105 hover:shadow-md transition-all' : '';
+  const titleText = isClickable ? '點擊檢視單據流程' : '';
+
   // 針對已結案狀態，改用圓章樣式 (雙層圓圈邊框)
   if (['approved', 'rejected', 'canceled'].includes(status)) {
     let stampConfig = { color: '', icon: null, label: '' };
@@ -209,7 +214,11 @@ const StatusBadge = ({ status }) => {
     const IconComponent = stampConfig.icon;
 
     return (
-      <div className={`w-11 h-11 rounded-full border-[1.5px] flex flex-col items-center justify-center -rotate-[15deg] ${stampConfig.color} bg-transparent shrink-0 opacity-80 relative mx-1`}>
+      <div 
+        onClick={onClick}
+        title={titleText}
+        className={`w-11 h-11 rounded-full border-[1.5px] flex flex-col items-center justify-center -rotate-[15deg] ${stampConfig.color} bg-transparent shrink-0 opacity-80 relative mx-1 ${hoverClass}`}
+      >
         <div className={`absolute inset-[2px] rounded-full border ${stampConfig.color} opacity-40`}></div>
         <IconComponent size={14} strokeWidth={4} className="mb-0.5" />
         <span className="text-[8px] font-black leading-none">{stampConfig.label}</span>
@@ -239,7 +248,170 @@ const StatusBadge = ({ status }) => {
   const currentStyle = dynamicStyles[status] || dynamicStyles.pending;
   const currentLabel = labels[status] || labels.pending;
   
-  return <span className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${currentStyle} whitespace-nowrap shadow-sm`}>{currentLabel}</span>;
+  return (
+    <span 
+      onClick={onClick}
+      title={titleText}
+      className={`px-3 py-1.5 rounded-full text-[10px] font-black border ${currentStyle} whitespace-nowrap shadow-sm flex items-center justify-center gap-1 ${isClickable ? 'cursor-pointer hover:ring-2 hover:ring-offset-1 hover:scale-105 transition-all active:scale-95' : ''}`}
+    >
+      {currentLabel} {isClickable && <GitMerge size={10} className="opacity-70 ml-0.5" />}
+    </span>
+  );
+};
+
+// --- 新增：流程追蹤 Modal 組件 (動態隱藏節點版) ---
+const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
+  if (!isOpen || !record) return null;
+
+  // 確認 employees 有被正確傳入，否則給予預設空陣列避免錯誤
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const applicant = safeEmployees.find(e => e.empId === record.empId);
+  const days = (parseFloat(record.totalHours) || 0) / 8;
+  const applicantRank = applicant?.jobTitle || "";
+
+  // 定義所有可能的節點狀態
+  const statusHierarchy = [
+    { id: 'submitted', label: '申請人送出' },
+    { id: 'pending_substitute', label: '職務代理人' },
+    { id: 'pending_manager', label: '部門經副理' },
+    { id: 'pending_director', label: '部門協理' },
+    { id: 'pending_gm', label: '總經理室' },
+    { id: 'pending_assignment', label: '專員交辦(9002)' },
+    { id: 'approved', label: '已結案' }
+  ];
+
+  // 根據邏輯判斷哪些節點是「真實必要」的，並過濾掉不需經過的流程
+  const getRequiredNodes = () => {
+    let nodes = ['submitted'];
+
+    if (record.formType === '加班') {
+      if (applicantRank === '總經理') {
+        // 直接到交辦
+      } else if (applicantRank === '協理') {
+        nodes.push('pending_gm');
+      } else if (["經理", "副理"].includes(applicantRank)) {
+        nodes.push('pending_director');
+      } else {
+        nodes.push('pending_manager');
+      }
+    } else {
+      // 請假單流程
+      nodes.push('pending_substitute');
+
+      let current = '';
+      if (["總經理"].includes(applicantRank)) current = 'pending_assignment';
+      else if (["協理"].includes(applicantRank)) current = 'pending_gm';
+      else if (["經理", "副理"].includes(applicantRank)) current = 'pending_director';
+      else current = 'pending_manager';
+
+      // 依天數與層級建構完整必要路徑
+      let step = current;
+      while (step && step !== 'pending_assignment') {
+          nodes.push(step);
+          if (step === 'pending_manager') {
+              if (days > 3) step = 'pending_director';
+              else step = 'pending_assignment';
+          } else if (step === 'pending_director') {
+              if (["經理", "副理"].includes(applicantRank) && days >= 1) step = 'pending_gm';
+              else if (days > 5) step = 'pending_gm';
+              else step = 'pending_assignment';
+          } else if (step === 'pending_gm') {
+              step = 'pending_assignment';
+          } else {
+              break;
+          }
+      }
+    }
+
+    nodes.push('pending_assignment');
+    nodes.push('approved');
+    return [...new Set(nodes)];
+  };
+
+  const requiredNodes = getRequiredNodes();
+  const currentStatusIdx = requiredNodes.indexOf(record.status === 'pending' ? 'pending_manager' : record.status);
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-left flex flex-col max-h-[90vh]">
+        <div className="bg-slate-800 p-6 flex justify-between items-center text-white shrink-0">
+          <div className="flex items-center gap-3">
+            <GitMerge size={24} className="text-sky-400" />
+            <div>
+              <h3 className="font-black text-lg">單據流程追蹤</h3>
+              <p className="text-[10px] opacity-60 font-mono">#{record.serialId}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={20}/></button>
+        </div>
+        
+        <div className="p-10 space-y-0 relative text-left overflow-y-auto flex-1 bg-slate-50/50">
+          {requiredNodes.map((nodeId, index) => {
+            const nodeInfo = statusHierarchy.find(h => h.id === nodeId);
+            const isLast = index === requiredNodes.length - 1;
+            
+            // 判斷該節點目前的進度狀態
+            let stepStatus = "pending"; // 未到
+            if (record.status === 'rejected') {
+                stepStatus = (index === currentStatusIdx) ? "error" : (index < currentStatusIdx ? "done" : "pending");
+            } else if (record.status === 'canceled') {
+                stepStatus = "canceled";
+            } else {
+                if (index < currentStatusIdx || record.status === 'approved') stepStatus = "done";
+                else if (index === currentStatusIdx) stepStatus = "current";
+            }
+
+            return (
+              <div key={nodeId} className="flex gap-6 group text-left relative">
+                <div className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center z-10 transition-all duration-500 ${
+                    stepStatus === "done" ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-200" :
+                    stepStatus === "current" ? "bg-white border-sky-500 text-sky-500 ring-4 ring-sky-50" :
+                    stepStatus === "error" ? "bg-rose-500 border-rose-500 text-white" :
+                    stepStatus === "canceled" ? "bg-slate-300 border-slate-300 text-white" :
+                    "bg-white border-slate-200 text-slate-300"
+                  }`}>
+                    {stepStatus === "done" ? <CheckIcon size={16} strokeWidth={4} /> :
+                     stepStatus === "current" ? <ClockIcon size={16} strokeWidth={3} className="animate-pulse" /> :
+                     stepStatus === "error" ? <XCircle size={16} strokeWidth={3} /> :
+                     <div className="w-2 h-2 rounded-full bg-current" />}
+                  </div>
+                  {!isLast && (
+                    <div className={`w-0.5 h-12 transition-colors duration-500 ${
+                      index < currentStatusIdx || record.status === 'approved' ? "bg-emerald-500" : "bg-slate-200"
+                    }`} />
+                  )}
+                </div>
+                <div className="pt-0.5 pb-10 flex-1">
+                  <h4 className={`text-sm font-black transition-colors flex items-center gap-2 ${
+                    stepStatus === "current" ? "text-sky-600" : 
+                    stepStatus === "done" ? "text-emerald-600" : 
+                    stepStatus === "error" ? "text-rose-600" :
+                    "text-slate-400"
+                  }`}>
+                    {nodeInfo?.label}
+                    {stepStatus === "current" && <span className="text-[10px] px-2 py-0.5 bg-sky-100 text-sky-600 rounded-full font-bold">審核中</span>}
+                    {stepStatus === "error" && nodeId === record.status && <span className="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-600 rounded-full font-bold">已駁回</span>}
+                  </h4>
+                  <p className="text-[11px] text-slate-400 font-bold mt-1.5 leading-relaxed">
+                    {nodeId === 'submitted' ? `由 ${record.name} 於 ${record.createdAt ? record.createdAt.split('T')[0] : ''} 發起` : 
+                     nodeId === 'pending_substitute' ? `代理人：${record.substitute}` :
+                     nodeId === 'approved' ? '流程結束並存檔歸卷' : 
+                     stepStatus === 'done' ? '審核通過' : 
+                     stepStatus === 'error' ? '單據異常停止' : '等待指定權限主管審核'}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="bg-white border-t border-slate-100 p-6 flex justify-center shrink-0">
+            <button onClick={onClose} className="w-full py-3 bg-slate-100 hover:bg-slate-200 rounded-2xl text-sm font-black text-slate-600 transition-colors shadow-sm">關閉流程視窗</button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChange }) => (
@@ -851,7 +1023,7 @@ const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
   );
 };
 
-const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction }) => {
+const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction, setWorkflowTarget }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -1176,7 +1348,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
                     <td className="px-4 py-4 font-black text-slate-900 border-b border-slate-100">{r.totalHours}H</td>
                     <td className="px-6 py-4 border-b border-slate-100 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <StatusBadge status={r.status} />
+                        <StatusBadge status={r.status} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
                         {['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status) && (
                           <button onClick={() => setWithdrawTarget(r)} className="px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-md text-[10px] font-black transition-colors">刪除</button>
                         )}
@@ -1198,7 +1370,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   );
 };
 
-const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts, onLogAction }) => {
+const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification, userSession, records, availableDepts, onLogAction, setWorkflowTarget }) => {
   const [submitting, setSubmitting] = useState(false);
   const [withdrawTarget, setWithdrawTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -1585,7 +1757,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
                     <td className="px-4 py-4 font-black text-slate-900 border-b border-slate-100">{r.totalHours}H</td>
                     <td className="px-6 py-4 border-b border-slate-100 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <StatusBadge status={r.status} />
+                        <StatusBadge status={r.status} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
                         {['pending', 'pending_substitute', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status) && (
                           <button onClick={() => setWithdrawTarget(r)} className="px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-md text-[10px] font-black transition-colors">刪除</button>
                         )}
@@ -1607,7 +1779,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   );
 };
 
-const InquiryView = ({ records, userSession }) => {
+const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => {
   const [filters, setFilters] = useState({
     formType: '',
     serialId: '',
@@ -1747,8 +1919,8 @@ const InquiryView = ({ records, userSession }) => {
                     )}
                   </div>
                   <div><p className="text-[10px] font-black text-slate-400 uppercase">時數</p><p className="font-black text-slate-900">{r.totalHours} HR</p></div>
-                  <div className="flex justify-end col-span-2 sm:col-span-3 md:col-span-1">
-                    <StatusBadge status={r.status} />
+                  <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1 gap-2">
+                    <StatusBadge status={r.status} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
                   </div>
                 </div>
               </div>
@@ -1807,7 +1979,7 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh,
 };
 
 // 代理人確認中心 (SubstituteView)
-const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction, employees }) => {
+const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction, employees, setWorkflowTarget }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -1897,8 +2069,8 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
                     )}
                   </div>
                 </div>
-                <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1">
-                  <StatusBadge status={r.status} />
+                <div className="flex justify-end items-center col-span-2 sm:col-span-3 md:col-span-1 gap-2">
+                  <StatusBadge status={r.status} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
                 </div>
               </div>
             </div>
@@ -1927,7 +2099,7 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
 };
 
 
-const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees, onLogAction }) => {
+const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees, onLogAction, setWorkflowTarget }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -2154,8 +2326,8 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
                     <p className="font-bold text-xs text-slate-400">-</p>
                   )}
                 </div>
-                <div className="flex justify-end items-center col-span-2 sm:col-span-3 lg:col-span-1">
-                  <StatusBadge status={r.status} />
+                <div className="flex justify-end items-center col-span-2 sm:col-span-3 lg:col-span-1 gap-2">
+                  <StatusBadge status={r.status} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
                 </div>
               </div>
             </div>
@@ -2687,6 +2859,9 @@ const App = () => {
   const [sysLogs, setSysLogs] = useState([]); // 新增：系統日誌獨立 State
   const [employees, setEmployees] = useState([]);
   
+  // 新增：全局 WorkflowModal 追蹤對象
+  const [workflowTarget, setWorkflowTarget] = useState(null);
+
   const [announcements, setAnnouncements] = useState([
     { id: 1, type: 'policy', title: '2026年員工旅遊補助辦法及申請期限更新', date: '2026-04-15', endDate: '2026-05-15', isNew: true, content: '請各位同仁注意，2026年度的員工旅遊補助辦法已於今日更新。補助金額與申請流程有部分調整，詳細規則與申請表單請至人資部下載。若有任何疑問，請洽人資部王小姐。' },
     { id: 2, type: 'system', title: '系統維護通知：本週五晚間 10:00-12:00 暫停各項表單申請', date: '2026-04-14', endDate: '2026-04-18', isNew: false, content: '資訊部預計於本週五晚間 10:00 至 12:00 進行伺服器例行性維護。屆時員工服務平台將暫停服務，無法進行表單送出或資料查詢。請有需要的同仁提早完成相關作業，造成不便敬請見諒。' },
@@ -2909,8 +3084,10 @@ const App = () => {
 
   return (
     <div className="h-screen w-full bg-slate-50 flex text-left font-sans text-slate-900 overflow-hidden">
+      <WorkflowModal isOpen={!!workflowTarget} onClose={() => setWorkflowTarget(null)} record={workflowTarget} employees={employees} />
+      
       {notification && (
-        <div className={`fixed top-10 right-10 z-[100] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 border text-slate-900 ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>
+        <div className={`fixed top-10 right-10 z-[200] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 border text-slate-900 ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>
           {notification.type === 'success' ? <CheckCircle size={20} className="text-emerald-600" /> : <AlertTriangle size={20} className="text-rose-600" />}
           <span className="font-bold text-sm text-slate-700">{notification.text}</span>
         </div>
@@ -2973,13 +3150,13 @@ const App = () => {
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
-          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} />}
-          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
-          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} />}
-          {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} />}
+          {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
+          {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
+          {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
+          {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} onLogAction={handleLogAction} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
-          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} />}
+          {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
           {activeMenu === 'system-logs' && userSession.empId === 'root' && <SystemLogView sysLogs={sysLogs} />}
         </div>
