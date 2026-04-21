@@ -2850,6 +2850,97 @@ const SystemLogView = ({ sysLogs }) => {
   );
 };
 
+// --- 新增：休假月曆 View ---
+const CalendarView = ({ records, userSession }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  const deptLeaves = useMemo(() => {
+    return records.filter(r => {
+      if (r.formType !== '請假' || r.status !== 'approved') return false;
+      if (userSession.empId !== 'root' && r.dept !== userSession.dept) return false;
+      return true;
+    });
+  }, [records, userSession]);
+
+  const monthNames = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
+  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+  const daysInMonth = getDaysInMonth(currentDate.getFullYear(), currentDate.getMonth());
+
+  const days = [];
+  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+
+  const formatDate = (date) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
+        <div className="bg-sky-500 px-8 py-10 text-white flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black">休假月曆</h1>
+            <p className="text-sm opacity-90 italic mt-1">檢視 {userSession.empId === 'root' ? '全公司' : userSession.dept} 同仁的已核准休假</p>
+          </div>
+          <Calendar size={40} className="opacity-30" />
+        </div>
+
+        <div className="p-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <button onClick={prevMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="rotate-90 text-slate-600" size={20}/></button>
+              <h2 className="text-xl font-black text-slate-800 w-40 text-center tracking-wide">
+                {currentDate.getFullYear()} 年 {monthNames[currentDate.getMonth()]}
+              </h2>
+              <button onClick={nextMonth} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"><ChevronDown className="-rotate-90 text-slate-600" size={20}/></button>
+            </div>
+            <button onClick={goToToday} className="px-5 py-2.5 bg-sky-50 text-sky-600 font-bold rounded-xl hover:bg-sky-100 transition-colors shadow-sm active:scale-95">回到本月</button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(day => (
+              <div key={day} className="text-center font-black text-slate-400 text-xs uppercase tracking-widest py-2 bg-slate-50 rounded-lg">{day}</div>
+            ))}
+            {days.map((day, idx) => {
+              if (!day) return <div key={`empty-${idx}`} className="min-h-[110px] bg-slate-50/30 rounded-2xl border border-slate-100/50"></div>;
+              
+              const dateStr = formatDate(day);
+              const isToday = dateStr === formatDate(new Date());
+              const leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
+
+              return (
+                <div key={dateStr} className={`min-h-[110px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors ${isToday ? 'border-sky-300 bg-sky-50/30 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
+                  <div className={`text-xs font-black px-1.5 ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>
+                    {day.getDate()}
+                  </div>
+                  <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
+                    {leavesToday.map(r => (
+                      <div key={r.id} className="px-1.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-md text-[9px] font-bold truncate shrink-0" title={`${r.name} - ${r.category}\n${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`}>
+                        {r.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 // --- App Component ---
 
@@ -3117,6 +3208,7 @@ const App = () => {
           <button onClick={() => setActiveMenu('overtime')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'overtime' ? 'bg-blue-50 text-blue-600 border-blue-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Clock size={20} /> 加班申請</button>
           <button onClick={() => setActiveMenu('leave-apply')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'leave-apply' ? 'bg-emerald-50 text-emerald-600 border-emerald-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><CalendarPlus size={20} /> 請假申請</button>
           <button onClick={() => setActiveMenu('integrated-query')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'integrated-query' ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><ClipboardList size={20} /> 單據查詢</button>
+          <button onClick={() => setActiveMenu('calendar')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'calendar' ? 'bg-sky-50 text-sky-600 border-sky-600 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Calendar size={20} /> 休假月曆</button>
           <button onClick={() => setActiveMenu('change-password')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${activeMenu === 'change-password' ? 'bg-slate-100 text-slate-700 border-slate-700 shadow-sm' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><KeyRound size={20} /> 修改密碼</button>
           {isAdmin && (
             <>
@@ -3148,12 +3240,13 @@ const App = () => {
       </aside>
       <main className="flex-grow h-full p-10 overflow-y-auto bg-slate-50 text-left text-slate-900">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900">
-          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
+          {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
           {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
+          {activeMenu === 'calendar' && <CalendarView records={records} userSession={userSession} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} onLogAction={handleLogAction} />}
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
