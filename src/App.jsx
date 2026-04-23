@@ -1,4 +1,4 @@
-﻿// 觸發重新編譯以解決環境快取問題
+﻿﻿// 觸發重新編譯以解決環境快取問題
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Clock, User, ListChecks, Loader2, Trash2, History, ClipboardCheck, Fingerprint,
