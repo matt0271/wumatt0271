@@ -187,7 +187,7 @@ const StatusBadge = ({ status, onClick, formType }) => {
   );
 };
 
-// 共用 RecordCard 元件
+// 共用 RecordCard 元件 (嚴格對齊版 + 批次選擇)
 const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelected, onSelect, actionSlot, showReason=false, showOp=false }) => {
   const isPost = r.appType === 'post';
   const typeLabel = r.formType === '請假' ? '請假申請' : (isPost ? '事後加班' : '事前加班');
@@ -195,15 +195,22 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
   const catLabel = r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪');
 
   return (
-    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-100 ring-2 ring-inset ring-slate-300 border-slate-300' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
-      <div className="flex flex-wrap gap-4 items-center w-full text-sm">
+    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-50 ring-2 ring-inset ring-indigo-400 border-indigo-400' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full text-sm">
+        
+        {/* Checkbox 區塊 */}
         {isSelectable && (
-           <div className="shrink-0 flex items-center justify-center">
-             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-white"/>}</div>
+           <div className="shrink-0 w-6 flex items-center justify-center">
+             <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>
+               {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+             </div>
            </div>
         )}
-        <div className="flex-1 min-w-[120px]">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+
+        {/* 欄位 1：單據資訊 */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
+          <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">單據資訊</p>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className={`px-2 py-0.5 rounded text-[10px] font-black ${typeColor}`}>{typeLabel}</span>
             <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{catLabel}</span>
             <span className="font-mono text-[10px] font-bold text-slate-500">{r.serialId}</span>
@@ -211,38 +218,51 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
               <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded" title="共享檢視"><Eye size={10} /> 共享</span>
             )}
           </div>
-          <div className="font-black text-slate-800 text-base">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
+          <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         
-        <div className="w-full sm:w-auto sm:flex-1 min-w-[140px]">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間 ({r.totalHours}H)</p>
-           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block">
+        {/* 欄位 2：時間與時數 */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
+           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block w-fit">
              {r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endHour}:${r.endMin}` : <>{r.startDate} {r.startHour}:${r.startMin} ~<br/>{r.endDate} {r.endHour}:${r.endMin}</>}
            </div>
         </div>
 
-        {(showReason || showOp || r.attachmentName) && (
-          <div className="w-full sm:w-auto sm:flex-1 min-w-[160px] space-y-1">
-            {(showReason || r.attachmentName) && (
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase">事由</p>
-                <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '-'}</p>
-                {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
-              </div>
-            )}
-            {showOp && r.formType === '請假' && (
-              <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase mt-1">代理人意見</p>
-                 <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="flex justify-end items-center gap-3 w-full md:w-auto shrink-0 ml-auto pt-2 md:pt-0 border-t md:border-0 border-slate-100 mt-2 md:mt-0">
-           <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
-           {actionSlot && actionSlot(r)}
+        {/* 欄位 3：事由與意見 */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] flex-1">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">事由與意見</p>
+           {(!showReason && !showOp && !r.attachmentName) ? (
+             <p className="font-bold text-xs text-slate-300 hidden md:block">-</p>
+           ) : (
+             <div className="space-y-1.5">
+               {(showReason || r.attachmentName) && (
+                 <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">事由</p>
+                   <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '無事由'}</p>
+                   {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
+                 </div>
+               )}
+               {showOp && r.formType === '請假' && (
+                 <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">代理人意見</p>
+                    <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
+        
+        {/* 欄位 4：操作與狀態 */}
+        <div className="w-full md:w-[20%] shrink-0 flex flex-col md:items-end justify-center border-t md:border-0 border-slate-100 pt-3 md:pt-0 mt-2 md:mt-0">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1.5 w-full md:text-right">狀態 / 操作</p>
+           <div className="flex items-center md:justify-end gap-2 w-full">
+              <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
+              {actionSlot && actionSlot(r)}
+           </div>
+        </div>
+
       </div>
     </div>
   );
@@ -300,6 +320,23 @@ const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, a
   );
 };
 
+// 新增共用：無限滾動監聽元件 (Infinite Scroll)
+const InfiniteScrollObserver = ({ onLoadMore, hasMore, isTable = false, colSpan = 1 }) => {
+  const observerRef = useRef(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) onLoadMore(); },
+      { rootMargin: '100px' } 
+    );
+    if (observerRef.current) observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore]);
+
+  if (!hasMore) return null;
+  const content = <div ref={observerRef} className="py-6 flex justify-center"><Loader2 className="animate-spin text-slate-300" size={24} /></div>;
+  return isTable ? <tr><td colSpan={colSpan}>{content}</td></tr> : content;
+};
 
 // --- 流程追蹤 Modal ---
 const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
@@ -911,7 +948,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
   const [filters, setFilters] = useState({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(10); // 新增：目前顯示的資料筆數
+  const [visibleCount, setVisibleCount] = useState(10); 
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
@@ -925,7 +962,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
       if (filters.endDate && r.startDate > filters.endDate) return false;
       return true;
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setSearchResults(results); setHasSearched(true); setVisibleCount(10); // 搜尋時重設顯示筆數
+    setSearchResults(results); setHasSearched(true); setVisibleCount(10); 
   };
   const handleReset = () => { setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' }); setSearchResults([]); setHasSearched(false); setVisibleCount(10); };
 
@@ -1461,9 +1498,10 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   );
 };
 
-const SystemLogView = ({ sysLogs }) => {
+const SystemLogView = ({ sysLogs, onRefresh, setNotification, userSession, onLogAction }) => {
   const [filters, setFilters] = useState({ actionType: '', keyword: '', startDate: '', endDate: '' });
   const [visibleCount, setVisibleCount] = useState(30); // 新增：日誌列表的顯示筆數
+  const [isClearing, setIsClearing] = useState(false);
 
   const displayLogs = useMemo(() => sysLogs.filter(log => {
       if (filters.actionType && log.actionType !== filters.actionType) return false;
@@ -1489,6 +1527,54 @@ const SystemLogView = ({ sysLogs }) => {
     const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })); link.download = `系統操作日誌_${new Date().toISOString().split('T')[0]}.json`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
+  const handleClearAllRecords = async () => {
+    const confirmCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const userInput = window.prompt(`⚠️ 警告：您即將刪除系統內【所有的請假與加班單據】！\n此操作完全無法復原！\n\n如果確定要刪除，請輸入驗證碼以確認：${confirmCode}`);
+    if (userInput !== confirmCode) {
+        if (userInput !== null) setNotification({ type: 'error', text: '驗證碼錯誤，已取消清空操作。' });
+        return;
+    }
+    
+    setIsClearing(true);
+    try {
+      const res = await fetch(`${NGROK_URL}/api/records`, fetchOptions);
+      const allRecords = await res.json();
+      for (let r of allRecords) {
+        await fetch(`${NGROK_URL}/api/records/${r.id}`, { method: 'DELETE', headers: fetchOptions.headers });
+      }
+      await onLogAction(userSession, '系統維護', `執行大批次清空：共刪除 ${allRecords.length} 筆單據`);
+      setNotification({ type: 'success', text: `成功！已徹底清空 ${allRecords.length} 筆單據。` });
+      if(onRefresh) onRefresh();
+    } catch(err) {
+      setNotification({ type: 'error', text: '清空單據失敗，請檢查網路連線' });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+  
+  const handleClearAllLogs = async () => {
+    const confirmCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const userInput = window.prompt(`⚠️ 警告：您即將刪除系統內【所有的操作日誌】！\n此操作完全無法復原！\n\n如果確定要刪除，請輸入驗證碼以確認：${confirmCode}`);
+    if (userInput !== confirmCode) {
+        if (userInput !== null) setNotification({ type: 'error', text: '驗證碼錯誤，已取消清空操作。' });
+        return;
+    }
+    
+    setIsClearing(true);
+    try {
+      for (let l of sysLogs) {
+        await fetch(`${NGROK_URL}/api/logs/${l.id}`, { method: 'DELETE', headers: fetchOptions.headers });
+      }
+      await onLogAction(userSession, '系統維護', `執行大批次清空：刪除了所有過去的操作日誌`);
+      setNotification({ type: 'success', text: `成功！已徹底清空所有操作日誌。` });
+      if(onRefresh) onRefresh();
+    } catch(err) {
+      setNotification({ type: 'error', text: '清空日誌失敗，請檢查網路連線' });
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   const getActionStyle = (type) => {
     switch (type) {
       case '登入/登出': return 'text-sky-600 bg-sky-50 border-sky-100';
@@ -1500,6 +1586,7 @@ const SystemLogView = ({ sysLogs }) => {
       case '人事管理': return 'text-teal-600 bg-teal-50 border-teal-100';
       case '密碼變更': return 'text-rose-600 bg-rose-50 border-rose-100';
       case '系統公告': return 'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100';
+      case '系統維護': return 'text-rose-600 bg-rose-100 border-rose-200 font-black';
       default: return 'text-gray-600 bg-gray-50 border-gray-100';
     }
   };
@@ -1509,9 +1596,24 @@ const SystemLogView = ({ sysLogs }) => {
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
         <div className="bg-slate-800 px-8 py-10 text-white flex justify-between items-center"><div><h1 className="text-2xl font-black text-white text-left">系統操作日誌</h1><p className="text-sm opacity-90 italic text-slate-300 text-left">最高權限管理員專屬，追蹤全站重要操作軌跡</p></div><Activity size={40} className="opacity-30 text-white" /></div>
         
+        <div className="p-8 border-b border-slate-100 bg-rose-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-black text-rose-800 flex items-center gap-2"><AlertTriangle size={18} /> 進階系統資料清理</h3>
+            <p className="text-xs font-bold text-rose-600 mt-1">此區操作將直接從資料庫永久刪除資料，請謹慎使用。</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button disabled={isClearing} onClick={handleClearAllRecords} className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-sm transition-colors flex items-center gap-2 disabled:bg-slate-400">
+              {isClearing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} 一鍵清空所有單據
+            </button>
+            <button disabled={isClearing} onClick={handleClearAllLogs} className="px-5 py-2.5 bg-rose-800 hover:bg-rose-900 text-white rounded-xl text-xs font-black shadow-sm transition-colors flex items-center gap-2 disabled:bg-slate-400">
+              {isClearing ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} 一鍵清空操作日誌
+            </button>
+          </div>
+        </div>
+
         <div className="p-8 border-b border-slate-100 bg-slate-50/50 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">動作類型</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.actionType} onChange={e => setFilters({...filters, actionType: e.target.value})}><option value="">全部</option><option value="登入/登出">登入/登出</option><option value="表單申請">表單申請</option><option value="單據撤銷">單據撤銷</option><option value="代理確認">代理確認</option><option value="主管簽核">主管簽核</option><option value="交辦審核">交辦審核</option><option value="人事管理">人事管理</option><option value="密碼變更">密碼變更</option><option value="系統公告">系統公告</option></select></div>
+            <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">動作類型</label><select className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.actionType} onChange={e => setFilters({...filters, actionType: e.target.value})}><option value="">全部</option><option value="登入/登出">登入/登出</option><option value="表單申請">表單申請</option><option value="單據撤銷">單據撤銷</option><option value="代理確認">代理確認</option><option value="主管簽核">主管簽核</option><option value="交辦審核">交辦審核</option><option value="人事管理">人事管理</option><option value="密碼變更">密碼變更</option><option value="系統公告">系統公告</option><option value="系統維護">系統維護</option></select></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">關鍵字搜尋</label><input type="text" placeholder="姓名、員編或詳細內容..." className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.keyword} onChange={e => setFilters({...filters, keyword: e.target.value})} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">起始日期 (從)</label><input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} /></div>
             <div className="space-y-1.5"><label className="text-[10px] font-black text-slate-400 uppercase">結束日期 (至)</label><input type="date" className="w-full h-12 px-4 rounded-xl border bg-white font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-500" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} /></div>
@@ -1625,7 +1727,7 @@ const App = () => {
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
       
-      // 新增：在一般資料更新時，也同步檢查 session
+      // 核心防護：在一般資料更新時，同步檢查 session 是否已失效
       if (userSession && userSession.empId !== 'root') {
         const currentUserData = fetchedEmployees.find(e => e.id === userSession.id);
         if (currentUserData && currentUserData.currentSessionId && currentUserData.currentSessionId !== userSession.currentSessionId) {
@@ -1648,26 +1750,34 @@ const App = () => {
   
   useEffect(() => { fetchData(); }, []);
 
-  // 新增：背景心跳檢測 (Heartbeat)，每 15 秒檢查一次是否被其他裝置登入
+  // 核心防護：極速心跳檢測 (每 2 秒) 與 視窗焦點即時偵測
   useEffect(() => {
-    if (!userSession || userSession.empId === 'root') return;
+    if (!userSession || userSession.empId === 'root') return; // root 不受此限制
     
     const checkSession = async () => {
       try {
         const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' });
         if (res.ok) {
           const dbUser = await res.json();
-          // 若後端的 session ID 存在，且與目前裝置的不一致，就強制登出
+          // 若後端的 session ID 存在，且與目前瀏覽器本地的 session ID 不一致，立即將畫面強制登出
           if (dbUser.currentSessionId && dbUser.currentSessionId !== userSession.currentSessionId) {
             alert('⚠️ 系統通知：您的帳號已在其他裝置或瀏覽器登入，您已被強制登出！');
             setUserSession(null);
           }
         }
-      } catch (err) { /* 忽略暫時的網路錯誤 */ }
+      } catch (err) { /* 忽略暫時的網路錯誤，避免網路不穩時誤判 */ }
     };
 
-    const intervalId = setInterval(checkSession, 15000);
-    return () => clearInterval(intervalId);
+    // 防線一：將定時器縮短為每 2 秒檢查一次 (近乎即時)
+    const intervalId = setInterval(checkSession, 2000);
+    
+    // 防線二：視窗焦點偵測，當使用者一切換回這個舊網頁，不須等讀秒，0.1秒內立刻檢查並踢出！
+    window.addEventListener('focus', checkSession);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', checkSession);
+    };
   }, [userSession]);
 
   const availableDepts = useMemo(() => [...new Set(employees.map(e => e.dept).filter(Boolean))], [employees]);
@@ -1706,7 +1816,6 @@ const App = () => {
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogAction={handleLogAction} onLogin={async u=>{ setUserSession(u); setActiveMenu('welcome'); setNotification({type:'success',text:`${u.name} 登入成功`}); await fetchData(); }} />;
 
-  // 新增：統一處理選單點擊事件，切換選單並在手機版收合側邊欄
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
     setIsSidebarOpen(false); 
@@ -1722,7 +1831,6 @@ const App = () => {
         </div>
       )}
       
-      {/* 新增：手機版專屬頂部導覽列 */}
       <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between z-30 shrink-0 shadow-sm">
         <div className="flex items-center gap-3 text-sky-600">
           <div className="p-2 bg-sky-500 rounded-xl shadow-sm text-white"><LayoutDashboard size={20} /></div>
@@ -1733,7 +1841,6 @@ const App = () => {
         </button>
       </div>
 
-      {/* 新增：手機版側邊欄背景遮罩 */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
@@ -1741,7 +1848,6 @@ const App = () => {
         />
       )}
 
-      {/* 修改：側邊欄加入動態 CSS 類別，根據 isSidebarOpen 狀態控制滑出/收回 */}
       <aside className={`fixed md:relative top-0 left-0 h-full w-80 bg-white border-r border-slate-200 p-8 flex flex-col shadow-2xl md:shadow-sm shrink-0 text-left z-50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <div className="flex items-center justify-between mb-10">
           <div onClick={() => handleMenuClick('welcome')} className="flex items-center gap-4 text-sky-500 cursor-pointer hover:opacity-80 transition-opacity">
@@ -1801,7 +1907,7 @@ const App = () => {
           {activeMenu === 'announcement' && isAdmin && <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
           {activeMenu === 'approval' && isAdmin && <ApprovalView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} employees={employees} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'personnel' && isAdmin && <PersonnelManagement employees={employees} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} />}
-          {activeMenu === 'system-logs' && userSession.empId === 'root' && <SystemLogView sysLogs={sysLogs} />}
+          {activeMenu === 'system-logs' && userSession.empId === 'root' && <SystemLogView sysLogs={sysLogs} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} />}
         </div>
       </main>
       <style>{`
