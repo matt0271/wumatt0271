@@ -195,13 +195,15 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
   const catLabel = r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪');
 
   return (
-    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-100 ring-2 ring-inset ring-slate-300 border-slate-300' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
+    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-50 ring-2 ring-inset ring-indigo-400 border-indigo-400' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full text-sm">
         
         {/* Checkbox 區塊 */}
         {isSelectable && (
            <div className="shrink-0 w-6 flex items-center justify-center">
-             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-white"/>}</div>
+             <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>
+               {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
+             </div>
            </div>
         )}
 
@@ -318,6 +320,23 @@ const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, a
   );
 };
 
+// 新增共用：無限滾動監聽元件 (Infinite Scroll)
+const InfiniteScrollObserver = ({ onLoadMore, hasMore, isTable = false, colSpan = 1 }) => {
+  const observerRef = useRef(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting) onLoadMore(); },
+      { rootMargin: '100px' } // 在距離底部 100px 時提早觸發載入
+    );
+    if (observerRef.current) observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, onLoadMore]);
+
+  if (!hasMore) return null;
+  const content = <div ref={observerRef} className="py-6 flex justify-center"><Loader2 className="animate-spin text-slate-300" size={24} /></div>;
+  return isTable ? <tr><td colSpan={colSpan}>{content}</td></tr> : content;
+};
 
 // --- 流程追蹤 Modal ---
 const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
@@ -917,6 +936,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
   const [filters, setFilters] = useState({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10); // 新增：目前顯示的資料筆數
 
   const handleSearch = (e) => {
     if (e) e.preventDefault();
@@ -930,9 +950,9 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
       if (filters.endDate && r.startDate > filters.endDate) return false;
       return true;
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    setSearchResults(results); setHasSearched(true);
+    setSearchResults(results); setHasSearched(true); setVisibleCount(10); // 搜尋時重設顯示筆數
   };
-  const handleReset = () => { setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' }); setSearchResults([]); setHasSearched(false); };
+  const handleReset = () => { setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' }); setSearchResults([]); setHasSearched(false); setVisibleCount(10); };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left text-slate-900 font-sans">
@@ -951,7 +971,8 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
         <div className="p-8 space-y-4 text-left">
           {!hasSearched ? <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3"><Search size={48} className="opacity-20 mb-2 text-fuchsia-500" /><p>請設定上方查詢條件，並點擊「執行查詢」查看單據</p></div> : searchResults.length > 0 ? (
             <div className="space-y-3">
-              {searchResults.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} showReason={true} />)}
+              {searchResults.slice(0, visibleCount).map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} showReason={true} />)}
+              <InfiniteScrollObserver onLoadMore={() => setVisibleCount(c => c + 10)} hasMore={visibleCount < searchResults.length} />
             </div>
           ) : <div className="py-24 text-center text-slate-400 italic font-bold">查無符合條件的單據</div>}
         </div>
@@ -1028,58 +1049,98 @@ const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh,
 
 // 代理人確認中心
 const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLogAction, employees, setWorkflowTarget }) => {
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedBatchIds, setSelectedBatchIds] = useState([]);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
 
   const pendingRecords = useMemo(() => records.filter(r => r.formType === '請假' && (r.status === 'pending_substitute' || r.status === 'canceling_substitute') && r.substitute === userSession.name), [records, userSession.name]);
-  const selectedRecord = useMemo(() => pendingRecords.find(r => r.id === selectedId), [pendingRecords, selectedId]);
 
-  const handleUpdate = async (action) => {
-    if (!selectedId) return;
+  const handleToggleSelect = (id) => {
+    setSelectedBatchIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedBatchIds.length === pendingRecords.length) setSelectedBatchIds([]);
+    else setSelectedBatchIds(pendingRecords.map(r => r.id));
+  };
+
+  const handleBatchUpdate = async (action) => {
+    if (selectedBatchIds.length === 0) return;
     if (action === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回/拒絕原因為必填' });
     setUpdating(true);
-    let targetStatus = ''; const isCancel = selectedRecord.status === 'canceling_substitute';
-    if (action === 'rejected') targetStatus = isCancel ? 'approved' : 'rejected';
-    else {
-        const applicantRank = employees.find(emp => emp.empId === selectedRecord.empId)?.jobTitle || '';
-        if (applicantRank.includes('總經理')) targetStatus = isCancel ? 'canceling_assignment' : 'pending_assignment';
-        else if (applicantRank.includes('協理')) targetStatus = isCancel ? 'canceling_gm' : 'pending_gm';
-        else if (applicantRank.includes('經理') || applicantRank.includes('副理')) targetStatus = isCancel ? 'canceling_director' : 'pending_director';
-        else targetStatus = isCancel ? 'canceling_manager' : 'pending_manager';
-    }
+    
     try {
-      const finalOpinion = (action === 'rejected' && isCancel) ? `代理人駁回銷假：${opinion}` : opinion;
-      await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion: finalOpinion }) });
-      await onLogAction(userSession, '代理確認', `${action === 'rejected' ? (isCancel?'駁回銷假':'拒絕') : '同意'}${isCancel ? '銷假' : '代理單據'} (${selectedRecord?.serialId})`);
-      setNotification({ type: 'success', text: action === 'rejected' ? (isCancel ? '已駁回銷假' : '已拒絕代理') : (isCancel ? '已同意銷假' : '已同意代理') });
-      setSelectedId(null); setOpinion(''); onRefresh();
-    } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
+      let count = 0;
+      for (const id of selectedBatchIds) {
+        const r = pendingRecords.find(rec => rec.id === id);
+        if (!r) continue;
+
+        let targetStatus = ''; 
+        const isCancel = r.status === 'canceling_substitute';
+
+        if (action === 'rejected') {
+          targetStatus = isCancel ? 'approved' : 'rejected';
+        } else {
+          const applicantRank = employees.find(emp => emp.empId === r.empId)?.jobTitle || '';
+          if (applicantRank.includes('總經理')) targetStatus = isCancel ? 'canceling_assignment' : 'pending_assignment';
+          else if (applicantRank.includes('協理')) targetStatus = isCancel ? 'canceling_gm' : 'pending_gm';
+          else if (applicantRank.includes('經理') || applicantRank.includes('副理')) targetStatus = isCancel ? 'canceling_director' : 'pending_director';
+          else targetStatus = isCancel ? 'canceling_manager' : 'pending_manager';
+        }
+
+        const finalOpinion = (action === 'rejected' && isCancel) ? `代理人駁回銷假：${opinion}` : opinion;
+        await fetch(`${NGROK_URL}/api/records/${id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion: finalOpinion }) });
+        
+        const actionText = action === 'rejected' ? (isCancel ? '駁回銷假' : '拒絕') : '同意';
+        await onLogAction(userSession, '代理確認', `${actionText}${isCancel ? '銷假' : '代理單據'} (${r.serialId})`);
+        count++;
+      }
+      
+      setNotification({ type: 'success', text: `已成功批次處理 ${count} 筆代理確認任務！` });
+      setSelectedBatchIds([]); 
+      setOpinion(''); 
+      onRefresh();
+    } catch (err) { 
+      setNotification({ type: 'error', text: '批次處理時發生連線異常' }); 
+    } finally { 
+      setUpdating(false); 
+    }
   };
 
   return (
     <div className="space-y-6 pb-20 text-left font-sans text-slate-900">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-amber-500 p-8 text-white flex justify-between items-center text-left"><div className="space-y-1 text-left text-white"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待您確認的職務代理</span></div><h1 className="text-2xl font-black text-white">代理確認中心</h1><p className="text-sm opacity-90 font-medium italic text-white">確認同仁指定您為代理人的請假或銷假申請</p></div><UserCheck size={40} className="opacity-40 text-white" /></div>
-        <div className="p-8 space-y-4 text-left">
+        <div className="bg-amber-500 p-8 text-white flex justify-between items-center text-left"><div className="space-y-1 text-left text-white"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待您確認的職務代理</span></div><h1 className="text-2xl font-black text-white">代理確認中心</h1><p className="text-sm opacity-90 font-medium italic text-white">確認同仁指定您為代理人的請假或銷假申請 (支援批次簽核)</p></div><UserCheck size={40} className="opacity-40 text-white" /></div>
+        <div className="p-8 space-y-4 text-left bg-slate-50/30">
+          <div className="flex justify-between items-center mb-2">
+             <h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><ListChecks size={18} className="text-amber-500"/> 待處理任務列表</h3>
+             {pendingRecords.length > 0 && (
+               <button onClick={handleSelectAll} className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors shadow-sm">
+                 {selectedBatchIds.length === pendingRecords.length ? '取消全選' : '全選所有任務'}
+               </button>
+             )}
+          </div>
           {pendingRecords.length > 0 ? (
             <div className="space-y-3">
-              {pendingRecords.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} isSelectable={true} isSelected={selectedId===r.id} onSelect={()=>setSelectedId(r.id)} showReason={true} colorCls="border-amber-200" color="amber" />)}
+              {pendingRecords.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} isSelectable={true} isSelected={selectedBatchIds.includes(r.id)} onSelect={()=>handleToggleSelect(r.id)} showReason={true} colorCls="border-amber-200" color="amber" />)}
             </div>
           ) : <div className="py-12 text-center text-slate-300 italic font-bold">目前無待確認的代理任務</div>}
         </div>
       </div>
-      {selectedId && (
-        <div className="bg-white rounded-3xl shadow-xl border border-amber-200 p-8 flex flex-col md:flex-row gap-8 text-left animate-in slide-in-from-bottom-4">
+      {selectedBatchIds.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-xl border border-amber-300 p-8 flex flex-col md:flex-row gap-8 text-left animate-in slide-in-from-bottom-4 sticky bottom-6 z-40">
           <div className="flex-1 space-y-4 text-left">
-            <div className="flex items-center gap-2 text-amber-600 font-black text-sm"><MessageSquare size={18} className="text-amber-600" /> 代理人回覆 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回/拒絕為必填</span></div>
-            <textarea placeholder="填寫您拒絕或同意的意見 (選填)..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-600 font-black text-sm"><MessageSquare size={18} className="text-amber-600" /> 代理人回覆 <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回/拒絕為必填</span></div>
+              <div className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full shadow-sm">已選取 {selectedBatchIds.length} 筆任務</div>
+            </div>
+            <textarea placeholder={selectedBatchIds.length > 1 ? "填寫統一的同意或拒絕意見 (選填)..." : "填寫您拒絕或同意的意見 (選填)..."} className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900 focus:border-amber-300 focus:ring-4 focus:ring-amber-50" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
           </div>
           <div className="w-full md:w-72 flex flex-col justify-end gap-3 text-left">
-            <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-amber-600 font-bold">{selectedRecord?.serialId}</span></p>
+            <p className="text-[10px] font-black text-slate-400 uppercase px-1">批次處理單號：<span className="text-amber-600 font-bold line-clamp-1">{selectedBatchIds.map(id => pendingRecords.find(r=>r.id===id)?.serialId).join(', ')}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
-              <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all"><XCircle size={24}/><span className="text-center">{selectedRecord?.status === 'canceling_substitute' ? '駁回銷假' : '拒絕代理'}</span></button>
-              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">{selectedRecord?.status === 'canceling_substitute' ? '同意銷假' : '同意代理'}</span></button>
+              <button disabled={updating} onClick={() => handleBatchUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all shadow-sm"><XCircle size={24}/><span className="text-center">{selectedBatchIds.length > 1 ? '批次拒絕/駁回' : '拒絕代理'}</span></button>
+              <button disabled={updating} onClick={() => handleBatchUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all shadow-sm">{updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }<span className="text-center">{selectedBatchIds.length > 1 ? '批次同意代理' : '同意代理'}</span></button>
             </div>
           </div>
         </div>
@@ -1089,12 +1150,20 @@ const SubstituteView = ({ records, onRefresh, setNotification, userSession, onLo
 };
 
 const ApprovalView = ({ records, onRefresh, setNotification, userSession, employees, onLogAction, setWorkflowTarget }) => {
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedBatchIds, setSelectedBatchIds] = useState([]);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
   
   const pendingRecords = useMemo(() => records.filter(r => canManagerApproveRecord(userSession, r, employees)), [records, userSession, employees]);
-  const selectedRecord = useMemo(() => pendingRecords.find(r => r.id === selectedId), [pendingRecords, selectedId]);
+
+  const handleToggleSelect = (id) => {
+    setSelectedBatchIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedBatchIds.length === pendingRecords.length) setSelectedBatchIds([]);
+    else setSelectedBatchIds(pendingRecords.map(r => r.id));
+  };
 
   const gmStats = useMemo(() => {
     if (!userSession || userSession.empId !== '9002') return null;
@@ -1127,46 +1196,66 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
     window.XLSX.writeFile(wb, `交辦結案明細_${gmStats.month}.xlsx`);
   };
 
-  const handleUpdate = async (status) => {
-    if (!selectedId) return;
-    if (status === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
+  const handleBatchUpdate = async (actionStatus) => {
+    if (selectedBatchIds.length === 0) return;
+    if (actionStatus === 'rejected' && !opinion.trim()) return setNotification({ type: 'error', text: '駁回原因為必填' });
     setUpdating(true);
     
-    let targetStatus = status; const r = selectedRecord;
-    const applicantRank = employees.find(emp => emp.empId === r.empId)?.jobTitle || '', days = (parseFloat(r.totalHours) || 0) / 8, isCanceling = r.status.startsWith('canceling_');
-
-    if (status === 'approved') {
-        if (isCanceling) {
-            if (r.status === 'canceling_manager') targetStatus = days > 3 ? 'canceling_director' : 'canceling_assignment';
-            else if (r.status === 'canceling_director') targetStatus = ((applicantRank.includes('經理') || applicantRank.includes('副理')) && days >= 1) || days > 5 ? 'canceling_gm' : 'canceling_assignment';
-            else if (r.status === 'canceling_gm') targetStatus = 'canceling_assignment';
-            else if (r.status === 'canceling_assignment') targetStatus = 'canceled';
-        } else {
-            if (r.formType === '請假') {
-                if (r.status === 'pending_manager' || r.status === 'pending') targetStatus = days > 3 ? 'pending_director' : 'pending_assignment';
-                else if (r.status === 'pending_director') targetStatus = ((applicantRank.includes('經理') || applicantRank.includes('副理')) && days >= 1) || days > 5 ? 'pending_gm' : 'pending_assignment';
-                else if (r.status === 'pending_gm') targetStatus = 'pending_assignment';
-                else if (r.status === 'pending_assignment') targetStatus = 'approved';
-            } else {
-                if (['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status)) targetStatus = 'pending_assignment';
-                else if (r.status === 'pending_assignment') targetStatus = 'approved';
-            }
-        }
-    } else if (status === 'rejected' && isCanceling) targetStatus = 'approved';
-
     try {
-      const finalOpinion = (status === 'rejected' && isCanceling) ? `主管駁回銷假：${opinion}` : opinion;
-      await fetch(`${NGROK_URL}/api/records/${selectedId}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion: finalOpinion }) });
-      let actionText = targetStatus === 'approved' && isCanceling ? '駁回銷假' : targetStatus === 'approved' ? '核准 (結案)' : targetStatus === 'canceled' ? '同意銷假 (已結案)' : status === 'rejected' ? '駁回' : isCanceling ? '同意銷假' : '核准';
-      await onLogAction(userSession, userSession.empId === '9002' ? '交辦審核' : '主管簽核', `${actionText}單據 (${selectedRecord?.serialId})`);
-      setNotification({ type: 'success', text: (targetStatus === 'approved' && isCanceling) ? '已駁回銷假' : (targetStatus === 'canceled' ? '銷假完成' : '簽核已送出') });
-      setSelectedId(null); setOpinion(''); onRefresh();
-    } catch (err) { setNotification({ type: 'error', text: '連線異常' }); } finally { setUpdating(false); }
+      let count = 0;
+      for (const id of selectedBatchIds) {
+        const r = pendingRecords.find(rec => rec.id === id);
+        if (!r) continue;
+
+        let targetStatus = actionStatus; 
+        const applicantRank = employees.find(emp => emp.empId === r.empId)?.jobTitle || '';
+        const days = (parseFloat(r.totalHours) || 0) / 8;
+        const isCanceling = r.status.startsWith('canceling_');
+
+        if (actionStatus === 'approved') {
+            if (isCanceling) {
+                if (r.status === 'canceling_manager') targetStatus = days > 3 ? 'canceling_director' : 'canceling_assignment';
+                else if (r.status === 'canceling_director') targetStatus = ((applicantRank.includes('經理') || applicantRank.includes('副理')) && days >= 1) || days > 5 ? 'canceling_gm' : 'canceling_assignment';
+                else if (r.status === 'canceling_gm') targetStatus = 'canceling_assignment';
+                else if (r.status === 'canceling_assignment') targetStatus = 'canceled';
+            } else {
+                if (r.formType === '請假') {
+                    if (r.status === 'pending_manager' || r.status === 'pending') targetStatus = days > 3 ? 'pending_director' : 'pending_assignment';
+                    else if (r.status === 'pending_director') targetStatus = ((applicantRank.includes('經理') || applicantRank.includes('副理')) && days >= 1) || days > 5 ? 'pending_gm' : 'pending_assignment';
+                    else if (r.status === 'pending_gm') targetStatus = 'pending_assignment';
+                    else if (r.status === 'pending_assignment') targetStatus = 'approved';
+                } else {
+                    if (['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(r.status)) targetStatus = 'pending_assignment';
+                    else if (r.status === 'pending_assignment') targetStatus = 'approved';
+                }
+            }
+        } else if (actionStatus === 'rejected' && isCanceling) {
+            targetStatus = 'approved'; // 駁回銷假，退回已核准
+        }
+
+        const finalOpinion = (actionStatus === 'rejected' && isCanceling) ? `主管駁回銷假：${opinion}` : opinion;
+        await fetch(`${NGROK_URL}/api/records/${id}/status`, { method: 'PUT', headers: fetchOptions.headers, body: JSON.stringify({ status: targetStatus, opinion: finalOpinion }) });
+        
+        let actionText = targetStatus === 'approved' && isCanceling ? '駁回銷假' : targetStatus === 'approved' ? '核准 (結案)' : targetStatus === 'canceled' ? '同意銷假 (已結案)' : actionStatus === 'rejected' ? '駁回' : isCanceling ? '同意銷假' : '核准';
+        await onLogAction(userSession, userSession.empId === '9002' ? '交辦審核' : '主管簽核', `${actionText}單據 (${r.serialId})`);
+        count++;
+      }
+      
+      setNotification({ type: 'success', text: `批次處理完成！共順利簽核 ${count} 筆單據。` });
+      setSelectedBatchIds([]); 
+      setOpinion(''); 
+      onRefresh();
+    } catch (err) { 
+      setNotification({ type: 'error', text: '批次簽核發生異常，請檢查網路連線' }); 
+    } finally { 
+      setUpdating(false); 
+    }
   };
+
   return (
     <div className="space-y-6 pb-20 text-left font-sans text-slate-900">
       <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden text-left">
-        <div className="bg-indigo-600 p-8 text-white flex justify-between items-center text-left"><div className="space-y-1 text-left text-white"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待審核名單</span></div><h1 className="text-2xl font-black text-white">{userSession.empId === '9002' ? '交辦審核中心' : '主管審核中心'}</h1><p className="text-sm opacity-90 font-medium italic text-white">{userSession.empId === '9002' ? '確認並結案由主管核准後之交辦事項' : '審核員工提交之申請或銷假單'}</p></div><ShieldCheck size={40} className="opacity-40 text-white" /></div>
+        <div className="bg-indigo-600 p-8 text-white flex justify-between items-center text-left"><div className="space-y-1 text-left text-white"><div className="flex items-center gap-2 mb-1"><span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider text-white">待審核名單</span></div><h1 className="text-2xl font-black text-white">{userSession.empId === '9002' ? '交辦審核中心' : '主管審核中心'}</h1><p className="text-sm opacity-90 font-medium italic text-white">{userSession.empId === '9002' ? '確認並結案由主管核准後之交辦事項' : '審核員工提交之申請或銷假單'} (支援批次簽核)</p></div><ShieldCheck size={40} className="opacity-40 text-white" /></div>
         {userSession.empId === '9002' && gmStats && (
           <div className="px-8 pt-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4"><h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><BarChart3 size={18} className="text-purple-500" /> 本月 ({gmStats.month}) 全公司交辦結案統計</h3><button onClick={handleExportStats} className="flex items-center justify-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-[11px] font-black border border-purple-200 transition-colors shadow-sm active:scale-95"><Download size={14} /> 匯出結案明細 (Excel)</button></div>
@@ -1177,33 +1266,50 @@ const ApprovalView = ({ records, onRefresh, setNotification, userSession, employ
             </div>
           </div>
         )}
-        <div className="p-8 space-y-4 text-left">
+        <div className="p-8 space-y-4 text-left bg-slate-50/30">
+          <div className="flex justify-between items-center mb-2">
+             <h3 className="text-sm font-black text-slate-800 flex items-center gap-2"><ListChecks size={18} className="text-indigo-500"/> 待處理單據列表</h3>
+             {pendingRecords.length > 0 && (
+               <button onClick={handleSelectAll} className="px-4 py-2 text-xs font-bold text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors shadow-sm">
+                 {selectedBatchIds.length === pendingRecords.length ? '取消全選' : '全選所有單據'}
+               </button>
+             )}
+          </div>
           {pendingRecords.length > 0 ? (
             <div className="space-y-3">
-              {pendingRecords.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} isSelectable={true} isSelected={selectedId===r.id} onSelect={()=>setSelectedId(r.id)} showReason={true} showOp={true} colorCls="border-indigo-200" color="indigo" />)}
+              {pendingRecords.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} isSelectable={true} isSelected={selectedBatchIds.includes(r.id)} onSelect={()=>handleToggleSelect(r.id)} showReason={true} showOp={true} colorCls="border-indigo-200" color="indigo" />)}
             </div>
           ) : <div className="py-12 text-center text-slate-300 italic font-bold">目前無待簽核申請單</div>}
         </div>
       </div>
-      {selectedId && (
-        <div className="bg-white rounded-3xl shadow-xl border border-indigo-200 p-8 flex flex-col lg:flex-row gap-8 text-left animate-in slide-in-from-bottom-4">
+      {selectedBatchIds.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-xl border border-indigo-400 p-8 flex flex-col lg:flex-row gap-8 text-left animate-in slide-in-from-bottom-4 sticky bottom-6 z-40">
+          {selectedBatchIds.length === 1 && pendingRecords.find(r=>r.id===selectedBatchIds[0])?.formType === '請假' && (
+            <div className="w-full lg:w-64 bg-amber-50 rounded-2xl p-5 border border-amber-100 flex flex-col gap-2 text-left shrink-0">
+                <p className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1.5"><UserCheck size={14}/> 代理人 ({pendingRecords.find(r=>r.id===selectedBatchIds[0])?.substitute}) 意見</p>
+                <p className="text-xs font-bold text-amber-900 leading-relaxed whitespace-pre-wrap">{pendingRecords.find(r=>r.id===selectedBatchIds[0])?.opinion || '已同意代理 (無填寫特別意見)'}</p>
+            </div>
+          )}
           <div className="flex-1 flex flex-col space-y-4 text-left">
-            <div className="flex items-center gap-2 text-indigo-600 font-black text-sm shrink-0"><MessageSquare size={18} className="text-indigo-600" /> {selectedRecord?.status === 'pending_assignment' || selectedRecord?.status === 'canceling_assignment' ? '交辦備註' : '主管簽核意見'} <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span></div>
-            <textarea placeholder="填寫具體簽核意見或指示..." className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900 flex-1 min-h-[100px]" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2 text-indigo-600 font-black text-sm">
+                <MessageSquare size={18} className="text-indigo-600" /> {userSession.empId === '9002' ? '交辦備註' : '主管簽核意見'} <span className="text-rose-400 font-bold text-[10px] ml-1 uppercase tracking-widest">* 駁回為必填</span>
+              </div>
+              <div className="text-xs font-bold text-indigo-700 bg-indigo-100 px-3 py-1 rounded-full shadow-sm">已選取 {selectedBatchIds.length} 筆單據</div>
+            </div>
+            <textarea placeholder={selectedBatchIds.length > 1 ? "填寫統一批次簽核之指示或意見..." : "填寫具體簽核意見或指示..."} className="w-full p-5 rounded-2xl border bg-slate-50 outline-none text-sm font-bold text-slate-900 flex-1 min-h-[100px] focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50" value={opinion} onChange={(e) => setOpinion(e.target.value)} />
           </div>
           <div className="w-full lg:w-72 flex flex-col justify-end gap-3 text-left shrink-0">
-            <p className="text-[10px] font-black text-slate-400 uppercase px-1">選取單據：<span className="text-indigo-600 font-bold">{selectedRecord?.serialId}</span></p>
+            <p className="text-[10px] font-black text-slate-400 uppercase px-1">處理單號：<span className="text-indigo-600 font-bold line-clamp-1">{selectedBatchIds.map(id => pendingRecords.find(r=>r.id===id)?.serialId).join(', ')}</span></p>
             <div className="grid grid-cols-2 gap-3 text-white">
-              <button disabled={updating} onClick={() => handleUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">
+              <button disabled={updating} onClick={() => handleBatchUpdate('rejected')} className="flex flex-col items-center justify-center gap-2 py-4 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 hover:bg-rose-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all shadow-sm">
                 <XCircle size={24}/>
-                <span className="text-center">{selectedRecord?.status.startsWith('canceling_') ? '駁回銷假' : '駁回'}</span>
+                <span className="text-center">{selectedBatchIds.length > 1 ? '批次駁回' : '駁回退件'}</span>
               </button>
-              <button disabled={updating} onClick={() => handleUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all">
+              <button disabled={updating} onClick={() => handleBatchUpdate('approved')} className="flex flex-col items-center justify-center gap-2 py-4 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 hover:bg-emerald-600 active:scale-95 text-[11px] font-black uppercase text-center hover:text-white transition-all shadow-sm">
                 {updating ? <Loader2 size={24} className="animate-spin text-center" /> : <CheckCircle2 size={24} className="text-center" /> }
                 <span className="text-center">
-                  {selectedRecord?.status.startsWith('canceling_') 
-                    ? (selectedRecord.status === 'canceling_assignment' ? '同意銷假(結案)' : '同意銷假(送上級)')
-                    : (selectedRecord?.status === 'pending_assignment' ? '交辦確認(結案)' : '核准(送交辦)')}
+                  {selectedBatchIds.length > 1 ? '批次同意 / 核准' : (pendingRecords.find(r=>r.id===selectedBatchIds[0])?.status.startsWith('canceling_') ? '同意銷假(送出)' : '同意 / 核准')}
                 </span>
               </button>
             </div>
@@ -1283,6 +1389,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   const [pwdTarget, setPwdTarget] = useState(null); 
   const [expandedEmpId, setExpandedEmpId] = useState(null);
   const [isCustomDept, setIsCustomDept] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20); // 新增：人員列表的顯示筆數
 
   const filteredEmployees = useMemo(() => {
     if (!userSession) return [];
@@ -1355,7 +1462,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
           <table className="w-full border-collapse text-sm text-left text-slate-900">
             <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b"><tr><th className="px-8 py-4 text-left">員編</th><th className="px-4 py-4 text-left">姓名</th><th className="px-4 py-4 text-left">職稱 / 單位</th><th className="px-4 py-4 text-left">登入密碼</th><th className="px-8 py-4 text-right">操作</th></tr></thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEmployees.map(emp => (
+              {filteredEmployees.slice(0, visibleCount).map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-8 py-5 font-mono font-bold text-slate-600">{emp.empId}</td>
                   <td className="px-4 py-5">
@@ -1370,6 +1477,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
                   </td>
                 </tr>
               ))}
+              <InfiniteScrollObserver onLoadMore={() => setVisibleCount(c => c + 20)} hasMore={visibleCount < filteredEmployees.length} isTable={true} colSpan={5} />
             </tbody>
           </table>
         </div>
@@ -1380,6 +1488,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
 
 const SystemLogView = ({ sysLogs }) => {
   const [filters, setFilters] = useState({ actionType: '', keyword: '', startDate: '', endDate: '' });
+  const [visibleCount, setVisibleCount] = useState(30); // 新增：日誌列表的顯示筆數
 
   const displayLogs = useMemo(() => sysLogs.filter(log => {
       if (filters.actionType && log.actionType !== filters.actionType) return false;
@@ -1388,6 +1497,9 @@ const SystemLogView = ({ sysLogs }) => {
       if (filters.keyword) { const kw = filters.keyword.toLowerCase(); return (log.name?.toLowerCase().includes(kw) || log.empId?.toLowerCase().includes(kw) || log.details?.toLowerCase().includes(kw)); }
       return true;
     }), [sysLogs, filters]);
+
+  // 新增：當過濾條件改變時，重設滾動數量
+  useEffect(() => { setVisibleCount(30); }, [filters]);
 
   const handleReset = () => setFilters({ actionType: '', keyword: '', startDate: '', endDate: '' });
 
@@ -1450,7 +1562,7 @@ const SystemLogView = ({ sysLogs }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   <tr className="h-2"></tr>
-                  {displayLogs.map(log => {
+                  {displayLogs.slice(0, visibleCount).map(log => {
                     const d = new Date(log.createdAt);
                     const formattedDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
                     return (
@@ -1471,6 +1583,7 @@ const SystemLogView = ({ sysLogs }) => {
                       </tr>
                     );
                   })}
+                  <InfiniteScrollObserver onLoadMore={() => setVisibleCount(c => c + 30)} hasMore={visibleCount < displayLogs.length} isTable={true} colSpan={4} />
                 </tbody>
               </table>
             </div>
@@ -1489,6 +1602,7 @@ const SystemLogView = ({ sysLogs }) => {
 // --- App 主程式 ---
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 新增：側邊欄開關狀態
   const [records, setRecords] = useState([]);
   const [sysLogs, setSysLogs] = useState([]); 
   const [employees, setEmployees] = useState([]);
@@ -1584,8 +1698,14 @@ const App = () => {
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50 text-sky-500"><Loader2 className="animate-spin w-12 h-12" /><span className="ml-4 font-bold text-slate-500">系統連線中...</span></div>;
   if (!userSession) return <LoginView employees={employees} apiError={apiError} onLogAction={handleLogAction} onLogin={async u=>{ setUserSession(u); setActiveMenu('welcome'); setNotification({type:'success',text:`${u.name} 登入成功`}); await fetchData(); }} />;
 
+  // 新增：統一處理選單點擊事件，切換選單並在手機版收合側邊欄
+  const handleMenuClick = (menuId) => {
+    setActiveMenu(menuId);
+    setIsSidebarOpen(false); 
+  };
+
   return (
-    <div className="h-screen w-full bg-slate-50 flex text-left font-sans text-slate-900 overflow-hidden">
+    <div className="h-screen w-full bg-slate-50 flex flex-col md:flex-row text-left font-sans text-slate-900 overflow-hidden">
       <WorkflowModal isOpen={!!workflowTarget} onClose={() => setWorkflowTarget(null)} record={workflowTarget} employees={employees} />
       {notification && (
         <div className={`fixed top-10 right-10 z-[200] p-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right duration-300 border text-slate-900 ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>
@@ -1593,30 +1713,56 @@ const App = () => {
           <span className="font-bold text-sm text-slate-700">{notification.text}</span>
         </div>
       )}
-      <aside className="w-80 bg-white border-r border-slate-200 p-8 flex flex-col h-full shadow-sm shrink-0 text-left z-20">
-        <div onClick={() => setActiveMenu('welcome')} className="flex items-center gap-4 mb-10 text-sky-500 cursor-pointer hover:opacity-80 transition-opacity">
-          <div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white"><LayoutDashboard size={24} /></div>
-          <h2 className="font-black text-xl tracking-tight text-sky-600">員工服務平台</h2>
+      
+      {/* 新增：手機版專屬頂部導覽列 */}
+      <div className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between z-30 shrink-0 shadow-sm">
+        <div className="flex items-center gap-3 text-sky-600">
+          <div className="p-2 bg-sky-500 rounded-xl shadow-sm text-white"><LayoutDashboard size={20} /></div>
+          <span className="font-black text-lg tracking-tight">員工服務平台</span>
+        </div>
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors">
+          <Menu size={24} />
+        </button>
+      </div>
+
+      {/* 新增：手機版側邊欄背景遮罩 */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* 修改：側邊欄加入動態 CSS 類別，根據 isSidebarOpen 狀態控制滑出/收回 */}
+      <aside className={`fixed md:relative top-0 left-0 h-full w-80 bg-white border-r border-slate-200 p-8 flex flex-col shadow-2xl md:shadow-sm shrink-0 text-left z-50 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="flex items-center justify-between mb-10">
+          <div onClick={() => handleMenuClick('welcome')} className="flex items-center gap-4 text-sky-500 cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white"><LayoutDashboard size={24} /></div>
+            <h2 className="font-black text-xl tracking-tight text-sky-600">員工服務平台</h2>
+          </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+            <X size={20} />
+          </button>
         </div>
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900 custom-scrollbar pr-2">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left">主要服務項目</p>
-          <MenuItem id="welcome" icon={Sparkles} label="首頁總覽" active={activeMenu} onClick={setActiveMenu} />
-          <MenuItem id="announcement-list" icon={Bell} label="資訊公告" badge={unreadAnnCount} active={activeMenu} onClick={setActiveMenu} color="yellow" />
-          <MenuItem id="calendar" icon={Calendar} label="休假月曆" active={activeMenu} onClick={setActiveMenu} />
-          <MenuItem id="substitute" icon={UserCheck} label="代理確認" badge={menuSubstituteCount} active={activeMenu} onClick={setActiveMenu} color="amber" />
-          <MenuItem id="overtime" icon={Clock} label="加班申請" active={activeMenu} onClick={setActiveMenu} color="blue" />
-          <MenuItem id="leave-apply" icon={CalendarPlus} label="請假申請" active={activeMenu} onClick={setActiveMenu} color="emerald" />
-          <MenuItem id="leave-cancel" icon={Undo2} label="銷假與撤銷申請" active={activeMenu} onClick={setActiveMenu} color="rose" />
-          <MenuItem id="integrated-query" icon={ClipboardList} label="單據查詢" active={activeMenu} onClick={setActiveMenu} color="fuchsia" />
-          <MenuItem id="change-password" icon={KeyRound} label="修改密碼" active={activeMenu} onClick={setActiveMenu} color="slate" />
+          <MenuItem id="welcome" icon={Sparkles} label="首頁總覽" active={activeMenu} onClick={handleMenuClick} />
+          <MenuItem id="announcement-list" icon={Bell} label="資訊公告" badge={unreadAnnCount} active={activeMenu} onClick={handleMenuClick} color="yellow" />
+          <MenuItem id="calendar" icon={Calendar} label="休假月曆" active={activeMenu} onClick={handleMenuClick} />
+          <MenuItem id="substitute" icon={UserCheck} label="代理確認" badge={menuSubstituteCount} active={activeMenu} onClick={handleMenuClick} color="amber" />
+          <MenuItem id="overtime" icon={Clock} label="加班申請" active={activeMenu} onClick={handleMenuClick} color="blue" />
+          <MenuItem id="leave-apply" icon={CalendarPlus} label="請假申請" active={activeMenu} onClick={handleMenuClick} color="emerald" />
+          <MenuItem id="leave-cancel" icon={Undo2} label="銷假與撤銷申請" active={activeMenu} onClick={handleMenuClick} color="rose" />
+          <MenuItem id="integrated-query" icon={ClipboardList} label="單據查詢" active={activeMenu} onClick={handleMenuClick} color="fuchsia" />
+          <MenuItem id="change-password" icon={KeyRound} label="修改密碼" active={activeMenu} onClick={handleMenuClick} color="slate" />
           {isAdmin && (
             <>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left">管理功能區</p>
-              <MenuItem id="approval" icon={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '主管簽核'} badge={menuManagerCount} active={activeMenu} onClick={setActiveMenu} color="indigo" />
-              <MenuItem id="announcement" icon={Megaphone} label="公告維護" active={activeMenu} onClick={setActiveMenu} color="rose" />
-              <MenuItem id="personnel" icon={Users} label="人員管理" active={activeMenu} onClick={setActiveMenu} color="teal" />
+              <MenuItem id="approval" icon={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '主管簽核'} badge={menuManagerCount} active={activeMenu} onClick={handleMenuClick} color="indigo" />
+              <MenuItem id="announcement" icon={Megaphone} label="公告維護" active={activeMenu} onClick={handleMenuClick} color="rose" />
+              <MenuItem id="personnel" icon={Users} label="人員管理" active={activeMenu} onClick={handleMenuClick} color="teal" />
               {userSession.empId === 'root' && (
-                <button onClick={() => { setActiveMenu('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Activity size={20} /> 系統操作日誌</button>
+                <button onClick={() => { handleMenuClick('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Activity size={20} /> 系統操作日誌</button>
               )}
             </>
           )}
