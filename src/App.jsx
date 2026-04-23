@@ -187,7 +187,7 @@ const StatusBadge = ({ status, onClick, formType }) => {
   );
 };
 
-// 共用 RecordCard 元件
+// 共用 RecordCard 元件 (嚴格對齊版)
 const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelected, onSelect, actionSlot, showReason=false, showOp=false }) => {
   const isPost = r.appType === 'post';
   const typeLabel = r.formType === '請假' ? '請假申請' : (isPost ? '事後加班' : '事前加班');
@@ -196,14 +196,19 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
 
   return (
     <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-100 ring-2 ring-inset ring-slate-300 border-slate-300' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
-      <div className="flex flex-wrap gap-4 items-center w-full text-sm">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full text-sm">
+        
+        {/* Checkbox 區塊 */}
         {isSelectable && (
-           <div className="shrink-0 flex items-center justify-center">
+           <div className="shrink-0 w-6 flex items-center justify-center">
              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-white"/>}</div>
            </div>
         )}
-        <div className="flex-1 min-w-[120px]">
-          <div className="flex flex-wrap items-center gap-2 mb-1">
+
+        {/* 欄位 1：單據資訊 */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
+          <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">單據資訊</p>
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className={`px-2 py-0.5 rounded text-[10px] font-black ${typeColor}`}>{typeLabel}</span>
             <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{catLabel}</span>
             <span className="font-mono text-[10px] font-bold text-slate-500">{r.serialId}</span>
@@ -211,38 +216,51 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
               <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded" title="共享檢視"><Eye size={10} /> 共享</span>
             )}
           </div>
-          <div className="font-black text-slate-800 text-base">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
+          <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         
-        <div className="w-full sm:w-auto sm:flex-1 min-w-[140px]">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間 ({r.totalHours}H)</p>
-           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block">
+        {/* 欄位 2：時間與時數 */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
+           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block w-fit">
              {r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endHour}:${r.endMin}` : <>{r.startDate} {r.startHour}:${r.startMin} ~<br/>{r.endDate} {r.endHour}:${r.endMin}</>}
            </div>
         </div>
 
-        {(showReason || showOp || r.attachmentName) && (
-          <div className="w-full sm:w-auto sm:flex-1 min-w-[160px] space-y-1">
-            {(showReason || r.attachmentName) && (
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase">事由</p>
-                <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '-'}</p>
-                {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
-              </div>
-            )}
-            {showOp && r.formType === '請假' && (
-              <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase mt-1">代理人意見</p>
-                 <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="flex justify-end items-center gap-3 w-full md:w-auto shrink-0 ml-auto pt-2 md:pt-0 border-t md:border-0 border-slate-100 mt-2 md:mt-0">
-           <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
-           {actionSlot && actionSlot(r)}
+        {/* 欄位 3：事由與意見 (無論是否有內容都保持寬度，以利對齊) */}
+        <div className="flex flex-col min-w-0 w-full md:w-[25%] flex-1">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">事由與意見</p>
+           {(!showReason && !showOp && !r.attachmentName) ? (
+             <p className="font-bold text-xs text-slate-300 hidden md:block">-</p>
+           ) : (
+             <div className="space-y-1.5">
+               {(showReason || r.attachmentName) && (
+                 <div>
+                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">事由</p>
+                   <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '無事由'}</p>
+                   {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
+                 </div>
+               )}
+               {showOp && r.formType === '請假' && (
+                 <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">代理人意見</p>
+                    <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
+        
+        {/* 欄位 4：操作與狀態 */}
+        <div className="w-full md:w-[20%] shrink-0 flex flex-col md:items-end justify-center border-t md:border-0 border-slate-100 pt-3 md:pt-0 mt-2 md:mt-0">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1.5 w-full md:text-right">狀態 / 操作</p>
+           <div className="flex items-center md:justify-end gap-2 w-full">
+              <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
+              {actionSlot && actionSlot(r)}
+           </div>
+        </div>
+
       </div>
     </div>
   );
