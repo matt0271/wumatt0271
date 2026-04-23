@@ -187,7 +187,7 @@ const StatusBadge = ({ status, onClick, formType }) => {
   );
 };
 
-// 共用 RecordCard 元件 (嚴格對齊版)
+// 共用 RecordCard 元件
 const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelected, onSelect, actionSlot, showReason=false, showOp=false }) => {
   const isPost = r.appType === 'post';
   const typeLabel = r.formType === '請假' ? '請假申請' : (isPost ? '事後加班' : '事前加班');
@@ -195,22 +195,15 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
   const catLabel = r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪');
 
   return (
-    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-50 ring-2 ring-inset ring-indigo-400 border-indigo-400' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full text-sm">
-        
-        {/* Checkbox 區塊 */}
+    <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-100 ring-2 ring-inset ring-slate-300 border-slate-300' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
+      <div className="flex flex-wrap gap-4 items-center w-full text-sm">
         {isSelectable && (
-           <div className="shrink-0 w-6 flex items-center justify-center">
-             <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>
-               {isSelected && <Check size={14} className="text-white" strokeWidth={4} />}
-             </div>
+           <div className="shrink-0 flex items-center justify-center">
+             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'border-slate-600 bg-slate-600' : 'border-slate-300'}`}>{isSelected && <div className="w-2 h-2 rounded-full bg-white"/>}</div>
            </div>
         )}
-
-        {/* 欄位 1：單據資訊 */}
-        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
-          <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">單據資訊</p>
-          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+        <div className="flex-1 min-w-[120px]">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className={`px-2 py-0.5 rounded text-[10px] font-black ${typeColor}`}>{typeLabel}</span>
             <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{catLabel}</span>
             <span className="font-mono text-[10px] font-bold text-slate-500">{r.serialId}</span>
@@ -218,51 +211,38 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
               <span className="inline-flex items-center gap-1 text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded" title="共享檢視"><Eye size={10} /> 共享</span>
             )}
           </div>
-          <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
+          <div className="font-black text-slate-800 text-base">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         
-        {/* 欄位 2：時間與時數 */}
-        <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
-           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block w-fit">
+        <div className="w-full sm:w-auto sm:flex-1 min-w-[140px]">
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5">時間 ({r.totalHours}H)</p>
+           <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block">
              {r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endHour}:${r.endMin}` : <>{r.startDate} {r.startHour}:${r.startMin} ~<br/>{r.endDate} {r.endHour}:${r.endMin}</>}
            </div>
         </div>
 
-        {/* 欄位 3：事由與意見 (無論是否有內容都保持寬度，以利對齊) */}
-        <div className="flex flex-col min-w-0 w-full md:w-[25%] flex-1">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">事由與意見</p>
-           {(!showReason && !showOp && !r.attachmentName) ? (
-             <p className="font-bold text-xs text-slate-300 hidden md:block">-</p>
-           ) : (
-             <div className="space-y-1.5">
-               {(showReason || r.attachmentName) && (
-                 <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">事由</p>
-                   <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '無事由'}</p>
-                   {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
-                 </div>
-               )}
-               {showOp && r.formType === '請假' && (
-                 <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">代理人意見</p>
-                    <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
-                 </div>
-               )}
-             </div>
-           )}
-        </div>
+        {(showReason || showOp || r.attachmentName) && (
+          <div className="w-full sm:w-auto sm:flex-1 min-w-[160px] space-y-1">
+            {(showReason || r.attachmentName) && (
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase">事由</p>
+                <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '-'}</p>
+                {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
+              </div>
+            )}
+            {showOp && r.formType === '請假' && (
+              <div>
+                 <p className="text-[10px] font-black text-slate-400 uppercase mt-1">代理人意見</p>
+                 <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.opinion}><span className="text-amber-600">[{r.substitute}]</span> {r.opinion||'同意'}</p>
+              </div>
+            )}
+          </div>
+        )}
         
-        {/* 欄位 4：操作與狀態 */}
-        <div className="w-full md:w-[20%] shrink-0 flex flex-col md:items-end justify-center border-t md:border-0 border-slate-100 pt-3 md:pt-0 mt-2 md:mt-0">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1.5 w-full md:text-right">狀態 / 操作</p>
-           <div className="flex items-center md:justify-end gap-2 w-full">
-              <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
-              {actionSlot && actionSlot(r)}
-           </div>
+        <div className="flex justify-end items-center gap-3 w-full md:w-auto shrink-0 ml-auto pt-2 md:pt-0 border-t md:border-0 border-slate-100 mt-2 md:mt-0">
+           <StatusBadge status={r.status} formType={r.formType} onClick={(e) => { e.stopPropagation(); setWorkflowTarget(r); }} />
+           {actionSlot && actionSlot(r)}
         </div>
-
       </div>
     </div>
   );
@@ -320,23 +300,6 @@ const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, a
   );
 };
 
-// 新增共用：無限滾動監聽元件 (Infinite Scroll)
-const InfiniteScrollObserver = ({ onLoadMore, hasMore, isTable = false, colSpan = 1 }) => {
-  const observerRef = useRef(null);
-  useEffect(() => {
-    if (!hasMore) return;
-    const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting) onLoadMore(); },
-      { rootMargin: '100px' } // 在距離底部 100px 時提早觸發載入
-    );
-    if (observerRef.current) observer.observe(observerRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, onLoadMore]);
-
-  if (!hasMore) return null;
-  const content = <div ref={observerRef} className="py-6 flex justify-center"><Loader2 className="animate-spin text-slate-300" size={24} /></div>;
-  return isTable ? <tr><td colSpan={colSpan}>{content}</td></tr> : content;
-};
 
 // --- 流程追蹤 Modal ---
 const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
@@ -677,10 +640,12 @@ const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
 
   const handleLogin = async (e) => {
     e.preventDefault(); setLoading(true); setError('');
+    const newSessionId = Math.random().toString(36).substring(2) + Date.now().toString(36); // 產生專屬 Session ID
+
     if (identifier.trim() === 'root') {
       const today = new Date(), dynamicPassword = `${today.getFullYear() - 1911}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
       if (password.trim() === dynamicPassword) {
-        const rootUser = { id: 'root', empId: 'root', name: '系統管理員', jobTitle: '最高管理員', dept: '系統維護部', hireDate: new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString() };
+        const rootUser = { id: 'root', empId: 'root', name: '系統管理員', jobTitle: '最高管理員', dept: '系統維護部', currentSessionId: newSessionId, hireDate: new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString() };
         await onLogAction(rootUser, '登入/登出', '系統管理員登入成功'); onLogin(rootUser);
       } else setError('帳號或密碼不正確');
       setLoading(false); return;
@@ -689,7 +654,17 @@ const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
     try {
       const user = employees.find(emp => emp.name === identifier.trim() || emp.empId === identifier.trim());
       if (user && ((user.password && user.password !== "") ? user.password : user.empId) === password.trim()) {
-        await onLogAction(user, '登入/登出', '使用者登入成功'); onLogin(user);
+        
+        // 將新的 Session ID 更新至後端員工資料庫中
+        await fetch(`${NGROK_URL}/api/employees/${user.id}`, {
+          method: 'PATCH',
+          headers: fetchOptions.headers,
+          body: JSON.stringify({ currentSessionId: newSessionId })
+        });
+
+        const updatedUser = { ...user, currentSessionId: newSessionId };
+        await onLogAction(updatedUser, '登入/登出', '使用者登入成功'); 
+        onLogin(updatedUser);
       } else setError('帳號或密碼不正確');
     } catch (err) { setError('登入處理發生系統錯誤，請重試'); } finally { setLoading(false); }
   };
@@ -1649,6 +1624,17 @@ const App = () => {
       ]); 
       
       const fetchedEmployees = Array.isArray(resEmp) ? resEmp : [];
+      
+      // 新增：在一般資料更新時，也同步檢查 session
+      if (userSession && userSession.empId !== 'root') {
+        const currentUserData = fetchedEmployees.find(e => e.id === userSession.id);
+        if (currentUserData && currentUserData.currentSessionId && currentUserData.currentSessionId !== userSession.currentSessionId) {
+           alert('⚠️ 系統通知：您的帳號已在其他裝置或瀏覽器登入，您已被強制登出！');
+           setUserSession(null);
+           return; // 中斷後續更新
+        }
+      }
+
       setSysLogs((Array.isArray(resLogs) ? resLogs : []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       setRecords((Array.isArray(resRec) ? resRec : []).map(r => {
           let updatedR = { ...r };
@@ -1661,6 +1647,28 @@ const App = () => {
   };
   
   useEffect(() => { fetchData(); }, []);
+
+  // 新增：背景心跳檢測 (Heartbeat)，每 15 秒檢查一次是否被其他裝置登入
+  useEffect(() => {
+    if (!userSession || userSession.empId === 'root') return;
+    
+    const checkSession = async () => {
+      try {
+        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' });
+        if (res.ok) {
+          const dbUser = await res.json();
+          // 若後端的 session ID 存在，且與目前裝置的不一致，就強制登出
+          if (dbUser.currentSessionId && dbUser.currentSessionId !== userSession.currentSessionId) {
+            alert('⚠️ 系統通知：您的帳號已在其他裝置或瀏覽器登入，您已被強制登出！');
+            setUserSession(null);
+          }
+        }
+      } catch (err) { /* 忽略暫時的網路錯誤 */ }
+    };
+
+    const intervalId = setInterval(checkSession, 15000);
+    return () => clearInterval(intervalId);
+  }, [userSession]);
 
   const availableDepts = useMemo(() => [...new Set(employees.map(e => e.dept).filter(Boolean))], [employees]);
   const isAdmin = useMemo(() => userSession && (userSession.empId === 'root' || userSession.empId === '9002' || ADMIN_TITLES.includes(userSession.jobTitle)), [userSession]);
