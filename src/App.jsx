@@ -607,10 +607,19 @@ const CalendarView = ({ records, userSession }) => {
               if (!day) return <div key={`empty-${idx}`} className="min-h-[110px] bg-slate-50/30 rounded-2xl border border-slate-100/50"></div>;
               const dateStr = formatDate(day), isToday = dateStr === formatDate(new Date()), leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
               return (
-                <div key={dateStr} className={`min-h-[110px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors ${isToday ? 'border-sky-300 bg-sky-50/30 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
-                  <div className={`text-xs font-black px-1.5 ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>{day.getDate()}</div>
-                  <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                    {leavesToday.map(r => <div key={r.id} className="px-1.5 py-1 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-md text-[9px] font-bold truncate shrink-0" title={`${r.name} - ${LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || r.category}\n${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`}>{r.name}、{(parseFloat(r.totalHours) || 0) / 8}天</div>)}
+                <div key={dateStr} className={`min-h-[120px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors ${isToday ? 'border-sky-300 bg-sky-50/30 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
+                  <div className={`text-xs font-black px-1.5 mb-1 ${isToday ? 'text-sky-600' : 'text-slate-500'}`}>{day.getDate()}</div>
+                  <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 custom-scrollbar pr-1">
+                    {leavesToday.map(r => {
+                      const catLabel = LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || r.category;
+                      const daysCount = (parseFloat(r.totalHours) || 0) / 8;
+                      const titleInfo = `申請人：${r.name}\n部門：${r.dept}\n假別：${catLabel}\n時間：${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}\n時數：${r.totalHours} 小時 (${daysCount} 天)\n代理人：${r.substitute || '未設定'}\n事由：${r.reason || '無'}`;
+                      return (
+                        <div key={r.id} className="px-2 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-emerald-700 rounded-md text-xs font-bold truncate shrink-0 cursor-help shadow-sm transition-colors" title={titleInfo}>
+                          {r.name} - {catLabel}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -936,7 +945,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
 // 銷假與撤銷申請中心
 const LeaveCancelView = ({ records, onRefresh, setNotification, userSession, onLogAction, setWorkflowTarget }) => {
   const [cancelTarget, setCancelTarget] = useState(null);
-  const displayRecords = useMemo(() => records.filter(r => r.empId === userSession.empId && (r.status === 'approved' || r.status.startsWith('canceling_'))).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [records, userSession.empId]);
+  const displayRecords = useMemo(() => records.filter(r => r.empId === userSession.empId && (r.status === 'approved' || r.status.startsWith('canceling_') || r.status === 'canceled')).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [records, userSession.empId]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
@@ -947,14 +956,19 @@ const LeaveCancelView = ({ records, onRefresh, setNotification, userSession, onL
           {displayRecords.length > 0 ? (
             <div className="space-y-3">
               {displayRecords.map(r => (
-                <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} actionSlot={(rec) => (
-                  !rec.status.startsWith('canceling_') ? (
+                <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} actionSlot={(rec) => {
+                  const isCanceling = rec.status.startsWith('canceling_');
+                  const isCanceled = rec.status === 'canceled';
+                  if (isCanceled) {
+                    return <span className="px-4 py-2 bg-slate-100 text-slate-400 rounded-lg text-xs font-black whitespace-nowrap border border-slate-200 cursor-not-allowed">已結案</span>;
+                  }
+                  return !isCanceling ? (
                     <button onClick={(e) => {e.stopPropagation(); setCancelTarget(rec);}} className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-black transition-colors whitespace-nowrap shadow-sm">申請{rec.formType === '請假' ? '銷假' : '撤銷'}</button>
-                  ) : <span className="px-4 py-2 bg-slate-100 text-slate-400 rounded-lg text-xs font-black whitespace-nowrap border border-slate-200">處理中...</span>
-                )} />
+                  ) : <span className="px-4 py-2 bg-slate-100 text-slate-400 rounded-lg text-xs font-black whitespace-nowrap border border-slate-200">處理中...</span>;
+                }} />
               ))}
             </div>
-          ) : <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3"><Undo2 size={48} className="opacity-20 mb-2 text-rose-500" /><p>目前沒有可銷假或撤銷的已核准單據</p></div>}
+          ) : <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3"><Undo2 size={48} className="opacity-20 mb-2 text-rose-500" /><p>目前沒有可銷假或撤銷的相關單據</p></div>}
         </div>
       </div>
     </div>
