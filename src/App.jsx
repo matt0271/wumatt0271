@@ -220,7 +220,7 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
           <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         
-        {/* 欄位 2：時間與時數 (修正顯示問題，移除所有模板字串 $ 符號) */}
+        {/* 欄位 2：時間與時數 */}
         <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0 text-left text-slate-900">
            <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
            <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
@@ -316,16 +316,19 @@ const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, a
   const isActive = active === id;
   const activeStyle = activeCls || `bg-${color}-50 text-${color}-600 border-${color}-600 shadow-sm`;
   return (
-    <button onClick={() => onClick(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left group overflow-hidden ${isActive ? activeStyle : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-      <div className={`shrink-0 transition-transform ${collapsed ? 'mx-auto scale-110' : ''}`}><Icon size={20} /></div>
+    <button onClick={() => onClick(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left group overflow-hidden relative ${isActive ? activeStyle : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+      <div className={`shrink-0 transition-transform relative ${collapsed ? 'mx-auto scale-110' : ''}`}>
+        <Icon size={20} />
+        {/* 精準紅點：當縮合且有通知時，紅點精準出現在圖示右上角 */}
+        {collapsed && badge > 0 && (
+           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white animate-pulse"></span>
+        )}
+      </div>
       {!collapsed && (
         <>
           <span className="truncate flex-1">{label}</span>
           {badge > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
         </>
-      )}
-      {collapsed && badge > 0 && (
-         <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
       )}
     </button>
   );
@@ -1613,7 +1616,7 @@ const SystemLogView = ({ sysLogs, onRefresh, setNotification, userSession, onLog
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // 新增側邊欄縮合狀態
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); 
   const [records, setRecords] = useState([]);
   const [sysLogs, setSysLogs] = useState([]); 
   const [employees, setEmployees] = useState([]);
@@ -1801,7 +1804,10 @@ const App = () => {
               <MenuItem id="personnel" icon={Users} label="人員管理" active={activeMenu} onClick={handleMenuClick} color="teal" collapsed={isSidebarCollapsed} />
               {userSession.empId === 'root' && (
                 <button onClick={() => { handleMenuClick('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 group relative overflow-hidden ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-                  <div className={`shrink-0 transition-transform ${isSidebarCollapsed ? 'mx-auto scale-110' : ''}`}><Activity size={20} className="text-left" /></div>
+                  <div className={`shrink-0 transition-transform relative ${isSidebarCollapsed ? 'mx-auto scale-110' : ''}`}>
+                    <Activity size={20} className="text-left" />
+                    {/* 系統日誌縮合時也顯示紅點 (如果有需要，此處通常不需 badge 但若要一致性可手動增加) */}
+                  </div>
                   {!isSidebarCollapsed && <span className="truncate">系統操作日誌</span>}
                 </button>
               )}
@@ -1825,7 +1831,6 @@ const App = () => {
           </button>
         </div>
         
-        {/* 桌面收合小按鈕 */}
         <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-sky-500 shadow-sm z-50 transition-transform active:scale-90">
           {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
