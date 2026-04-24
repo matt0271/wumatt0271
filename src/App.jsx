@@ -6,7 +6,8 @@ import {
   Info, Briefcase, Building2, CheckCircle2, XCircle, MessageSquare, Download, Upload, FileSpreadsheet, RotateCcw,
   FileText, Calendar, Undo2, Bell, CheckCircle, LogOut, Lock, UserCheck, Eye, EyeOff, KeyRound,
   CalendarPlus, ClipboardList, HelpCircle, Timer, Sparkles, ChevronDown, ChevronUp, Megaphone,
-  Paperclip, UploadCloud, Activity, GitMerge, CheckCircle2 as CheckIcon, Circle as CircleIcon, ClockIcon
+  Paperclip, UploadCloud, Activity, GitMerge, CheckCircle2 as CheckIcon, Circle as CircleIcon, ClockIcon,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // --- API 設定 ---
@@ -219,12 +220,19 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
           <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         
-        {/* 欄位 2：時間與時數 */}
+        {/* 欄位 2：時間與時數 (修正顯示問題，移除所有模板字串 $ 符號) */}
         <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0 text-left text-slate-900">
            <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
            <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
            <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block w-fit">
-             {r.startDate === r.endDate ? `${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endHour}:${r.endMin}` : <>{r.startDate} {r.startHour}:${r.startMin} ~<br/>{r.endDate} {r.endHour}:${r.endMin}</>}
+             {r.startDate === r.endDate ? (
+               <span>{r.startDate} {r.startHour}:{r.startMin} ~ {r.endHour}:{r.endMin}</span>
+             ) : (
+               <>
+                 {r.startDate} {r.startHour}:{r.startMin} ~<br/>
+                 {r.endDate} {r.endHour}:{r.endMin}
+               </>
+             )}
            </div>
         </div>
 
@@ -304,13 +312,21 @@ const ShareSelector = ({ formData, setFormData, employees, availableDepts, color
   )
 };
 
-const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, activeCls }) => {
+const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, activeCls, collapsed }) => {
   const isActive = active === id;
   const activeStyle = activeCls || `bg-${color}-50 text-${color}-600 border-${color}-600 shadow-sm`;
   return (
-    <button onClick={() => onClick(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left ${isActive ? activeStyle : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
-      <Icon size={20} /> {label}
-      {badge > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
+    <button onClick={() => onClick(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left group overflow-hidden ${isActive ? activeStyle : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+      <div className={`shrink-0 transition-transform ${collapsed ? 'mx-auto scale-110' : ''}`}><Icon size={20} /></div>
+      {!collapsed && (
+        <>
+          <span className="truncate flex-1">{label}</span>
+          {badge > 0 && <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{badge}</span>}
+        </>
+      )}
+      {collapsed && badge > 0 && (
+         <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+      )}
     </button>
   );
 };
@@ -1479,7 +1495,7 @@ const PersonnelManagement = ({ employees, onRefresh, setNotification, userSessio
   );
 };
 
-// --- 系統日誌 View (已移除清理功能) ---
+// --- 系統日誌 View ---
 const SystemLogView = ({ sysLogs, onRefresh, setNotification, userSession, onLogAction }) => {
   const [filters, setFilters] = useState({ actionType: '', keyword: '', startDate: '', endDate: '' });
   const [visibleCount, setVisibleCount] = useState(30); 
@@ -1597,6 +1613,7 @@ const SystemLogView = ({ sysLogs, onRefresh, setNotification, userSession, onLog
 const App = () => {
   const [activeMenu, setActiveMenu] = useState('welcome');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // 新增側邊欄縮合狀態
   const [records, setRecords] = useState([]);
   const [sysLogs, setSysLogs] = useState([]); 
   const [employees, setEmployees] = useState([]);
@@ -1747,59 +1764,74 @@ const App = () => {
         </button>
       </div>
 
-      {isSidebarOpen && (
+      {(isSidebarOpen || (isSidebarCollapsed && !isSidebarOpen)) && (
         <div 
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity text-left"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <aside className={`fixed md:relative top-0 left-0 h-full w-80 bg-white border-r border-slate-200 p-8 flex flex-col shadow-2xl md:shadow-sm shrink-0 text-left z-50 transform transition-transform duration-300 ease-in-out text-left ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed md:relative top-0 left-0 h-full bg-white border-r border-slate-200 p-6 flex flex-col shadow-2xl md:shadow-sm shrink-0 text-left z-50 transform transition-all duration-300 ease-in-out text-left ${isSidebarOpen ? 'translate-x-0 w-80' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-24' : 'md:w-80'}`}>
         <div className="flex items-center justify-between mb-10 text-left">
-          <div onClick={() => handleMenuClick('welcome')} className="flex items-center gap-4 text-sky-500 cursor-pointer hover:opacity-80 transition-opacity text-left">
-            <div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white text-left"><LayoutDashboard size={24} className="text-white text-left" /></div>
-            <h2 className="font-black text-xl tracking-tight text-sky-600 text-left">員工服務平台</h2>
+          <div onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="flex items-center gap-4 text-sky-500 cursor-pointer hover:opacity-80 transition-all text-left overflow-hidden">
+            <div className="p-3 bg-sky-500 rounded-2xl shadow-lg text-white shrink-0"><LayoutDashboard size={24} className="text-white text-left" /></div>
+            {!isSidebarCollapsed && <h2 className="font-black text-xl tracking-tight text-sky-600 truncate animate-in slide-in-from-left-2 text-left">員工服務平台</h2>}
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors text-left">
             <X size={20} className="text-left" />
           </button>
         </div>
+
         <nav className="space-y-2 flex-grow overflow-y-auto text-left text-slate-900 custom-scrollbar pr-2 text-left">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left text-left">主要服務項目</p>
-          <MenuItem id="welcome" icon={Sparkles} label="首頁總覽" active={activeMenu} onClick={handleMenuClick} />
-          <MenuItem id="announcement-list" icon={Bell} label="資訊公告" badge={unreadAnnCount} active={activeMenu} onClick={handleMenuClick} color="yellow" />
-          <MenuItem id="calendar" icon={Calendar} label="休假月曆" active={activeMenu} onClick={handleMenuClick} />
-          <MenuItem id="substitute" icon={UserCheck} label="代理確認" badge={menuSubstituteCount} active={activeMenu} onClick={handleMenuClick} color="amber" />
-          <MenuItem id="overtime" icon={Clock} label="加班申請" active={activeMenu} onClick={handleMenuClick} color="blue" />
-          <MenuItem id="leave-apply" icon={CalendarPlus} label="請假申請" active={activeMenu} onClick={handleMenuClick} color="emerald" />
-          <MenuItem id="leave-cancel" icon={Undo2} label="銷假與撤銷申請" active={activeMenu} onClick={handleMenuClick} color="rose" />
-          <MenuItem id="integrated-query" icon={ClipboardList} label="單據查詢" active={activeMenu} onClick={handleMenuClick} color="fuchsia" />
-          <MenuItem id="change-password" icon={KeyRound} label="修改密碼" active={activeMenu} onClick={handleMenuClick} color="slate" />
+          {!isSidebarCollapsed && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 text-left text-left">主要服務項目</p>}
+          <MenuItem id="welcome" icon={Sparkles} label="首頁總覽" active={activeMenu} onClick={handleMenuClick} collapsed={isSidebarCollapsed} />
+          <MenuItem id="announcement-list" icon={Bell} label="資訊公告" badge={unreadAnnCount} active={activeMenu} onClick={handleMenuClick} color="yellow" collapsed={isSidebarCollapsed} />
+          <MenuItem id="calendar" icon={Calendar} label="休假月曆" active={activeMenu} onClick={handleMenuClick} collapsed={isSidebarCollapsed} />
+          <MenuItem id="substitute" icon={UserCheck} label="代理確認" badge={menuSubstituteCount} active={activeMenu} onClick={handleMenuClick} color="amber" collapsed={isSidebarCollapsed} />
+          <MenuItem id="overtime" icon={Clock} label="加班申請" active={activeMenu} onClick={handleMenuClick} color="blue" collapsed={isSidebarCollapsed} />
+          <MenuItem id="leave-apply" icon={CalendarPlus} label="請假申請" active={activeMenu} onClick={handleMenuClick} color="emerald" collapsed={isSidebarCollapsed} />
+          <MenuItem id="leave-cancel" icon={Undo2} label="銷假與撤銷申請" active={activeMenu} onClick={handleMenuClick} color="rose" collapsed={isSidebarCollapsed} />
+          <MenuItem id="integrated-query" icon={ClipboardList} label="單據查詢" active={activeMenu} onClick={handleMenuClick} color="fuchsia" collapsed={isSidebarCollapsed} />
+          <MenuItem id="change-password" icon={KeyRound} label="修改密碼" active={activeMenu} onClick={handleMenuClick} color="slate" collapsed={isSidebarCollapsed} />
           {isAdmin && (
             <>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left text-left text-left">管理功能區</p>
-              <MenuItem id="approval" icon={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '主管簽核'} badge={menuManagerCount} active={activeMenu} onClick={handleMenuClick} color="indigo" />
-              <MenuItem id="announcement" icon={Megaphone} label="公告維護" active={activeMenu} onClick={handleMenuClick} color="rose" />
-              <MenuItem id="personnel" icon={Users} label="人員管理" active={activeMenu} onClick={handleMenuClick} color="teal" />
+              {!isSidebarCollapsed && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mt-8 mb-2 text-left text-left text-left">管理功能區</p>}
+              <MenuItem id="approval" icon={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '主管簽核'} badge={menuManagerCount} active={activeMenu} onClick={handleMenuClick} color="indigo" collapsed={isSidebarCollapsed} />
+              <MenuItem id="announcement" icon={Megaphone} label="公告維護" active={activeMenu} onClick={handleMenuClick} color="rose" collapsed={isSidebarCollapsed} />
+              <MenuItem id="personnel" icon={Users} label="人員管理" active={activeMenu} onClick={handleMenuClick} color="teal" collapsed={isSidebarCollapsed} />
               {userSession.empId === 'root' && (
-                <button onClick={() => { handleMenuClick('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 text-left ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}><Activity size={20} className="text-left" /> 系統操作日誌</button>
+                <button onClick={() => { handleMenuClick('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 group relative overflow-hidden ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
+                  <div className={`shrink-0 transition-transform ${isSidebarCollapsed ? 'mx-auto scale-110' : ''}`}><Activity size={20} className="text-left" /></div>
+                  {!isSidebarCollapsed && <span className="truncate">系統操作日誌</span>}
+                </button>
               )}
             </>
           )}
         </nav>
+
         <div className="mt-auto space-y-4 pt-4 border-t border-slate-100 text-left text-left">
-          <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-3 text-left text-slate-900 text-left">
-            <div className="px-2 min-w-[40px] h-10 bg-sky-100 rounded-2xl flex items-center justify-center font-black text-sky-600 shadow-inner text-[10px] text-left">{(userSession.dept || '部門').substring(0,2)}</div>
-            <div className="overflow-hidden text-left text-slate-900 text-left">
-              <p className="text-xs font-black truncate text-left">{userSession.name}</p>
-              <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tighter text-left">{userSession.empId}</p>
-            </div>
+          <div className={`p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-3 text-left text-slate-900 transition-all ${isSidebarCollapsed ? 'justify-center p-2' : ''}`}>
+            <div className={`shrink-0 min-w-[40px] h-10 bg-sky-100 rounded-2xl flex items-center justify-center font-black text-sky-600 shadow-inner text-[10px] text-left`}>{(userSession.dept || '部門').substring(0,2)}</div>
+            {!isSidebarCollapsed && (
+              <div className="overflow-hidden text-left text-slate-900 text-left animate-in fade-in zoom-in-95">
+                <p className="text-xs font-black truncate text-left">{userSession.name}</p>
+                <p className="text-[10px] text-slate-400 font-mono font-bold tracking-tighter text-left">{userSession.empId}</p>
+              </div>
+            )}
           </div>
-          <button onClick={async () => { await handleLogAction(userSession, '登入/登出', '使用者登出系統'); setUserSession(null); }} className="w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left text-rose-500 text-left"><LogOut size={20} className="text-left" /> 登出系統</button>
+          <button onClick={async () => { await handleLogAction(userSession, '登入/登出', '使用者登出系統'); setUserSession(null); }} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100 active:scale-95 text-left text-rose-500 ${isSidebarCollapsed ? 'justify-center px-2' : ''}`}>
+            <LogOut size={20} className="shrink-0" /> 
+            {!isSidebarCollapsed && <span className="truncate">登出系統</span>}
+          </button>
         </div>
+        
+        {/* 桌面收合小按鈕 */}
+        <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-sky-500 shadow-sm z-50 transition-transform active:scale-90">
+          {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
       </aside>
 
-      <main className="flex-grow h-full p-4 sm:p-10 overflow-y-auto bg-slate-50 text-left text-slate-900 custom-scrollbar text-left">
+      <main className="flex-grow h-full p-4 sm:p-10 overflow-y-auto bg-slate-50 text-left text-slate-900 custom-scrollbar text-left transition-all duration-300">
         <div className="max-w-7xl mx-auto space-y-12 text-left text-slate-900 text-left">
           {activeMenu === 'welcome' && <WelcomeView userSession={userSession} records={records} onRefresh={fetchData} setActiveMenu={setActiveMenu} isAdmin={isAdmin} announcements={combinedAnnouncements} employees={employees} readAnns={readAnns} markAnnAsRead={markAnnAsRead} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'announcement-list' && <AnnouncementListView announcements={combinedAnnouncements} readAnns={readAnns} markAnnAsRead={markAnnAsRead} />}
