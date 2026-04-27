@@ -979,7 +979,7 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
               <p className="font-black text-emerald-900 mb-2 text-left">連續日期之請假單不可分開簽核，並須依規定檢附證明。</p>
             </div>
           </div>
-          <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.95] ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}>送出請假申請</button>
+          <button disabled={totalHours <= 0 || submitting} className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-0.95 ${totalHours <= 0 || submitting ? 'bg-slate-300' : 'bg-emerald-500 hover:bg-emerald-600'} text-white`}>送出請假申請</button>
         </form>
       </div>
 
