@@ -21,6 +21,7 @@ const fetchOptions = {
 const ADMIN_TITLES = ["總經理", "協理", "經理", "副理"];
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = ['00', '30']; 
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 閒置登出時間：15 分鐘
 
 const OT_CATEGORIES = [
   { id: 'regular', label: '一般上班日' }, { id: 'holiday', label: '國定假日' },
@@ -48,7 +49,31 @@ const ANNOUNCEMENT_TYPES = [
   { id: 'shared_doc', label: '單據共享', colorClass: 'bg-sky-100 text-sky-700' }
 ];
 
-// --- 特休計算 Helpers ---
+// --- 工具 Helpers ---
+
+/**
+ * 檢查兩段時間是否重疊
+ * 邏輯：Max(Start1, Start2) < Min(End1, End2)
+ */
+const isTimeOverlapping = (newReq, existingRecords) => {
+  const newStart = new Date(`${newReq.startDate}T${newReq.startHour}:${newReq.startMin}:00`).getTime();
+  const newEnd = new Date(`${newReq.endDate}T${newReq.endHour}:${newReq.endMin}:00`).getTime();
+
+  if (isNaN(newStart) || isNaN(newEnd)) return false;
+
+  return existingRecords.some(r => {
+    // 排除已駁回、已撤銷或已銷假的單據
+    if (['rejected', 'canceled'].includes(r.status)) return false;
+
+    const exStart = new Date(`${r.startDate}T${r.startHour}:${r.startMin}:00`).getTime();
+    const exEnd = new Date(`${r.endDate}T${r.endHour}:${r.endMin}:00`).getTime();
+
+    if (isNaN(exStart) || isNaN(exEnd)) return false;
+
+    return Math.max(newStart, exStart) < Math.min(newEnd, exEnd);
+  });
+};
+
 const getNextAnniversary = (hireDateStr) => {
   if (!hireDateStr) return null;
   const hireDate = new Date(hireDateStr);
@@ -210,7 +235,7 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
         <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0 text-left text-slate-900">
           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">單據資訊</p>
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <span className={`px-2 py-0.5 rounded text-[10px] font-black ${typeColor}`}>{typeLabel}</span>
+            <span className={`px-2.5 py-1 rounded text-[10px] font-black ${typeColor}`}>{typeLabel}</span>
             <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{catLabel}</span>
             <span className="font-mono text-[10px] font-bold text-slate-500">{r.serialId}</span>
             {r.empId !== userSession.empId && userSession.empId !== 'root' && r.sharedWith?.includes(userSession.empId) && (
@@ -319,7 +344,6 @@ const MenuItem = ({ id, icon:Icon, label, badge, color='sky', active, onClick, a
     <button onClick={() => onClick(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left group overflow-hidden relative ${isActive ? activeStyle : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
       <div className={`shrink-0 transition-transform relative ${collapsed ? 'mx-auto scale-110' : ''}`}>
         <Icon size={20} />
-        {/* 精準紅點：當縮合且有通知時，紅點精準出現在圖示右上角 */}
         {collapsed && badge > 0 && (
            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white animate-pulse"></span>
         )}
@@ -559,7 +583,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left text-slate-900">
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow text-left">
-          <div className="flex items-center gap-5 text-left"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-left text-emerald-600"><CalendarDays size={28} /></div><div className="text-left"><div className="flex items-center gap-2 mb-1 text-left"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">特休餘額</p>{userWarningStatus && <AlertTriangle size={14} className="text-rose-500 animate-bounce" title="即遇到期" />}</div><div className="flex items-baseline gap-1 text-left"><span className={`text-3xl font-black ${userWarningStatus ? 'text-rose-600' : 'text-slate-800'}`}>{userSession.hireDate ? remainAnnual : '-'}</span><span className="text-sm font-bold text-slate-500 text-left">HR</span></div></div></div>
+          <div className="flex items-center gap-5 text-left"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-left text-emerald-600"><CalendarDays size={28} /></div><div className="text-left"><div className="flex items-center gap-2 mb-1 text-left"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">特休餘額</p>{userWarningStatus && <AlertTriangle size={14} className="text-rose-500 animate-bounce" title="即遇到期" />}</div><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black">{userSession.hireDate ? remainAnnual : '-'}</span><span className="text-sm font-bold text-slate-500 text-left">HR</span></div></div></div>
           <div className="text-right flex flex-col gap-1.5 text-left"><span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${userSession.hireDate ? 'text-slate-500 bg-slate-100' : 'text-rose-500 bg-rose-50'}`}>{userSession.hireDate ? `總額度 ${totalAnnual} HR` : '請先設定到職日'}</span>{userSession.hireDate && <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg text-left">已休 {usedAnnual} HR</span>}</div>
         </div>
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow text-left">
@@ -570,7 +594,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
       <div className={`grid grid-cols-1 md:grid-cols-2 ${isAdmin ? 'lg:grid-cols-3' : ''} gap-6 text-left text-slate-900`}>
         <div onClick={() => setActiveMenu && setActiveMenu('substitute')} className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md hover:border-amber-300 transition-all cursor-pointer active:scale-[0.98] h-full text-left">
-          <div className="flex items-center gap-5 text-left"><div className="p-4 bg-amber-50 text-amber-500 rounded-2xl text-left text-amber-500"><UserCheck size={28} /></div><div className="text-left"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">待代理確認</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800 text-left">{substituteCount}</span><span className="text-sm font-bold text-slate-500 text-left">件</span></div></div></div>
+          <div className="flex items-center gap-5 text-left"><div className="p-4 bg-amber-50 text-amber-600 rounded-2xl text-left text-amber-500"><UserCheck size={28} /></div><div className="text-left"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 text-left">待代理確認</p><div className="flex items-baseline gap-1 text-left"><span className="text-3xl font-black text-slate-800 text-left">{substituteCount}</span><span className="text-sm font-bold text-slate-500 text-left">件</span></div></div></div>
           <div className="text-right flex flex-col gap-1.5 text-left"><span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 text-left"><ArrowRight size={12} className="text-amber-700" /> 前往確認</span></div>
         </div>
         {isAdmin && (
@@ -727,7 +751,7 @@ const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
           {error && <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-600 text-xs font-bold animate-in fade-in slide-in-from-top-2 text-left text-slate-900"><AlertTriangle size={18} className="text-rose-600" /> {error}</div>}
           <div className="space-y-4 text-left">
             <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 px-1 uppercase tracking-widest text-left">員編或姓名</label><input type="text" required className="w-full p-4 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-slate-900" value={identifier} onChange={e => setIdentifier(e.target.value)} /></div>
-            <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 px-1 uppercase tracking-widest text-left">密碼</label><div className="relative text-left"><input type={showPassword ? 'text' : 'password'} required className="w-full p-4 pr-12 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-slate-900 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" value={password} onChange={e => setPassword(e.target.value)} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-left"><Eye size={18} className="text-slate-400" /></button></div></div>
+            <div className="space-y-1 text-left text-slate-900"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">密碼</label><div className="relative text-left"><input type={showPassword ? 'text' : 'password'} required className="w-full p-4 pr-12 rounded-2xl border bg-slate-50 font-bold outline-none focus:ring-2 focus:ring-sky-500 text-slate-900 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden" value={password} onChange={e => setPassword(e.target.value)} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-left"><Eye size={18} className="text-slate-400" /></button></div></div>
           </div>
           <button disabled={loading} className="w-full py-4 rounded-2xl font-black text-white bg-sky-500 shadow-xl hover:bg-sky-600 active:scale-95 flex items-center justify-center gap-3 transition-all text-white"><Loader2 size={20} className={loading ? "animate-spin text-white" : "hidden"} /><span className="text-white">確認登入</span></button>
         </form>
@@ -768,7 +792,18 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
   const isOverLimit = currentMonthOTHours + (Number(totalHours) || 0) > 46;
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); if (totalHours <= 0 || submitting || isOverLimit) return; setSubmitting(true);
+    e.preventDefault(); 
+    if (totalHours <= 0 || submitting || isOverLimit) return; 
+    setSubmitting(true);
+
+    // 重複申請檢查
+    const userExistingRecords = records.filter(r => r.empId === formData.empId);
+    if (isTimeOverlapping(formData, userExistingRecords)) {
+      setNotification({ type: 'error', text: '申請失敗：該時段與您現有的申請單據時間重疊，請檢查後再試' });
+      setSubmitting(false);
+      return;
+    }
+
     let initialStatus = 'pending_manager'; const userRank = userSession.jobTitle || '';
     if (userRank.includes('總經理')) initialStatus = 'pending_assignment';
     else if (userRank.includes('協理')) initialStatus = 'pending_gm';
@@ -812,7 +847,7 @@ const OvertimeView = ({ currentSerialId, onRefresh, records, employees, setNotif
             <div className="space-y-1 text-left"><label className="text-[10px] font-black text-slate-400 uppercase text-left">原因說明</label><textarea required rows="2" placeholder="請描述具體工作內容..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-100 text-left" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} /></div>
             <ShareSelector formData={formData} setFormData={setFormData} employees={employees} availableDepts={availableDepts} color="blue" />
           </div>
-          <div className={`${appType === 'pre' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-orange-50 border-orange-500 text-orange-800'} border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-1 text-left shadow-sm transition-colors text-left`}><h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'} text-left`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4><p className="text-left">A. 申請人→經副理→協理→總經理→交辦。</p><p className="text-left">B. 此單於加班後七個工作日內交至辦理。</p><p className="text-left">C. 加班費將依勞基法規定倍率計算；補休則依工作時數 1:1 計算。</p><p className="text-left">D. 每月加班時數上限不得超過 46 小時。</p></div>
+          <div className={`${appType === 'pre' ? 'bg-blue-50 border-blue-500 text-blue-800' : 'bg-orange-50 border-orange-500 text-orange-800'} border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-1 text-left shadow-sm transition-colors text-left`}><h4 className={`flex items-center gap-2 font-black mb-1 text-sm ${appType === 'pre' ? 'text-blue-900' : 'text-orange-900'} text-left`}><Info size={16} className={appType === 'pre' ? 'text-blue-600' : 'text-orange-600'}/> 備註：</h4><p className="text-left">A. 申請人→經副理→協理→總經理→交辦。</p><p className="text-left">B. 此單於加班後七個工作日內交至辦理。</p><p className="text-left">C. 加盤費將依勞基法規定倍率計算；補休則依工作時數 1:1 計算。</p><p className="text-left">D. 每月加班時數上限不得超過 46 小時。</p></div>
           {isOverLimit && <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-start gap-3 text-rose-700 text-sm font-bold shadow-sm animate-in fade-in slide-in-from-bottom-2 text-left text-rose-700"><AlertTriangle size={20} className="shrink-0 text-rose-500" /><div className="text-left">送出限制：當月加班時數將超過 46 小時法定上限！<div className="text-xs font-medium mt-1 text-rose-600 text-left">當月已核准：{currentMonthOTHours} 小時 + 本次申請：{totalHours || 0} 小時 = 預計 {currentMonthOTHours + (Number(totalHours) || 0)} 小時</div></div></div>}
           <button disabled={totalHours <= 0 || submitting || isOverLimit} type="submit" className={`w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all active:scale-[0.98] ${totalHours <= 0 || submitting || isOverLimit ? 'bg-slate-300 cursor-not-allowed' : (appType === 'pre' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-orange-500 hover:bg-orange-600')} text-white`}>{submitting ? '提交中...' : `送出加班申請 (${appType === 'pre' ? '事前' : '事後'})`}</button>
         </form>
@@ -876,7 +911,18 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   }, [formData.startDate, formData.endDate, formData.startHour, formData.startMin, formData.endHour, formData.endMin]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); if (totalHours <= 0 || submitting) return; setSubmitting(true);
+    e.preventDefault(); 
+    if (totalHours <= 0 || submitting) return; 
+    setSubmitting(true);
+
+    // 重複申請檢查
+    const userExistingRecords = records.filter(r => r.empId === formData.empId);
+    if (isTimeOverlapping(formData, userExistingRecords)) {
+      setNotification({ type: 'error', text: '申請失敗：該時段與您現有的申請單據時間重疊，請檢查後再試' });
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const freshRes = await fetch(`${NGROK_URL}/api/records?_t=${Date.now()}`, { ...fetchOptions, cache: 'no-store' });
       if (!freshRes.ok) throw new Error('無法驗證最新餘額');
@@ -1639,6 +1685,37 @@ const App = () => {
     else sessionStorage.removeItem('docflow_user_session');
   }, [userSession]);
 
+  // --- 閒置自動登出機制 ---
+  useEffect(() => {
+    if (!userSession) return;
+
+    let logoutTimer;
+
+    const resetTimer = () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      logoutTimer = setTimeout(() => {
+        handleAutoLogout();
+      }, IDLE_TIMEOUT_MS);
+    };
+
+    const handleAutoLogout = async () => {
+      await handleLogAction(userSession, '登入/登出', '因長時間閒置，系統自動登出');
+      setUserSession(null);
+      setNotification({ type: 'error', text: '因長時間未操作，系統已自動登出' });
+    };
+
+    // 監聽各種活動
+    const events = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer(); // 初始啟動定時器
+
+    return () => {
+      if (logoutTimer) clearTimeout(logoutTimer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [userSession]);
+
   const markAnnAsRead = (annId) => {
     if (!userSession) return;
     setReadAnns(prev => { if (prev.includes(annId)) return prev; const next = [...prev, annId]; localStorage.setItem(`readAnns_${userSession.empId}`, JSON.stringify(next)); return next; });
@@ -1806,7 +1883,6 @@ const App = () => {
                 <button onClick={() => { handleMenuClick('system-logs'); fetchData(); }} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 text-left mt-4 group relative overflow-hidden ${activeMenu === 'system-logs' ? 'bg-slate-800 text-white border-slate-900 shadow-md' : 'text-slate-400 hover:bg-slate-50 border-transparent'}`}>
                   <div className={`shrink-0 transition-transform relative ${isSidebarCollapsed ? 'mx-auto scale-110' : ''}`}>
                     <Activity size={20} className="text-left" />
-                    {/* 系統日誌縮合時也顯示紅點 (如果有需要，此處通常不需 badge 但若要一致性可手動增加) */}
                   </div>
                   {!isSidebarCollapsed && <span className="truncate">系統操作日誌</span>}
                 </button>
