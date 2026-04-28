@@ -36,6 +36,13 @@ const LEAVE_CATEGORIES = [
   { id: 'welfare', label: '福利假' }, { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停假' }
 ];
 
+const ABNORMAL_CATEGORIES = [
+  { id: 'forgot_logout', label: '電腦未登出或未關機' },
+  { id: 'official_outing', label: '公務外出' },
+  { id: 'late_logout', label: '逾時登出，無加班申請事實' },
+  { id: 'other', label: '其他' }
+];
+
 const ANNOUNCEMENT_TYPES = [
   { id: 'policy', label: '政策更新', colorClass: 'bg-violet-50 text-violet-600' },
   { id: 'system', label: '系統維護', colorClass: 'bg-rose-50 text-rose-600' },
@@ -267,9 +274,23 @@ const StatusBadge = ({ status, onClick, formType }) => {
 
 const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelected, onSelect, actionSlot, showReason=false, showOp=false }) => {
   const isPost = r.appType === 'post';
-  const typeLabel = r.formType === '請假' ? '請假申請' : (isPost ? '事後加班' : '事前加班');
-  const typeColor = r.formType === '請假' ? 'bg-emerald-50 text-emerald-700' : (isPost ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700');
-  const catLabel = r.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定') : (r.compensationType === 'leave' ? '換補休' : '計薪');
+  let typeLabel = '';
+  let typeColor = '';
+  let catLabel = '';
+
+  if (r.formType === '請假') {
+    typeLabel = '請假申請';
+    typeColor = 'bg-emerald-50 text-emerald-700';
+    catLabel = LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || '未設定';
+  } else if (r.formType === '出勤異常') {
+    typeLabel = '出勤異常';
+    typeColor = 'bg-orange-50 text-orange-700';
+    catLabel = ABNORMAL_CATEGORIES.find(c => c.id === r.category)?.label || '未設定';
+  } else {
+    typeLabel = isPost ? '事後加班' : '事前加班';
+    typeColor = 'bg-blue-50 text-blue-700';
+    catLabel = r.compensationType === 'leave' ? '換補休' : '計薪';
+  }
 
   return (
     <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-slate-50 ring-2 ring-inset ring-indigo-400 border-indigo-400' : 'bg-white hover:border-slate-300 border-slate-200'}`}>
@@ -294,8 +315,8 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
           <div className="font-black text-slate-800 text-base truncate w-full">{r.name} <span className="text-xs text-slate-500 font-bold ml-1">{r.dept}</span></div>
         </div>
         <div className="flex flex-col min-w-0 w-full md:w-[25%] md:shrink-0 text-left text-slate-900">
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 ({r.totalHours}H)</p>
-           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 ({r.totalHours}H)</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 hidden md:block">時間 {r.formType !== '出勤異常' && `(${r.totalHours}H)`}</p>
+           <p className="text-[10px] font-black text-slate-400 uppercase mb-1 md:hidden">時間 {r.formType !== '出勤異常' && `(${r.totalHours}H)`}</p>
            <div className="font-bold text-[11px] text-slate-700 leading-tight bg-slate-50 p-1.5 rounded-lg inline-block w-fit">
              {r.startDate === r.endDate ? <span>{r.startDate} {r.startHour}:{r.startMin} ~ {r.endHour}:{r.endMin}</span> : <>{r.startDate} {r.startHour}:{r.startMin} ~<br/>{r.endDate} {r.endHour}:{r.endMin}</>}
            </div>
@@ -309,7 +330,7 @@ const RecordCard = ({ r, userSession, setWorkflowTarget, isSelectable, isSelecte
                {(showReason || r.attachmentName) && (
                  <div>
                    <p className="text-[10px] font-black text-slate-400 uppercase mb-0.5 md:hidden">事由</p>
-                   <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || '無事由'}</p>
+                   <p className="font-bold text-xs text-slate-600 line-clamp-1" title={r.reason}>{r.reason || (r.formType === '出勤異常' ? catLabel : '無事由')}</p>
                    {r.attachmentName && <a href={r.attachmentData} download={r.attachmentName} onClick={e=>e.stopPropagation()} className="text-[10px] text-sky-600 hover:underline inline-flex items-center mt-0.5"><Paperclip size={10} className="mr-0.5"/>附件</a>}
                  </div>
                )}
@@ -517,6 +538,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
   const managerCount = useMemo(() => !isAdmin ? 0 : records.filter(r => canManagerApproveRecord(userSession, r, employees)).length, [records, userSession, isAdmin, employees]);
   const processingOtCount = useMemo(() => records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '加班' && ['pending', 'pending_manager', 'pending_director', 'pending_gm', 'pending_assignment', 'canceling_manager', 'canceling_director', 'canceling_gm', 'canceling_assignment'].includes(r.status)).length, [records, userSession.empId]);
   const processingLvCount = useMemo(() => records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '請假' && ['pending', 'pending_substitute', 'pending_manager', 'pending_director', 'pending_gm', 'pending_assignment', 'canceling_substitute', 'canceling_manager', 'canceling_director', 'canceling_gm', 'canceling_assignment'].includes(r.status)).length, [records, userSession.empId]);
+  const processingAbCount = useMemo(() => records.filter(r => (userSession.empId === 'root' || r.empId === userSession.empId) && r.formType === '出勤異常' && ['pending', 'pending_manager', 'pending_director', 'pending_gm', 'pending_assignment', 'canceling_manager', 'canceling_director', 'canceling_gm', 'canceling_assignment'].includes(r.status)).length, [records, userSession.empId]);
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => calculatePTOStats(userSession.empId, userSession.hireDate, records), [records, userSession.empId, userSession.hireDate]);
 
@@ -642,6 +664,7 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
           <div className="flex flex-col gap-3 flex-1 w-full text-left">
             <div onClick={() => setActiveMenu && setActiveMenu('overtime')} className="bg-slate-50 hover:bg-blue-50 border border-slate-100 hover:border-blue-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98] text-left text-slate-900"><span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-blue-600 text-left">加班處理中 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1 text-blue-600"/></span><div className="flex items-baseline gap-1 text-left"><span className="text-2xl font-black text-slate-800 group-hover:text-blue-600 text-left">{processingOtCount}</span><span className="text-[10px] font-bold text-slate-500 group-hover:text-blue-500 text-left">件</span></div></div>
             <div onClick={() => setActiveMenu && setActiveMenu('leave-apply')} className="bg-slate-50 hover:bg-emerald-50 border border-slate-100 hover:border-emerald-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98] text-left text-slate-900"><span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-emerald-600 text-left">請假處理中 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1 text-emerald-600"/></span><div className="flex items-baseline gap-1 text-left"><span className="text-2xl font-black text-slate-800 group-hover:text-emerald-600 text-left">{processingLvCount}</span><span className="text-[10px] font-bold text-slate-500 group-hover:text-emerald-500 text-left">件</span></div></div>
+            <div onClick={() => setActiveMenu && setActiveMenu('abnormality')} className="bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 rounded-2xl py-3 px-5 flex items-center justify-between cursor-pointer transition-all group active:scale-[0.98] text-left text-slate-900"><span className="text-xs font-bold text-slate-500 flex items-center gap-1 group-hover:text-orange-600 text-left">異常處理中 <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-2 group-hover:ml-1 text-orange-600"/></span><div className="flex items-baseline gap-1 text-left"><span className="text-2xl font-black text-slate-800 group-hover:text-orange-600 text-left">{processingAbCount}</span><span className="text-[10px] font-bold text-slate-500 group-hover:text-orange-500 text-left">件</span></div></div>
           </div>
         </div>
       </div>
@@ -1045,6 +1068,161 @@ const LeaveApplyView = ({ currentSerialId, onRefresh, employees, setNotification
   );
 };
 
+// --- 出勤異常單 View ---
+const AbnormalityView = ({ currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction, setWorkflowTarget }) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [withdrawTarget, setWithdrawTarget] = useState(null);
+  
+  const [formData, setFormData] = useState({
+    name: userSession.name,
+    empId: userSession.empId,
+    dept: userSession.dept || '',
+    category: 'forgot_logout',
+    startDate: '',
+    startHour: '09',
+    startMin: '00',
+    endDate: '',
+    endHour: '18',
+    endMin: '00',
+    reason: '',
+    sharedWith: []
+  });
+
+  const handleEmpIdChange = (id) => { const matched = employees.find(e => e.empId === id); setFormData(prev => ({ ...prev, empId: id, name: matched ? matched.name : prev.name, dept: matched ? matched.dept : prev.dept })); };
+  const handleNameChange = (name) => { const matched = employees.find(e => e.name === name); setFormData(prev => ({ ...prev, name: name, empId: matched ? matched.empId : prev.empId, dept: matched ? matched.dept : prev.dept })); };
+
+  const recentSubmissions = useMemo(() => records.filter(r => r.formType === '出勤異常' && (userSession.empId === 'root' || r.empId === userSession.empId) && new Date(r.createdAt) >= new Date(new Date().setDate(new Date().getDate() - 30))).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [records, userSession.empId]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); 
+    if (submitting) return; 
+    
+    if (!formData.startDate) {
+      setNotification({ type: 'error', text: '請選擇出勤日期' });
+      return;
+    }
+    
+    if (formData.category === 'other' && !formData.reason.trim()) {
+      setNotification({ type: 'error', text: '請填寫其他原因之詳細說明' });
+      return;
+    }
+
+    setSubmitting(true);
+
+    let initialStatus = 'pending_manager'; 
+    const userRank = userSession.jobTitle || '';
+    if (userRank.includes('總經理')) initialStatus = 'pending_assignment';
+    else if (userRank.includes('協理')) initialStatus = 'pending_gm';
+    else if (userRank.includes('經理') || userRank.includes('副理')) initialStatus = 'pending_director';
+
+    try {
+      const payload = { 
+        ...formData, 
+        endDate: formData.startDate, 
+        sharedWith: formData.sharedWith.join(','), 
+        serialId: currentSerialId, 
+        formType: '出勤異常', 
+        totalHours: 0, 
+        status: initialStatus, 
+        createdAt: new Date().toISOString() 
+      };
+      const res = await fetch(`${NGROK_URL}/api/records`, { method: 'POST', headers: fetchOptions.headers, body: JSON.stringify(payload) });
+      if(!res.ok) throw new Error('API Error');
+      await onLogAction(userSession, '表單申請', `送出出勤異常單 (${currentSerialId})`);
+      setFormData(prev => ({ ...prev, startDate: '', endDate: '', reason: '', sharedWith: [] }));
+      setNotification({ type: 'success', text: '出勤異常確認單已送出' }); 
+      onRefresh();
+    } catch (err) { 
+      setNotification({ type: 'error', text: '送出失敗，請檢查網路連線或後端伺服器' }); 
+    } finally { 
+      setSubmitting(false); 
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500 text-left text-slate-900">
+      {withdrawTarget && <ConfirmModal title="確定要抽單刪除？" desc={`單號：${withdrawTarget.serialId}`} onCancel={() => setWithdrawTarget(null)} onConfirm={async () => { try { await fetch(`${NGROK_URL}/api/records/${withdrawTarget.id}`, { method: 'DELETE', headers: fetchOptions.headers }); await onLogAction(userSession, '單據撤銷', `刪除出勤異常單 (${withdrawTarget.serialId})`); setNotification({ type: 'success', text: '已成功刪除單據' }); setWithdrawTarget(null); onRefresh(); } catch(err) { setNotification({ type: 'error', text: '刪除失敗' }); } }} confirmText="確認刪除" confirmClass="bg-rose-500" icon={AlertTriangle} />}
+      
+      <BaseCard>
+        <ViewHeader title="出勤異常確認單" subtitle="提交您的出勤異常紀錄與原因" bgClass="bg-orange-500" icon={Fingerprint} rightElement={<div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 font-bold text-[11px] font-mono shadow-sm text-white text-left"><span className="opacity-70 mr-1 text-white">NO.</span>{currentSerialId}</div>} />
+        <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left text-slate-900">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-left text-slate-900">
+            <FormGroup label="部門" required><BaseSelect required ringColor="orange" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>請選擇</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</BaseSelect></FormGroup>
+            <FormGroup label="姓名"><BaseInput ringColor="orange" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></FormGroup>
+            <FormGroup label="員編"><BaseInput ringColor="orange" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></FormGroup>
+          </div>
+          
+          <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-3 gap-6 items-start text-left text-slate-900">
+            <FormGroup label="出勤日期" required>
+              <BaseInput type="date" required ringColor="orange" value={formData.startDate} onChange={e=>setFormData({...formData, startDate:e.target.value, endDate:e.target.value})} />
+            </FormGroup>
+            <FormGroup label="上班時間" required>
+              <div className="flex gap-2">
+                <BaseSelect ringColor="orange" value={formData.startHour} onChange={e=>setFormData({...formData, startHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                <span className="flex items-center font-black text-slate-400">:</span>
+                <BaseSelect ringColor="orange" value={formData.startMin} onChange={e=>setFormData({...formData, startMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+              </div>
+            </FormGroup>
+            <FormGroup label="下班時間" required>
+              <div className="flex gap-2">
+                <BaseSelect ringColor="orange" value={formData.endHour} onChange={e=>setFormData({...formData, endHour:e.target.value})} required>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                <span className="flex items-center font-black text-slate-400">:</span>
+                <BaseSelect ringColor="orange" value={formData.endMin} onChange={e=>setFormData({...formData, endMin:e.target.value})} required>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+              </div>
+            </FormGroup>
+          </div>
+
+          <FormGroup label="異常原因" required>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {ABNORMAL_CATEGORIES.map(c => (
+                <label key={c.id} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.category === c.id ? 'border-orange-500 bg-orange-50/50 ring-2 ring-orange-500/20' : 'border-slate-200 bg-white hover:border-orange-300'}`}>
+                  <input type="radio" name="abnormalReason" value={c.id} checked={formData.category === c.id} onChange={e=>setFormData({...formData, category:e.target.value})} className="w-4 h-4 text-orange-500 focus:ring-orange-500" />
+                  <span className="font-bold text-sm text-slate-700">{c.label}</span>
+                </label>
+              ))}
+            </div>
+          </FormGroup>
+
+          {formData.category === 'other' && (
+            <FormGroup label="其他原因詳述" required>
+              <textarea required={formData.category === 'other'} rows="2" placeholder="請詳細說明異常原因..." className="w-full p-4 rounded-xl border bg-white font-bold text-slate-900 outline-none focus:ring-4 focus:ring-orange-50 text-left" value={formData.reason} onChange={e=>setFormData({...formData, reason:e.target.value})} />
+            </FormGroup>
+          )}
+
+          <div className="bg-orange-50 border-orange-500 text-orange-800 border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-3 text-left shadow-sm transition-colors">
+            <h4 className="flex items-center gap-2 font-black text-sm text-orange-900"><Info size={16} className="text-orange-600"/> 備註與注意事項：</h4>
+            <ol className="list-decimal pl-5 space-y-1.5 text-orange-800/90 leading-relaxed">
+              <li>請盡量避免因電腦未登出或未關機而補單。</li>
+              <li>出勤異常確認單請於出勤日期隔日前交付財務行政部辦理。</li>
+              <li>加班事後申請請於加班後七個工作日內交至財務行政部辦理，逾期視同無加班事實。</li>
+            </ol>
+          </div>
+
+          <ShareSelector formData={formData} setFormData={setFormData} employees={employees} availableDepts={availableDepts} color="orange" />
+
+          <BaseButton disabled={submitting} loading={submitting} bgClass="bg-orange-500 hover:bg-orange-600">送出出勤異常確認單</BaseButton>
+        </form>
+      </BaseCard>
+
+      <BaseCard className="p-8">
+        <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b pb-4 text-left"><History size={24} className="text-slate-500" /><h3 className="text-slate-500 text-left">最近 10 筆出勤異常紀錄</h3></div>
+        {recentSubmissions.length > 0 ? (
+          <div className="space-y-3 text-left">
+            {recentSubmissions.slice(0, 10).map(r => (
+              <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} actionSlot={(rec) => (
+                <>
+                  {['pending', 'pending_manager', 'pending_director', 'pending_gm'].includes(rec.status) && <button onClick={(e) => {e.stopPropagation(); setWithdrawTarget(rec);}} className="px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-md text-[10px] font-black transition-colors text-left">抽單刪除</button>}
+                </>
+              )} />
+            ))}
+          </div>
+        ) : <div className="py-12 text-center text-slate-300 italic font-bold text-left">目前無近期的異常紀錄</div>}
+      </BaseCard>
+    </div>
+  );
+};
+
+
 const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => {
   const [filters, setFilters] = useState({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
   const [searchResults, setSearchResults] = useState([]);
@@ -1073,7 +1251,7 @@ const InquiryView = ({ records, userSession, employees, setWorkflowTarget }) => 
         <ViewHeader title="申請單據查詢" subtitle="設定條件查詢您的歷史單據或被分享的單據" bgClass="bg-fuchsia-500" icon={Search} />
         <form onSubmit={handleSearch} className="p-8 border-b border-slate-100 bg-slate-50/50 space-y-6 text-left text-slate-900">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-left text-slate-900">
-            <FormGroup label="單據類型"><BaseSelect ringColor="fuchsia" value={filters.formType} onChange={e => setFilters({...filters, formType: e.target.value})}><option value="">全部</option><option value="加班">加班申請</option><option value="請假">請假申請</option></BaseSelect></FormGroup>
+            <FormGroup label="單據類型"><BaseSelect ringColor="fuchsia" value={filters.formType} onChange={e => setFilters({...filters, formType: e.target.value})}><option value="">全部</option><option value="加班">加班申請</option><option value="請假">請假申請</option><option value="出勤異常">出勤異常單</option></BaseSelect></FormGroup>
             <FormGroup label="單號包含 (模糊搜尋)"><BaseInput ringColor="fuchsia" placeholder="例如: OT001" value={filters.serialId} onChange={e => setFilters({...filters, serialId: e.target.value})} /></FormGroup>
             <FormGroup label="簽核狀態"><BaseSelect ringColor="fuchsia" value={filters.status} onChange={e => setFilters({...filters, status: e.target.value})}><option value="">全部</option><option value="pending_substitute">待代理確認</option><option value="pending_manager">待經副理簽核</option><option value="pending_director">待協理簽核</option><option value="pending_gm">待總經理簽核</option><option value="pending_assignment">待交辦(9002)</option><option value="approved">已核准</option><option value="canceling">銷假/撤銷審核中</option><option value="rejected">已駁回</option><option value="canceled">已撤銷/已銷假</option></BaseSelect></FormGroup>
             <FormGroup label="起始日期 (從)"><BaseInput type="date" ringColor="fuchsia" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} /></FormGroup>
@@ -1842,6 +2020,13 @@ const App = () => {
     return `${dateStr}-LV${String(maxCount + 1).padStart(3, '0')}`;
   }, [records]);
 
+  const abSerialId = useMemo(() => {
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    let maxCount = 0;
+    records.filter(r => r.serialId?.startsWith(dateStr) && r.formType === '出勤異常').forEach(r => { const match = r.serialId?.match(/-AB(\d+)$/); if (match) maxCount = Math.max(maxCount, parseInt(match[1], 10)); });
+    return `${dateStr}-AB${String(maxCount + 1).padStart(3, '0')}`;
+  }, [records]);
+
   const sharedAnnouncements = useMemo(() => {
     if (!userSession || userSession.empId === 'root') return [];
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -1912,6 +2097,7 @@ const App = () => {
           <MenuItem id="substitute" icon={UserCheck} label="代理確認" badge={menuSubstituteCount} active={activeMenu} onClick={handleMenuClick} color="amber" collapsed={isSidebarCollapsed} />
           <MenuItem id="overtime" icon={Clock} label="加班申請" active={activeMenu} onClick={handleMenuClick} color="blue" collapsed={isSidebarCollapsed} />
           <MenuItem id="leave-apply" icon={CalendarPlus} label="請假申請" active={activeMenu} onClick={handleMenuClick} color="emerald" collapsed={isSidebarCollapsed} />
+          <MenuItem id="abnormality" icon={Fingerprint} label="出勤異常單" active={activeMenu} onClick={handleMenuClick} color="orange" collapsed={isSidebarCollapsed} />
           <MenuItem id="leave-cancel" icon={Undo2} label="銷假與撤銷申請" active={activeMenu} onClick={handleMenuClick} color="rose" collapsed={isSidebarCollapsed} />
           <MenuItem id="integrated-query" icon={ClipboardList} label="單據查詢" active={activeMenu} onClick={handleMenuClick} color="fuchsia" collapsed={isSidebarCollapsed} />
           <MenuItem id="change-password" icon={KeyRound} label="修改密碼" active={activeMenu} onClick={handleMenuClick} color="slate" collapsed={isSidebarCollapsed} />
@@ -1962,6 +2148,7 @@ const App = () => {
           {activeMenu === 'substitute' && <SubstituteView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'overtime' && <OvertimeView currentSerialId={otSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'leave-apply' && <LeaveApplyView currentSerialId={leaveSerialId} onRefresh={fetchData} employees={employees} setNotification={setNotification} userSession={userSession} records={records} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
+          {activeMenu === 'abnormality' && <AbnormalityView currentSerialId={abSerialId} onRefresh={fetchData} records={records} employees={employees} setNotification={setNotification} userSession={userSession} availableDepts={availableDepts} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'leave-cancel' && <LeaveCancelView records={records} onRefresh={fetchData} setNotification={setNotification} userSession={userSession} onLogAction={handleLogAction} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'integrated-query' && <InquiryView records={records} userSession={userSession} employees={employees} setWorkflowTarget={setWorkflowTarget} />}
           {activeMenu === 'change-password' && <ChangePasswordView userSession={userSession} setNotification={setNotification} onLogout={() => setUserSession(null)} onRefresh={fetchData} onLogAction={handleLogAction} />}
