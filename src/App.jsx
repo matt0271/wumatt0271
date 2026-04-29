@@ -542,6 +542,13 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
   const { totalAnnual, remainAnnual, usedAnnual, remainComp, earnedComp, usedComp } = useMemo(() => calculatePTOStats(userSession.empId, userSession.hireDate, records), [records, userSession.empId, userSession.hireDate]);
 
+  // 工具函式：根據天數返回標籤
+  const getDaysLabel = (days) => {
+    if (days <= 30) return "【30天內】到期通知";
+    if (days <= 60) return "【60天內】到期通知";
+    return "【90天內】到期通知";
+  };
+
   const userWarningStatus = useMemo(() => {
     if (!userSession.hireDate) return null;
     const nextAnniv = getNextAnniversary(userSession.hireDate);
@@ -549,7 +556,14 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const daysLeft = getDaysDiff(today, nextAnniv);
     const projectedTotal = remainAnnual + getProjectedPTO(userSession.hireDate, nextAnniv);
-    return projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0 ? { active: true, daysLeft, projectedTotal, overHours: projectedTotal - 240, nextAnnivStr: nextAnniv.toISOString().split('T')[0] } : null;
+    return projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0 ? { 
+      active: true, 
+      daysLeft, 
+      warningLabel: getDaysLabel(daysLeft),
+      projectedTotal, 
+      overHours: projectedTotal - 240, 
+      nextAnnivStr: nextAnniv.toISOString().split('T')[0] 
+    } : null;
   }, [userSession.hireDate, remainAnnual]);
 
   const teamWatchlist = useMemo(() => {
@@ -572,7 +586,15 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       const stats = calculatePTOStats(emp.empId, emp.hireDate, records), nextAnniv = getNextAnniversary(emp.hireDate);
       if (!nextAnniv) return null;
       const daysLeft = getDaysDiff(today, nextAnniv), projectedTotal = stats.remainAnnual + getProjectedPTO(emp.hireDate, nextAnniv);
-      return projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0 ? { ...emp, remainAnnual: stats.remainAnnual, projectedTotal, daysLeft, nextAnnivStr: nextAnniv.toISOString().split('T')[0], overHours: projectedTotal - 240 } : null;
+      return projectedTotal > 240 && daysLeft <= 90 && daysLeft > 0 ? { 
+        ...emp, 
+        remainAnnual: stats.remainAnnual, 
+        projectedTotal, 
+        daysLeft, 
+        warningLabel: getDaysLabel(daysLeft),
+        nextAnnivStr: nextAnniv.toISOString().split('T')[0], 
+        overHours: projectedTotal - 240 
+      } : null;
     }).filter(Boolean).sort((a, b) => a.daysLeft - b.daysLeft);
   }, [isAdmin, employees, records, userSession]);
 
@@ -596,8 +618,11 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
       {userWarningStatus && (
         <div className="bg-rose-50 border-l-4 border-rose-500 p-4 sm:p-5 rounded-r-2xl shadow-sm flex items-start gap-4 animate-in fade-in slide-in-from-top-4 text-left">
           <div className="p-2 bg-rose-100 rounded-full shrink-0 animate-pulse mt-0.5"><AlertTriangle className="text-rose-600" size={24} /></div>
-          <div className="text-left">
-            <h3 className="text-rose-800 font-black text-lg flex items-center gap-2 text-left">特休時數超標預警 <span className="bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm text-left">倒數 {userWarningStatus.daysLeft} 天</span></h3>
+          <div className="text-left flex-1">
+            <div className="flex items-center justify-between">
+               <h3 className="text-rose-800 font-black text-lg flex items-center gap-2 text-left">特休時數超標預警</h3>
+               <span className="bg-rose-600 text-white text-[11px] px-3 py-1 rounded-full font-black shadow-sm text-left">{userWarningStatus.warningLabel}</span>
+            </div>
             <p className="text-rose-700 mt-1.5 text-sm font-medium leading-relaxed text-left">您的到職週年日 (<span className="font-bold">{userWarningStatus.nextAnnivStr}</span>) 即將到來。預計發放新特休後將達 <span className="font-bold">{userWarningStatus.projectedTotal} 小時</span>，超過 240 小時之規定上限。<strong className="block mt-1 text-rose-900 bg-rose-200/50 inline-block px-2 py-0.5 rounded text-left">屆時超過之 {userWarningStatus.overHours} 小時將自動歸零，請盡速安排休假，以免影響權益。</strong></p>
           </div>
         </div>
@@ -671,8 +696,8 @@ const WelcomeView = ({ userSession, records, onRefresh, setActiveMenu, isAdmin, 
 
       {isAdmin && teamWatchlist.length > 0 && (
         <BaseCard className="border-rose-200 animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3 text-left"><div className="flex items-center gap-3 text-left"><div className="p-2 bg-rose-500 rounded-xl text-white shadow-sm text-left text-white"><AlertTriangle size={20} /></div><div className="text-left"><h2 className="text-sm font-black text-rose-900 uppercase tracking-widest text-left">團隊特休超標關注名單</h2><p className="text-xs text-rose-600 mt-0.5 font-bold text-left">未來 90 天內即將發放特休且預估超標之人員，請盡速督促排休</p></div></div><span className="bg-rose-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm text-left text-white">需關注 {teamWatchlist.length} 人</span></div>
-          <div className="overflow-x-auto text-left"><table className="w-full text-left text-sm whitespace-nowrap text-left"><thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest text-left"><tr><th className="p-4 px-8 text-left">員工姓名 / 單位</th><th className="p-4 text-left">發放日 / 倒數</th><th className="p-4 text-right text-left">目前結餘</th><th className="p-4 text-right text-left">預測總計</th><th className="p-4 text-right px-8 text-left">預計歸零</th></tr></thead><tbody className="divide-y divide-slate-100 text-left">{teamWatchlist.map(emp => (<tr key={emp.id} className="hover:bg-rose-50/50 transition-colors text-left"><td className="p-4 px-8 text-left"><div className="font-bold text-slate-800 text-left">{emp.name} <span className="font-mono text-[11px] text-slate-400 ml-1 font-medium text-left">({emp.empId})</span></div><div className="text-[10px] text-slate-500 font-bold text-left">{emp.dept} / {emp.jobTitle}</div></td><td className="p-4 text-left"><div className="font-bold text-slate-700 text-left">{emp.nextAnnivStr}</div><div className={`text-[10px] font-bold mt-0.5 text-left ${emp.daysLeft <= 30 ? 'text-rose-600' : 'text-amber-600'}`}>倒數 {emp.daysLeft} 天</div></td><td className="p-4 text-right font-bold text-slate-600 text-left">{emp.remainAnnual} HR</td><td className="p-4 text-right font-black text-rose-600 text-left">{emp.projectedTotal} HR</td><td className="p-4 px-8 text-right text-left"><span className="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-black shadow-sm border border-rose-200 text-left">-{emp.overHours} HR</span></td></tr>))}</tbody></table></div>
+          <div className="bg-rose-50 border-b border-rose-100 p-5 sm:px-8 flex items-center justify-between gap-3 text-left"><div className="flex items-center gap-3 text-left"><div className="p-2 bg-rose-500 rounded-xl text-white shadow-sm text-left text-white"><AlertTriangle size={20} /></div><div className="text-left"><h2 className="text-sm font-black text-rose-900 uppercase tracking-widest text-left">團隊特休超標關注名單</h2><p className="text-xs text-rose-600 mt-0.5 font-bold text-left">預估特休發放後將超標之人員，請督促及早排休</p></div></div><span className="bg-rose-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm text-left text-white">需關注 {teamWatchlist.length} 人</span></div>
+          <div className="overflow-x-auto text-left"><table className="w-full text-left text-sm whitespace-nowrap text-left"><thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest text-left"><tr><th className="p-4 px-8 text-left">員工姓名 / 單位</th><th className="p-4 text-left">發放日 / 到期狀態</th><th className="p-4 text-right text-left">目前結餘</th><th className="p-4 text-right text-left">預測總計</th><th className="p-4 text-right px-8 text-left">預計歸零</th></tr></thead><tbody className="divide-y divide-slate-100 text-left">{teamWatchlist.map(emp => (<tr key={emp.id} className="hover:bg-rose-50/50 transition-colors text-left"><td className="p-4 px-8 text-left"><div className="font-bold text-slate-800 text-left">{emp.name} <span className="font-mono text-[11px] text-slate-400 ml-1 font-medium text-left">({emp.empId})</span></div><div className="text-[10px] text-slate-500 font-bold text-left">{emp.dept} / {emp.jobTitle}</div></td><td className="p-4 text-left"><div className="font-bold text-slate-700 text-left">{emp.nextAnnivStr}</div><div className={`text-[10px] font-black mt-1 px-2 py-0.5 rounded-full inline-block text-left ${emp.daysLeft <= 30 ? 'bg-rose-600 text-white' : emp.daysLeft <= 60 ? 'bg-orange-500 text-white' : 'bg-amber-100 text-amber-700'}`}>{emp.warningLabel}</div></td><td className="p-4 text-right font-bold text-slate-600 text-left">{emp.remainAnnual} HR</td><td className="p-4 text-right font-black text-rose-600 text-left">{emp.projectedTotal} HR</td><td className="p-4 px-8 text-right text-left"><span className="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2.5 py-1 rounded-lg text-xs font-black shadow-sm border border-rose-200 text-left">-{emp.overHours} HR</span></td></tr>))}</tbody></table></div>
         </BaseCard>
       )}
     </div>
@@ -1148,8 +1173,8 @@ const AbnormalityView = ({ currentSerialId, onRefresh, records, employees, setNo
         <form onSubmit={handleSubmit} className="p-8 space-y-8 text-left text-slate-900">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end text-left text-slate-900">
             <FormGroup label="部門" required><BaseSelect required ringColor="orange" value={formData.dept} onChange={e=>setFormData({...formData, dept:e.target.value})}><option value="" disabled>請選擇</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</BaseSelect></FormGroup>
-            <FormGroup label="姓名"><BaseInput ringColor="orange" value={formData.name} onChange={e=>handleNameChange(e.target.value)} /></FormGroup>
-            <FormGroup label="員編"><BaseInput ringColor="orange" value={formData.empId} onChange={e=>handleEmpIdChange(e.target.value)} /></FormGroup>
+            <FormGroup label="姓名"><BaseInput ringColor="orange" value={formData.name} onChange={handleNameChange} /></FormGroup>
+            <FormGroup label="員編"><BaseInput ringColor="orange" value={formData.empId} onChange={handleEmpIdChange} /></FormGroup>
           </div>
           
           <div className="p-6 bg-slate-50 rounded-2xl border grid grid-cols-1 lg:grid-cols-3 gap-6 items-start text-left text-slate-900">
