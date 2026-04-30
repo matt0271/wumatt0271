@@ -1130,69 +1130,64 @@ const GenericApplyView = ({ type, currentSerialId }) => {
 
           {isAb && <FormGroup label="異常原因" required><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{ABNORMAL_CATEGORIES.map(c => (<label key={c.id} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer ${fd.category === c.id ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-900/30 ring-2 ring-sky-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}><input type="radio" value={c.id} checked={fd.category === c.id} onChange={e=>setFd({...fd, category:e.target.value})} className="w-4 h-4 text-sky-500" /><span className="font-bold text-sm text-slate-700 dark:text-slate-200">{c.label}</span></label>))}</div></FormGroup>}
 
-          <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             {isAb ? (
-              <div className="flex flex-wrap gap-4 md:gap-6 items-end w-full">
-                <div className="flex-1 min-w-[200px]">
-                  <FormGroup label="出勤日期" required>
-                    <BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
-                  </FormGroup>
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <FormGroup label="上班時間" required>
-                    <div className="flex items-center gap-2">
-                      <BaseSelect className="flex-1" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <span className="font-bold text-slate-400">:</span>
-                      <BaseSelect className="flex-1" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
-                    </div>
-                  </FormGroup>
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <FormGroup label="下班時間" required>
-                    <div className="flex items-center gap-2">
-                      <BaseSelect className="flex-1" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <span className="font-bold text-slate-400">:</span>
-                      <BaseSelect className="flex-1" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
-                    </div>
-                  </FormGroup>
-                </div>
+              <div className="flex flex-col lg:flex-row gap-4 lg:items-end w-full">
+                <FormGroup label="出勤日期" required className="w-full lg:w-1/3">
+                  <BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                </FormGroup>
+                <FormGroup label="上班時間" required className="w-full lg:w-1/3">
+                  <div className="flex items-center gap-2">
+                    <BaseSelect className="flex-1" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <span className="font-bold text-slate-400">:</span>
+                    <BaseSelect className="flex-1" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                  </div>
+                </FormGroup>
+                <FormGroup label="下班時間" required className="w-full lg:w-1/3">
+                  <div className="flex items-center gap-2">
+                    <BaseSelect className="flex-1" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <span className="font-bold text-slate-400">:</span>
+                    <BaseSelect className="flex-1" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                  </div>
+                </FormGroup>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-4 items-end w-full">
-                <div className="flex-1 min-w-[300px]">
-                  <FormGroup label="開始時間" required>
-                    <div className="flex gap-2">
-                      <BaseInput type="date" required className="flex-1 min-w-[140px]" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
-                      <BaseSelect className="w-[88px] shrink-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="w-[88px] shrink-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-end w-full">
+                <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
+                  <FormGroup label="開始時間" required className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <BaseInput type="date" required className="min-w-[130px] flex-1" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                      <BaseSelect className="w-[72px] shrink-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="w-[72px] shrink-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    </div>
+                  </FormGroup>
+                  <FormGroup label="結束時間" required className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <BaseInput type="date" required className="min-w-[130px] flex-1" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
+                      <BaseSelect className="w-[72px] shrink-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="w-[72px] shrink-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                     </div>
                   </FormGroup>
                 </div>
-                <div className="flex-1 min-w-[300px]">
-                  <FormGroup label="結束時間" required>
-                    <div className="flex gap-2">
-                      <BaseInput type="date" required className="flex-1 min-w-[140px]" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
-                      <BaseSelect className="w-[88px] shrink-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="w-[88px] shrink-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
-                    </div>
-                  </FormGroup>
-                </div>
-                <div className={`rounded-2xl p-3 text-white flex flex-col justify-center items-center h-[72px] font-black shrink-0 min-w-[120px] flex-1 sm:flex-none ${isOT ? 'bg-[#3b82f6] shadow-md shadow-blue-500/20' : 'bg-[#10b981] shadow-md shadow-emerald-500/20'}`}>
-                  <span className="text-[10px] sm:text-xs opacity-90">{isOT ? '時數' : '總時數'}</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xl sm:text-2xl">{total}</span>
-                    <span className="text-[10px] sm:text-xs">HR</span>
-                  </div>
-                </div>
-                {isOT && (
-                  <div className="bg-slate-200 dark:bg-slate-700 rounded-2xl p-3 text-slate-600 dark:text-slate-300 flex flex-col justify-center items-center h-[72px] font-black shadow-inner shrink-0 min-w-[120px] flex-1 sm:flex-none">
-                    <span className="text-[10px] sm:text-xs opacity-70 whitespace-nowrap">{(fd.compensationType === 'leave' ? '預計補休' : '預計加班費')}</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl sm:text-2xl text-slate-800 dark:text-slate-100">{fd.compensationType === 'leave' ? calculatedCompensation.leave : calculatedCompensation.payStr}</span>
-                      <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">{fd.compensationType === 'leave' ? 'HR' : '倍時薪'}</span>
+                
+                <div className="flex gap-3 w-full md:w-auto shrink-0 mt-1 xl:mt-0">
+                  <div className={`rounded-xl px-2 py-1 text-white flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32 ${isOT ? 'bg-[#3b82f6] shadow-sm' : 'bg-[#10b981] shadow-sm'}`}>
+                    <span className="text-[10px] opacity-90 leading-tight">{isOT ? '時數' : '總時數'}</span>
+                    <div className="flex items-baseline gap-1 leading-none mt-0.5">
+                      <span className="text-xl">{total}</span>
+                      <span className="text-[10px]">HR</span>
                     </div>
                   </div>
-                )}
+                  {isOT && (
+                    <div className="rounded-xl px-2 py-1 bg-[#e2e8f0] dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32">
+                      <span className="text-[10px] opacity-70 leading-tight whitespace-nowrap">{fd.compensationType === 'leave' ? '預計補休' : '預計加班費'}</span>
+                      <div className="flex items-baseline gap-1 leading-none mt-0.5">
+                        <span className="text-xl">{fd.compensationType === 'leave' ? calculatedCompensation.leave : calculatedCompensation.payStr}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{fd.compensationType === 'leave' ? 'HR' : '倍時薪'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
