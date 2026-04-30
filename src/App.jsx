@@ -1601,7 +1601,7 @@ const AnnouncementManagement = () => {
                 </div>
               </div>
               );
-            }) : <div className="p-8 text-center text-slate-400 text-sm font-bold italic">無任何公告資料</div>}
+            }) : <div className="p-8 text-center text-slate-400 text-sm font-bold italic text-left">目前無任何公告資料</div>}
           </div>
         </div>
       </BaseCard>
@@ -1949,7 +1949,16 @@ const App = () => {
 
   // 記錄 Session 與 Theme 變更
   useEffect(() => { if (userSession) sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession)); else sessionStorage.removeItem('docflow_user_session'); }, [userSession]);
-  useEffect(() => { localStorage.setItem('docflow_theme', theme); }, [theme]);
+  
+  useEffect(() => { 
+    localStorage.setItem('docflow_theme', theme); 
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+  
   useEffect(() => { if (notification) { const t = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(t); } }, [notification]);
 
   const handleLogout = (reason = '手動登出') => {
