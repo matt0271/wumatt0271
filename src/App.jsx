@@ -778,8 +778,8 @@ const WelcomeView = () => {
       if (userSession.empId === 'root') return true;
       const isEmpManager = emp.jobTitle?.includes("經理") || emp.jobTitle?.includes("副理") || emp.jobTitle?.includes("協理");
       const userRank = userSession.jobTitle || '';
-      if (userSession.empId === '9001' || userRank.includes('總經理')) return emp.dept === userSession.dept || isEmpManager;
-      if (userRank.includes('協理')) {
+      if (userSession.empId === '9001' || rank.includes('總經理')) return emp.dept === userSession.dept || isEmpManager;
+      if (rank.includes('協理')) {
         if (userSession.dept === '工程組') return ['工程組', '系統組'].includes(emp.dept);
         if (userSession.dept === '北區營業組') return ['客服組', '系統組', '北區營業組', '中區營業組', '南區營業組'].includes(emp.dept);
       }
@@ -1133,21 +1133,21 @@ const GenericApplyView = ({ type, currentSerialId }) => {
           <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             {isAb ? (
               <div className="flex flex-col lg:flex-row gap-4 lg:items-end w-full">
-                <FormGroup label="出勤日期" required className="w-full lg:w-1/3">
-                  <BaseInput type="date" required className="flex-1 min-w-0" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                <FormGroup label="出勤日期" required className="w-full lg:flex-1">
+                  <BaseInput type="date" required className="flex-1 min-w-0 text-[13px] sm:text-base tracking-tight" style={{ paddingLeft: '8px', paddingRight: '4px' }} value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
                 </FormGroup>
-                <FormGroup label="上班時間" required className="w-full lg:w-1/3">
+                <FormGroup label="上班時間" required className="w-full lg:flex-1">
                   <div className="flex items-center gap-2">
-                    <BaseSelect className="flex-1 min-w-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
                     <span className="font-bold text-slate-400">:</span>
-                    <BaseSelect className="flex-1 min-w-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                   </div>
                 </FormGroup>
-                <FormGroup label="下班時間" required className="w-full lg:w-1/3">
+                <FormGroup label="下班時間" required className="w-full lg:flex-1">
                   <div className="flex items-center gap-2">
-                    <BaseSelect className="flex-1 min-w-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
                     <span className="font-bold text-slate-400">:</span>
-                    <BaseSelect className="flex-1 min-w-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                   </div>
                 </FormGroup>
               </div>
@@ -1156,16 +1156,16 @@ const GenericApplyView = ({ type, currentSerialId }) => {
                 <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
                   <FormGroup label="開始時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
                     <div className="flex items-center gap-2 w-full">
-                      <BaseInput type="date" required className="flex-1 min-w-0" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
-                      <BaseSelect className="flex-1 min-w-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="flex-1 min-w-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                      <BaseInput type="date" required className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px', paddingRight: '2px', letterSpacing: '-0.5px' }} value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                      <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                     </div>
                   </FormGroup>
                   <FormGroup label="結束時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
                     <div className="flex items-center gap-2 w-full">
-                      <BaseInput type="date" required className="flex-1 min-w-0" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
-                      <BaseSelect className="flex-1 min-w-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="flex-1 min-w-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                      <BaseInput type="date" required className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px', paddingRight: '2px', letterSpacing: '-0.5px' }} min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
+                      <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="flex-1 min-w-0 text-[13px] sm:text-base" style={{ paddingLeft: '8px' }} value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                     </div>
                   </FormGroup>
                 </div>
