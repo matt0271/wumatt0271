@@ -1193,6 +1193,69 @@ const GenericApplyView = ({ type, currentSerialId }) => {
           </div>
 
           {(!isAb || fd.category === 'other') && <FormGroup label={isAb?"其他原因詳述":"事由"} required><textarea required rows="2" className="w-full p-4 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-sky-500" value={fd.reason} onChange={e=>setFd({...fd, reason:e.target.value})} /></FormGroup>}
+
+          <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            {isAb ? (
+              <div className="flex flex-col lg:flex-row gap-4 lg:items-end w-full">
+                <FormGroup label="出勤日期" required className="w-full lg:w-1/3">
+                  <BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                </FormGroup>
+                <FormGroup label="上班時間" required className="w-full lg:w-1/3">
+                  <div className="flex items-center gap-2">
+                    <BaseSelect className="w-[88px] shrink-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <span className="font-bold text-slate-400">:</span>
+                    <BaseSelect className="w-[88px] shrink-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                  </div>
+                </FormGroup>
+                <FormGroup label="下班時間" required className="w-full lg:w-1/3">
+                  <div className="flex items-center gap-2">
+                    <BaseSelect className="w-[88px] shrink-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <span className="font-bold text-slate-400">:</span>
+                    <BaseSelect className="w-[88px] shrink-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                  </div>
+                </FormGroup>
+              </div>
+            ) : (
+              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-end w-full">
+                <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
+                  <FormGroup label="開始時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
+                    <div className="flex items-center gap-2 w-full">
+                      <BaseInput type="date" required className="min-w-[130px] flex-1" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                      <BaseSelect className="w-[88px] shrink-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="w-[88px] shrink-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    </div>
+                  </FormGroup>
+                  <FormGroup label="結束時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
+                    <div className="flex items-center gap-2 w-full">
+                      <BaseInput type="date" required className="min-w-[130px] flex-1" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
+                      <BaseSelect className="w-[88px] shrink-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="w-[88px] shrink-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    </div>
+                  </FormGroup>
+                </div>
+                
+                <div className="flex gap-3 w-full md:w-auto shrink-0 mt-1 xl:mt-0">
+                  <div className={`rounded-xl px-2 py-1 text-white flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32 ${isOT ? 'bg-[#3b82f6] shadow-sm' : 'bg-[#10b981] shadow-sm'}`}>
+                    <span className="text-[10px] opacity-90 leading-tight">{isOT ? '時數' : '總時數'}</span>
+                    <div className="flex items-baseline gap-1 leading-none mt-0.5">
+                      <span className="text-xl">{total}</span>
+                      <span className="text-[10px]">HR</span>
+                    </div>
+                  </div>
+                  {isOT && (
+                    <div className="rounded-xl px-2 py-1 bg-[#e2e8f0] dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32">
+                      <span className="text-[10px] opacity-70 leading-tight whitespace-nowrap">{fd.compensationType === 'leave' ? '預計補休' : '預計加班費'}</span>
+                      <div className="flex items-baseline gap-1 leading-none mt-0.5">
+                        <span className="text-xl">{fd.compensationType === 'leave' ? calculatedCompensation.leave : calculatedCompensation.payStr}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{fd.compensationType === 'leave' ? 'HR' : '倍時薪'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {isLV && <FormGroup label="證明文件 (選填)"><div onClick={()=>fileInputRef.current?.click()} className="w-full p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"><UploadCloud size={24} className="text-slate-400" /><span className="font-bold text-sm text-center">{fd.attachmentName || '點擊上傳檔案 (最大 5MB)'}</span><input type="file" className="hidden" ref={fileInputRef} onChange={handleFileChange} /></div>{fd.attachmentName && <button type="button" onClick={()=>{setFd({...fd, attachmentName:'', attachmentData:null}); if(fileInputRef.current) fileInputRef.current.value='';}} className="text-xs text-rose-500 font-bold mt-1 hover:underline">移除</button>}</FormGroup>}
           <ShareSelector formData={fd} setFormData={setFd} />
           {isAb && <div className="bg-sky-50 dark:bg-sky-900/30 border-sky-500 text-sky-800 dark:text-sky-300 border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-3 shadow-sm"><h4 className="flex items-center gap-2 font-black text-sm text-sky-900 dark:text-sky-400"><Info size={16} /> 備註與注意事項：</h4><ol className="list-decimal pl-5 space-y-1.5 leading-relaxed"><li>請盡量避免因電腦未登出或未關機而補單。</li><li>出勤異常確認單請於出勤日期隔日前交付財務行政部辦理。</li></ol></div>}
