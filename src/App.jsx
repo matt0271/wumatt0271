@@ -1910,7 +1910,17 @@ const App = () => {
 
   // 記錄 Session 與 Theme 變更
   useEffect(() => { if (userSession) sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession)); else sessionStorage.removeItem('docflow_user_session'); }, [userSession]);
-  useEffect(() => { localStorage.setItem('docflow_theme', theme); }, [theme]);
+  
+  // 更新：將 dark class 實際寫入 <html> 根元素，確保正式環境 Tailwind 正常觸發
+  useEffect(() => { 
+    localStorage.setItem('docflow_theme', theme); 
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+  
   useEffect(() => { if (notification) { const t = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(t); } }, [notification]);
 
   const handleLogout = (reason = '手動登出') => {
