@@ -1133,45 +1133,45 @@ const GenericApplyView = ({ type, currentSerialId }) => {
           <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700">
             {isAb ? (
               <div className="flex flex-col lg:flex-row gap-4 lg:items-end w-full">
-                <FormGroup label="出勤日期" required className="w-full lg:flex-1">
-                  <BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                <FormGroup label="出勤日期" required className="w-full lg:w-1/3">
+                  <BaseInput type="date" required className="flex-1 min-w-0" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
                 </FormGroup>
-                <FormGroup label="上班時間" required className="w-full lg:flex-1">
+                <FormGroup label="上班時間" required className="w-full lg:w-1/3">
                   <div className="flex items-center gap-2">
-                    <BaseSelect className="flex-1" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
                     <span className="font-bold text-slate-400">:</span>
-                    <BaseSelect className="flex-1" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                   </div>
                 </FormGroup>
-                <FormGroup label="下班時間" required className="w-full lg:flex-1">
+                <FormGroup label="下班時間" required className="w-full lg:w-1/3">
                   <div className="flex items-center gap-2">
-                    <BaseSelect className="flex-1" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
                     <span className="font-bold text-slate-400">:</span>
-                    <BaseSelect className="flex-1" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                    <BaseSelect className="flex-1 min-w-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                   </div>
                 </FormGroup>
               </div>
             ) : (
-              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-end w-full overflow-x-auto pb-2 xl:pb-0">
+              <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-end w-full">
                 <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
                   <FormGroup label="開始時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
                     <div className="flex items-center gap-2 w-full">
-                      <BaseInput type="date" required className="min-w-[130px] flex-1" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
-                      <BaseSelect className="w-[72px] shrink-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="w-[72px] shrink-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                      <BaseInput type="date" required className="flex-1 min-w-0" value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} />
+                      <BaseSelect className="flex-1 min-w-0" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="flex-1 min-w-0" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                     </div>
                   </FormGroup>
                   <FormGroup label="結束時間" required className="w-full md:w-1/2 xl:w-auto xl:flex-1">
                     <div className="flex items-center gap-2 w-full">
-                      <BaseInput type="date" required className="min-w-[130px] flex-1" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
-                      <BaseSelect className="w-[72px] shrink-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                      <BaseSelect className="w-[72px] shrink-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
+                      <BaseInput type="date" required className="flex-1 min-w-0" min={fd.startDate} value={fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} />
+                      <BaseSelect className="flex-1 min-w-0" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
+                      <BaseSelect className="flex-1 min-w-0" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
                     </div>
                   </FormGroup>
                 </div>
                 
-                <div className="flex gap-3 w-full md:w-auto shrink-0 mt-2 xl:mt-0">
-                  <div className={`rounded-xl px-4 py-2 text-white flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32 ${isOT ? 'bg-blue-500 shadow-sm' : 'bg-emerald-500 shadow-sm'}`}>
+                <div className="flex gap-3 w-full md:w-auto shrink-0 mt-1 xl:mt-0">
+                  <div className={`rounded-xl px-2 py-1 text-white flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32 ${isOT ? 'bg-[#3b82f6] shadow-sm' : 'bg-[#10b981] shadow-sm'}`}>
                     <span className="text-[10px] opacity-90 leading-tight">{isOT ? '時數' : '總時數'}</span>
                     <div className="flex items-baseline gap-1 leading-none mt-0.5">
                       <span className="text-xl">{total}</span>
@@ -1179,7 +1179,7 @@ const GenericApplyView = ({ type, currentSerialId }) => {
                     </div>
                   </div>
                   {isOT && (
-                    <div className="rounded-xl px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32">
+                    <div className="rounded-xl px-2 py-1 bg-[#e2e8f0] dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex flex-col justify-center items-center h-12 font-black shrink-0 flex-1 md:flex-none md:w-32">
                       <span className="text-[10px] opacity-70 leading-tight whitespace-nowrap">{fd.compensationType === 'leave' ? '預計補休' : '預計加班費'}</span>
                       <div className="flex items-baseline gap-1 leading-none mt-0.5">
                         <span className="text-xl">{fd.compensationType === 'leave' ? calculatedCompensation.leave : calculatedCompensation.payStr}</span>
