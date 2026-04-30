@@ -17,11 +17,17 @@ const NGROK_URL = 'https://opacity-container-niece.ngrok-free.dev';
 const ADMIN_TITLES = ["總經理", "協理", "經理", "副理"];
 const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const MINUTES = ['00', '30']; 
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 閒置超時時間 30 分鐘
 const FETCH_OPTIONS = { headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' } };
 
 const OT_CATEGORIES = [ { id: 'regular', label: '一般上班日' }, { id: 'holiday', label: '國定假日' }, { id: 'rest', label: '休息日' }, { id: 'business', label: '出差加班' } ];
-const LEAVE_CATEGORIES = [ { id: 'annual', label: '特別休假' }, { id: 'comp', label: '補休' }, { id: 'personal', label: '事假' }, { id: 'sick', label: '病假' }, { id: 'sick_hospital', label: '病假(連續住院)' }, { id: 'marriage', label: '婚假' }, { id: 'bereavement', label: '喪假' }, { id: 'official', label: '公假' }, { id: 'occupational_sickness', label: '公傷假' }, { id: 'maternity_leave', label: '產假' }, { id: 'paternity_leave', label: '陪產假' }, { id: 'prenatal_checkup', label: '產檢假' }, { id: 'welfare', label: '福利假' }, { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停假' } ];
+const LEAVE_CATEGORIES = [
+  { id: 'annual', label: '特別休假' }, { id: 'comp', label: '補休' }, { id: 'personal', label: '事假' },
+  { id: 'sick', label: '病假' }, { id: 'sick_hospital', label: '病假(連續住院)' }, { id: 'marriage', label: '婚假' },
+  { id: 'bereavement', label: '喪假' }, { id: 'official', label: '公假' }, { id: 'occupational_sickness', label: '公傷假' },
+  { id: 'maternity_leave', label: '產假' }, { id: 'paternity_leave', label: '陪產假' }, { id: 'prenatal_checkup', label: '產檢假' },
+  { id: 'welfare', label: '福利假' }, { id: 'family_care', label: '家庭照顧假' }, { id: 'parental_leave', label: '育嬰留停假' }
+];
 const ABNORMAL_CATEGORIES = [ { id: 'forgot_logout', label: '電腦未登出或未關機' }, { id: 'official_outing', label: '公務外出' }, { id: 'late_logout', label: '逾時登出，無加班申請事實' }, { id: 'other', label: '其他' } ];
 const ANNOUNCEMENT_TYPES = [ { id: 'policy', label: '政策更新' }, { id: 'system', label: '系統維護' }, { id: 'personnel', label: '人事通報' }, { id: 'reward', label: '獎懲公告' }, { id: 'event', label: '節日與活動' }, { id: 'shared_doc', label: '單據共享' } ];
 
@@ -97,7 +103,10 @@ const Utils = {
       return false;
     };
 
+    // 1. 本人本身就具有簽核權限
     if (baseCanApprove(user, r)) return true;
+
+    // 2. 代理簽核權限：找出是否有「將權限代理給目前使用者」且「代理機制啟用中」的主管，並判斷該主管是否具備簽核該單據的權限
     const delegators = (employees || []).filter(e => e.delegationActive && e.delegatedTo === user.empId);
     return delegators.some(delegator => baseCanApprove(delegator, r));
   },
@@ -140,11 +149,8 @@ const Utils = {
 };
 
 // =============================================================================
-// 3. 自定義 HOOKS & CONTEXT
+// 3. 自定義 HOOKS (BUSINESS LOGIC)
 // =============================================================================
-const AppContext = React.createContext({});
-const useAppContext = () => React.useContext(AppContext);
-
 const useAppState = (userSession, setUserSession) => {
   const [data, setData] = useState({ employees: [], records: [], sysLogs: [], loading: true, apiError: false });
   const [readAnns, setReadAnns] = useState([]);
@@ -194,7 +200,7 @@ const useAppState = (userSession, setUserSession) => {
            setCalendarData({ loaded: true, holidays: h });
         }
       }
-    } catch(e) { console.warn("行事曆同步失敗", e); }
+    } catch(e) { console.warn("行事曆同步失敗，將使用本地預設邏輯", e); }
   };
 
   const logAction = async (user, type, details) => {
@@ -207,6 +213,7 @@ const useAppState = (userSession, setUserSession) => {
     } catch (e) { console.warn(e); }
   };
 
+  // PWA 與 XLSX 載入
   useEffect(() => {
     if (!window.XLSX) {
       const script = document.createElement('script');
@@ -214,8 +221,22 @@ const useAppState = (userSession, setUserSession) => {
       script.async = true;
       document.head.appendChild(script);
     }
+    const manifest = {
+      name: "員工服務平台", short_name: "員工服務", start_url: ".", display: "standalone",
+      background_color: "#f8fafc", theme_color: "#0284c7",
+      icons: [{ src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzAyODRjNyIvPjwvc3ZnPg==", sizes: "192x192", type: "image/svg+xml" }]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const link = document.createElement('link'); link.rel = 'manifest'; link.href = URL.createObjectURL(blob);
+    document.head.appendChild(link);
+    if ('serviceWorker' in navigator) {
+      const swCode = `self.addEventListener('fetch', function() {});`;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+    }
   }, []);
 
+  // WebSocket 即時推播監聽 (已整合 SSO 驗證)
   useEffect(() => {
     if (!userSession) return;
     let ws;
@@ -224,31 +245,14 @@ const useAppState = (userSession, setUserSession) => {
       ws.onmessage = (e) => {
         try {
            const msg = JSON.parse(e.data);
-           if (msg.type === 'NEW_RECORD' || msg.type === 'UPDATE' || msg.type === 'SSO_KICK') fetchData();
+           if (msg.type === 'NEW_RECORD' || msg.type === 'UPDATE' || msg.type === 'SSO_KICK') {
+             fetchData();
+           }
         } catch(err){}
       };
     } catch (e) { console.warn("WS 暫不支援或無法連線", e); }
     return () => { if(ws) ws.close(); }
   }, [userSession]);
-
-  // 每 10 秒主動檢查一次 Session 狀態 (防止雙重登入)
-  useEffect(() => {
-    if (!userSession || userSession.empId === 'root') return;
-    const checkSession = async () => {
-      try {
-        const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}?_t=${Date.now()}`, FETCH_OPTIONS);
-        if (res.ok) {
-          const dbUser = await res.json();
-          if (dbUser.currentSessionId && dbUser.currentSessionId !== userSession.currentSessionId) {
-            alert('⚠️ 系統通知：您的帳號已在其他裝置登入，您已被強制登出！');
-            setUserSession(null);
-          }
-        }
-      } catch (e) {}
-    };
-    const intervalId = setInterval(checkSession, 10000);
-    return () => clearInterval(intervalId);
-  }, [userSession, setUserSession]);
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => {
@@ -259,7 +263,7 @@ const useAppState = (userSession, setUserSession) => {
 };
 
 // =============================================================================
-// 4. 原子化 UI Components
+// 4. 原子化 UI Components (支援深/淺色主題)
 // =============================================================================
 const BaseCard = ({ children, className = '' }) => <div className={`bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden text-slate-900 dark:text-slate-100 ${className}`}>{children}</div>;
 const ViewHeader = ({ title, subtitle, icon: Icon, rightElement }) => (
@@ -288,8 +292,7 @@ const StatusBadge = ({ status, formType, onClick }) => {
   return (<span onClick={onClick} className={`px-3 py-1.5 rounded-full text-[10px] font-black border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 flex items-center gap-1 shadow-sm ${isClickable?'cursor-pointer hover:ring-2':''}`}>{labels[status] || "處理中"} {isClickable && <Search size={10} />}</span>);
 };
 
-const RecordCard = ({ r, actionSlot, isSelectable, isSelected, onSelect, showPrint }) => {
-  const { setWorkflowTarget, setPrintRecord } = useAppContext();
+const RecordCard = ({ r, userSession, setWorkflowTarget, actionSlot, isSelectable, isSelected, onSelect, onPrint }) => {
   const typeStyle = r.formType === '請假' ? 'bg-emerald-50 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400' :
                     r.formType === '出勤異常' ? 'bg-orange-50 dark:bg-orange-900/50 text-orange-700 dark:text-orange-400' :
                     (r.appType === 'post' ? 'bg-amber-50 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400' : 'bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400');
@@ -301,8 +304,8 @@ const RecordCard = ({ r, actionSlot, isSelectable, isSelected, onSelect, showPri
 
   return (
     <div onClick={isSelectable ? onSelect : undefined} className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-sm relative ${isSelectable ? 'cursor-pointer' : ''} ${isSelected ? 'bg-sky-50 dark:bg-sky-900/30 ring-2 ring-sky-400 border-sky-400' : 'bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 border-slate-200 dark:border-slate-700'}`}>
-      {showPrint && (
-        <button type="button" onClick={(e) => { e.stopPropagation(); setPrintRecord(r); }} className="absolute top-4 right-4 p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg transition-colors" title="預覽並列印表單">
+      {onPrint && (
+        <button onClick={(e) => { e.stopPropagation(); onPrint(r); }} className="absolute top-4 right-4 p-2 bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 rounded-lg transition-colors" title="預覽並列印表單">
           <Printer size={16} />
         </button>
       )}
@@ -331,8 +334,8 @@ const RecordCard = ({ r, actionSlot, isSelectable, isSelected, onSelect, showPri
   );
 };
 
-const PrintModal = ({ record, onClose }) => {
-  const { employees } = useAppContext();
+// 列印專用 A4 模態框
+const PrintModal = ({ record, onClose, employees }) => {
   if (!record) return null;
   const applicant = employees.find(e => e.empId === record.empId) || {};
   const catLabel = record.formType === '請假' ? (LEAVE_CATEGORIES.find(c => c.id === record.category)?.label || '未設定') : 
@@ -395,8 +398,7 @@ const PrintModal = ({ record, onClose }) => {
   );
 };
 
-const ShareSelector = ({ formData, setFormData }) => {
-  const { employees, availableDepts } = useAppContext();
+const ShareSelector = ({ formData, setFormData, employees, availableDepts }) => {
   const [sDept, setSDept] = useState('');
   const [sEmp, setSEmp] = useState('');
   return (
@@ -424,12 +426,12 @@ const PassInput = ({ label, value, field, showKey, Icon, shows, onToggle, onChan
 
 const ConfirmModal = ({ title, desc, onConfirm, onCancel, confirmText, confirmClass, icon:Icon }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm text-left">
-    <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
       <Icon size={48} className={`mx-auto mb-4 ${confirmClass.includes('rose')?'text-rose-500':'text-slate-400'}`} />
       <h3 className="text-xl font-black mb-2 text-slate-900 dark:text-slate-100">{title}</h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 font-bold text-center leading-relaxed">{desc}</p>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 font-bold text-center">{desc}</p>
       <div className="flex gap-3">
-        {onCancel && <button onClick={onCancel} className="flex-1 py-3 font-bold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 rounded-xl transition-colors">返回/取消</button>}
+        <button onClick={onCancel} className="flex-1 py-3 font-bold bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded-xl">返回/取消</button>
         <button onClick={onConfirm} className={`flex-1 py-3 font-black text-white rounded-xl ${confirmClass}`}>{confirmText}</button>
       </div>
     </div>
@@ -450,8 +452,7 @@ const InfiniteScrollObserver = ({ onLoadMore, hasMore, isTable = false, colSpan 
   return isTable ? <tr className="block md:table-row border-none bg-transparent shadow-none"><td className="block md:table-cell border-none text-center" colSpan={colSpan}>{content}</td></tr> : content;
 };
 
-const WorkflowModal = ({ isOpen, onClose, record }) => {
-  const { employees } = useAppContext();
+const WorkflowModal = ({ isOpen, onClose, record, employees }) => {
   if (!isOpen || !record) return null;
   const days = (parseFloat(record.totalHours) || 0) / 8;
   const applicantRank = record.jobTitle || ((employees || []).find(e => e.empId === record.empId)?.jobTitle) || "";
@@ -537,8 +538,7 @@ const WorkflowModal = ({ isOpen, onClose, record }) => {
 // =============================================================================
 
 // --- 簽核代理設定視圖 ---
-const DelegationView = () => {
-  const { userSession, employees, onRefresh, setNotification, onLogAction } = useAppContext();
+const DelegationView = ({ userSession, employees, onRefresh, setNotification, onLogAction }) => {
   const currentUserData = useMemo(() => employees.find(e => e.empId === userSession.empId) || userSession, [employees, userSession]);
   const [isActive, setIsActive] = useState(currentUserData.delegationActive || false);
   const [delegatedTo, setDelegatedTo] = useState(currentUserData.delegatedTo || '');
@@ -624,8 +624,7 @@ const DelegationView = () => {
 };
 
 // --- 統計報表 (Chart.js) ---
-const ReportsView = () => {
-  const { records } = useAppContext();
+const ReportsView = ({ records, employees }) => {
   const chartRef1 = useRef(null);
   const chartRef2 = useRef(null);
   const [chartLoaded, setChartLoaded] = useState(false);
@@ -695,7 +694,7 @@ const ReportsView = () => {
   );
 };
 
-const LoginView = ({ employees, apiError, onLogAction, onLogin }) => {
+const LoginView = ({ employees, onLogin, apiError, onLogAction }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -727,8 +726,8 @@ const LoginView = ({ employees, apiError, onLogAction, onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-6 font-sans text-slate-900 dark:text-slate-100 relative">
-      <BaseCard className="max-w-md w-full animate-in zoom-in-95 duration-500 z-10">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-6 font-sans text-slate-900 dark:text-slate-100">
+      <BaseCard className="max-w-md w-full animate-in zoom-in-95 duration-500">
         <div className="bg-sky-600 dark:bg-sky-800 p-12 text-white text-center relative overflow-hidden text-left"><div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl text-left"></div><UserCheck size={44} className="mx-auto mb-4 opacity-90 text-white text-left" /><h1 className="text-3xl font-black tracking-tight relative z-10 text-center text-white text-left">員工服務平台</h1><p className="text-sky-100 mt-2 opacity-90 text-sm relative z-10 font-medium text-center text-white text-left">系統登入驗證</p></div>
         <form onSubmit={handleLogin} className="p-10 space-y-6 text-left">
           {apiError && <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-700 text-xs font-bold text-left"><AlertTriangle size={18} className="shrink-0 text-amber-700" /> 後端連線異常，目前為離線狀態。<br/>請確認 server.js 是否已執行。</div>}
@@ -744,8 +743,7 @@ const LoginView = ({ employees, apiError, onLogAction, onLogin }) => {
   );
 };
 
-const WelcomeView = () => {
-  const { userSession, records, isAdmin, announcements, employees, readAnns, markAnnAsRead, setActiveMenu } = useAppContext();
+const WelcomeView = ({ userSession, records, isAdmin, announcements, employees, readAnns, markAnnAsRead, setWorkflowTarget, setActiveMenu, onRefresh }) => {
   const stats = useMemo(() => Utils.calculatePTO(userSession.empId, userSession.hireDate, records), [records, userSession]);
   const counts = useMemo(() => ({
     sub: (records || []).filter(r => r.formType === '請假' && ['pending_substitute', 'canceling_substitute'].includes(r.status) && r.substitute === userSession.name).length,
@@ -964,8 +962,7 @@ const WelcomeView = () => {
   );
 };
 
-const GenericApplyView = ({ type, currentSerialId }) => {
-  const { onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction, setWorkflowTarget, calendarData } = useAppContext();
+const GenericApplyView = ({ type, currentSerialId, onRefresh, records, employees, setNotification, userSession, availableDepts, onLogAction, setWorkflowTarget, calendarData }) => {
   const isOT = type === '加班', isLV = type === '請假', isAb = type === '出勤異常';
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
@@ -1030,25 +1027,18 @@ const GenericApplyView = ({ type, currentSerialId }) => {
   const currentMonthOTHours = useMemo(() => isOT && fd.startDate ? records.filter(r => r.formType === '加班' && r.empId === fd.empId && r.status === 'approved' && r.startDate && r.startDate.substring(0, 7) === fd.startDate.substring(0, 7)).reduce((sum, r) => sum + (parseFloat(r.totalHours) || 0), 0) : 0, [records, fd.startDate, fd.empId, isOT]);
   const isOverLimit = isOT && (currentMonthOTHours + (Number(total) || 0) > 46);
 
-  // 判斷代理人是否剛好請假
-  const isSubstituteOnLeave = useMemo(() => {
-    if (!isLV || !fd.substitute || !fd.startDate || !fd.endDate) return false;
-    const subEmp = employees.find(e => e.name === fd.substitute && e.dept === fd.dept);
-    if (!subEmp) return false;
-    const subLeaves = records.filter(r => r.empId === subEmp.empId && r.formType === '請假' && !['rejected', 'canceled'].includes(r.status));
-    return Utils.isTimeOverlapping(fd, subLeaves);
-  }, [isLV, fd.substitute, fd.startDate, fd.startHour, fd.startMin, fd.endDate, fd.endHour, fd.endMin, fd.dept, employees, records]);
-
   const handleSubmit = async (e) => {
     e.preventDefault(); 
     if (submitting) return;
 
+    // --- 新增：表單日期防呆驗證 ---
     if (!isAb && total <= 0) {
       return setNotification({ type: 'error', text: '時間區間無效！結束時間必須晚於開始時間，且結算時數不可為 0' });
     }
     if (isOverLimit) {
       return setNotification({ type: 'error', text: '已超過當月法定加班時數上限' });
     }
+    // ---------------------------------
 
     if (isAb && fd.category === 'other' && !fd.reason.trim()) return setNotification({ type: 'error', text: '請填寫其他原因之詳細說明' });
     setSubmitting(true);
@@ -1100,24 +1090,7 @@ const GenericApplyView = ({ type, currentSerialId }) => {
             <FormGroup label="部門" required><BaseSelect required value={fd.dept} onChange={e=>setFd({...fd, dept:e.target.value})}><option value="" disabled>請選擇</option>{availableDepts.map(d=><option key={d} value={d}>{d}</option>)}</BaseSelect></FormGroup>
             {isLV && <FormGroup label="職稱"><BaseInput value={fd.jobTitle} onChange={e=>setFd({...fd, jobTitle:e.target.value})} /></FormGroup>}
             {!isAb && <FormGroup label={isOT?"類別":"假別"} className={isOT ? "lg:col-span-2" : ""}><BaseSelect value={fd.category} onChange={e=>setFd({...fd, category:e.target.value})}>{(isOT?OT_CATEGORIES:LEAVE_CATEGORIES).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</BaseSelect></FormGroup>}
-            
-            {/* 新增：代理人休假預警防呆 */}
-            {isLV && (
-              <div className="flex flex-col gap-1.5">
-                <FormGroup label="代理人" required>
-                  <BaseSelect required value={fd.substitute} onChange={e=>setFd({...fd, substitute:e.target.value})}>
-                    <option value="" disabled>請選擇</option>
-                    {employees.filter(e=>e.dept===fd.dept&&e.empId!==fd.empId).map(e=><option key={e.empId} value={e.name}>{e.name}</option>)}
-                  </BaseSelect>
-                </FormGroup>
-                {isSubstituteOnLeave && (
-                  <div className="text-[10px] font-bold text-rose-500 flex items-center gap-1 animate-in fade-in bg-rose-50 dark:bg-rose-900/30 p-1.5 rounded-lg border border-rose-200 dark:border-rose-800 shadow-sm">
-                    <AlertTriangle size={12}/> 該員此時段已請假，請確認！
-                  </div>
-                )}
-              </div>
-            )}
-
+            {isLV && <FormGroup label="代理人" required><BaseSelect required value={fd.substitute} onChange={e=>setFd({...fd, substitute:e.target.value})}><option value="" disabled>請選擇</option>{employees.filter(e=>e.dept===fd.dept&&e.empId!==fd.empId).map(e=><option key={e.empId} value={e.name}>{e.name}</option>)}</BaseSelect></FormGroup>}
             {isOT && (
               <FormGroup label="補償">
                 <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl h-12">
@@ -1131,16 +1104,8 @@ const GenericApplyView = ({ type, currentSerialId }) => {
           {isAb && <FormGroup label="異常原因" required><div className="grid grid-cols-1 md:grid-cols-2 gap-3">{ABNORMAL_CATEGORIES.map(c => (<label key={c.id} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer ${fd.category === c.id ? 'border-sky-500 bg-sky-50/50 dark:bg-sky-900/30 ring-2 ring-sky-500/20' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}><input type="radio" value={c.id} checked={fd.category === c.id} onChange={e=>setFd({...fd, category:e.target.value})} className="w-4 h-4 text-sky-500" /><span className="font-bold text-sm text-slate-700 dark:text-slate-200">{c.label}</span></label>))}</div></FormGroup>}
 
           <div className="p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-            <div className={`lg:col-span-${isOT ? '4' : isAb ? '6' : '5'}`}><FormGroup label={isAb?"出勤日期":"開始時間"} required><div className="flex gap-2"><BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:e.target.value})} /><BaseSelect className="w-20" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect><BaseSelect className="w-20" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect></div></FormGroup></div>
-            <div className={`lg:col-span-${isOT ? '4' : isAb ? '6' : '5'}`}>
-              <FormGroup label="結束時間" required>
-                <div className="flex gap-2">
-                  <BaseInput type="date" required min={fd.startDate} value={isAb?fd.startDate:fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} disabled={isAb} />
-                  <BaseSelect className="w-20" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect>
-                  <BaseSelect className="w-20" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect>
-                </div>
-              </FormGroup>
-            </div>
+            <div className={`lg:col-span-${isOT ? '4' : isAb ? '6' : '5'}`}><FormGroup label={isAb?"出勤日期":"開始時間"} required><div className="flex gap-2"><BaseInput type="date" required value={fd.startDate} onChange={e=>setFd({...fd, startDate:e.target.value, endDate:isAb?e.target.value:fd.endDate})} /><BaseSelect className="w-20" value={fd.startHour} onChange={e=>setFd({...fd, startHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect><BaseSelect className="w-20" value={fd.startMin} onChange={e=>setFd({...fd, startMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect></div></FormGroup></div>
+            <div className={`lg:col-span-${isOT ? '4' : isAb ? '6' : '5'}`}><FormGroup label="結束時間" required><div className="flex gap-2"><BaseInput type="date" required value={isAb?fd.startDate:fd.endDate} onChange={e=>setFd({...fd, endDate:e.target.value})} disabled={isAb} /><BaseSelect className="w-20" value={fd.endHour} onChange={e=>setFd({...fd, endHour:e.target.value})}>{HOURS.map(h=><option key={h} value={h}>{h}</option>)}</BaseSelect><BaseSelect className="w-20" value={fd.endMin} onChange={e=>setFd({...fd, endMin:e.target.value})}>{MINUTES.map(m=><option key={m} value={m}>{m}</option>)}</BaseSelect></div></FormGroup></div>
             {!isAb && <div className="bg-sky-600 rounded-2xl p-3 text-white flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black"><span className="text-[9px] opacity-80">總時數</span><span className="text-xl">{total}H</span></div>}
             {isOT && (
               <div className="bg-slate-200 dark:bg-slate-700 rounded-2xl p-3 text-slate-600 dark:text-slate-300 flex flex-col justify-center items-center lg:col-span-2 h-[72px] font-black shadow-inner">
@@ -1155,7 +1120,7 @@ const GenericApplyView = ({ type, currentSerialId }) => {
 
           {(!isAb || fd.category === 'other') && <FormGroup label={isAb?"其他原因詳述":"事由"} required><textarea required rows="2" className="w-full p-4 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-sky-500" value={fd.reason} onChange={e=>setFd({...fd, reason:e.target.value})} /></FormGroup>}
           {isLV && <FormGroup label="證明文件 (選填)"><div onClick={()=>fileInputRef.current?.click()} className="w-full p-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900"><UploadCloud size={24} className="text-slate-400" /><span className="font-bold text-sm text-center">{fd.attachmentName || '點擊上傳檔案 (最大 5MB)'}</span><input type="file" className="hidden" ref={fileInputRef} onChange={handleFileChange} /></div>{fd.attachmentName && <button type="button" onClick={()=>{setFd({...fd, attachmentName:'', attachmentData:null}); if(fileInputRef.current) fileInputRef.current.value='';}} className="text-xs text-rose-500 font-bold mt-1 hover:underline">移除</button>}</FormGroup>}
-          <ShareSelector formData={fd} setFormData={setFd} />
+          <ShareSelector formData={fd} setFormData={setFd} employees={employees} availableDepts={availableDepts} />
           {isAb && <div className="bg-sky-50 dark:bg-sky-900/30 border-sky-500 text-sky-800 dark:text-sky-300 border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-3 shadow-sm"><h4 className="flex items-center gap-2 font-black text-sm text-sky-900 dark:text-sky-400"><Info size={16} /> 備註與注意事項：</h4><ol className="list-decimal pl-5 space-y-1.5 leading-relaxed"><li>請盡量避免因電腦未登出或未關機而補單。</li><li>出勤異常確認單請於出勤日期隔日前交付財務行政部辦理。</li></ol></div>}
           {isOT && <div className="bg-sky-50 dark:bg-sky-900/30 border-sky-500 text-sky-800 dark:text-sky-300 border-l-4 p-5 rounded-r-2xl text-[11px] font-bold space-y-3 shadow-sm"><h4 className="flex items-center gap-2 font-black text-sm text-sky-900 dark:text-sky-400"><Info size={16} /> 備註與注意事項：</h4><ol className="list-decimal pl-5 space-y-1.5 leading-relaxed"><li>申請人→經副理→協理→總經理→交辦。</li><li>加班費將依勞基法規定倍率計算；補休則依工作時數 1:1 計算。</li><li>事後申請請於加班後七個工作日內交至財務行政部辦理，逾期視同無加班事實。</li></ol></div>}
           
@@ -1167,7 +1132,7 @@ const GenericApplyView = ({ type, currentSerialId }) => {
         <div className="flex items-center gap-3 mb-6 text-slate-500 font-black border-b border-slate-100 dark:border-slate-700 pb-4"><History size={24}/><h3 className="text-slate-500 dark:text-slate-400">最近 10 筆{type}紀錄</h3></div>
         <div className="space-y-3">
           {recs.slice(0, 10).map(r => (
-            <RecordCard key={r.id} r={r} actionSlot={(rec) => (
+            <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} actionSlot={(rec) => (
               <>
                 {['pending', 'pending_substitute', 'pending_manager', 'pending_director', 'pending_gm'].includes(rec.status) && <button onClick={(e)=>{e.stopPropagation(); setWithdrawTarget(rec);}} className="px-3 py-1.5 text-rose-500 bg-rose-50 dark:bg-rose-900/30 rounded-md text-[10px] font-black hover:bg-rose-100 transition-colors">抽單</button>}
                 {rec.status === 'approved' && !isAb && <button onClick={(e)=>{e.stopPropagation(); setCancelTarget(rec);}} className="px-3 py-1.5 text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-md text-[10px] font-black hover:bg-slate-100 transition-colors">撤銷</button>}
@@ -1181,8 +1146,7 @@ const GenericApplyView = ({ type, currentSerialId }) => {
   );
 };
 
-const BatchProcessView = ({ title, subtitle, icon, processType }) => {
-  const { records, userSession, employees, onRefresh, setNotification } = useAppContext();
+const BatchProcessView = ({ title, subtitle, icon, records, userSession, employees, onRefresh, setNotification, onLogAction, setWorkflowTarget, processType }) => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [opinion, setOpinion] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -1214,7 +1178,7 @@ const BatchProcessView = ({ title, subtitle, icon, processType }) => {
         <div className="p-8 space-y-4 bg-slate-50/30 dark:bg-slate-800/50 min-h-[400px]">
           {pending.length > 0 && <button onClick={()=>setSelectedIds(selectedIds.length===pending.length?[]:pending.map(r=>r.id))} className="px-4 py-2 text-xs font-bold text-sky-700 bg-sky-100 dark:bg-sky-900 dark:text-sky-300 rounded-lg">{selectedIds.length===pending.length?'取消全選':'全選單據'}</button>}
           <div className="space-y-3">
-            {pending.map(r => <RecordCard key={r.id} r={r} isSelectable isSelected={selectedIds.includes(r.id)} onSelect={()=>setSelectedIds(prev=>prev.includes(r.id)?prev.filter(x=>x!==r.id):[...prev, r.id])} />)}
+            {pending.map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} isSelectable isSelected={selectedIds.includes(r.id)} onSelect={()=>setSelectedIds(prev=>prev.includes(r.id)?prev.filter(x=>x!==r.id):[...prev, r.id])} />)}
             {pending.length === 0 && <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3"><CheckCircle2 size={48} className="opacity-20 mb-2"/>目前無待辦事項</div>}
           </div>
         </div>
@@ -1235,8 +1199,7 @@ const BatchProcessView = ({ title, subtitle, icon, processType }) => {
   );
 };
 
-const AnnouncementListView = () => {
-  const { announcements, readAnns, markAnnAsRead } = useAppContext();
+const AnnouncementListView = ({ announcements, readAnns, markAnnAsRead }) => {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
   const activeAnnouncements = useMemo(() => announcements.filter(ann => !ann.endDate || ann.endDate >= new Date().toISOString().split('T')[0]), [announcements]);
 
@@ -1268,8 +1231,7 @@ const AnnouncementListView = () => {
   );
 };
 
-const CalendarView = () => {
-  const { records, userSession, calendarData } = useAppContext();
+const CalendarView = ({ records, userSession }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const deptLeaves = useMemo(() => records.filter(r => r.formType === '請假' && r.status === 'approved' && (userSession.empId === 'root' || r.dept === userSession.dept)), [records, userSession]);
   const monthNames = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
@@ -1280,58 +1242,30 @@ const CalendarView = () => {
 
   const formatDate = (date) => date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
 
-  const getCategoryColor = (catId) => {
-    const map = {
-      annual: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-      sick: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-      sick_hospital: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-      personal: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-      official: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-      occupational_sickness: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
-      marriage: 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      maternity_leave: 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      paternity_leave: 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      prenatal_checkup: 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-      bereavement: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600',
-      comp: 'bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800',
-    };
-    return map[catId] || 'bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500 text-left font-sans text-slate-900">
       <BaseCard>
-        <ViewHeader title="休假月曆" subtitle={`檢視 ${userSession.empId === 'root' ? '全公司' : userSession.dept} 同仁的休假`} icon={Calendar} />
+        <ViewHeader title="休假月曆" subtitle={`檢視 ${userSession.empId === 'root' ? '全公司' : userSession.dept} 同仁的已核准休假`} icon={Calendar} />
         <div className="p-8 text-left">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 text-left">
             <div className="flex items-center gap-4 text-left"><button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1))} className="p-2 bg-slate-50 dark:bg-slate-900 rounded-xl transition-colors text-left"><ChevronDown className="rotate-90 text-slate-600 dark:text-slate-400" size={20}/></button><h2 className="text-xl font-black text-slate-800 dark:text-slate-100 w-40 text-center tracking-wide text-left">{currentDate.getFullYear()} 年 {monthNames[currentDate.getMonth()]}</h2><button onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))} className="p-2 bg-slate-50 dark:bg-slate-900 rounded-xl transition-colors text-left"><ChevronDown className="-rotate-90 text-slate-600 dark:text-slate-400" size={20}/></button></div>
             <button onClick={() => setCurrentDate(new Date())} className="px-5 py-2.5 bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 font-bold rounded-xl transition-colors shadow-sm active:scale-95 text-left text-sky-600">回到本月</button>
           </div>
           <div className="grid grid-cols-7 gap-2 text-left">
-            {weekDays.map((day, idx) => <div key={day} className={`text-center font-black text-xs uppercase tracking-widest py-2 bg-slate-50 dark:bg-slate-900 rounded-lg text-left ${idx === 0 || idx === 6 ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400'}`}>{day}</div>)}
+            {weekDays.map(day => <div key={day} className="text-center font-black text-slate-400 text-xs uppercase tracking-widest py-2 bg-slate-50 dark:bg-slate-900 rounded-lg text-left">{day}</div>)}
             {days.map((day, idx) => {
               if (!day) return <div key={`empty-${idx}`} className="min-h-[110px] bg-slate-50/30 dark:bg-slate-900/30 rounded-2xl border border-slate-100/50 dark:border-slate-800 text-left text-slate-900"></div>;
-              const dateStr = formatDate(day);
-              const isToday = dateStr === formatDate(new Date());
-              const leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
-              
-              let isDayOff = day.getDay() === 0 || day.getDay() === 6;
-              if (calendarData?.loaded) {
-                isDayOff = isDayOff || calendarData.holidays.includes(dateStr);
-              } else {
-                const fallbackHolidays = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-04-03', '2026-04-06', '2026-05-01', '2026-06-19', '2026-09-25', '2026-10-10'];
-                isDayOff = isDayOff || fallbackHolidays.includes(dateStr);
-              }
-
+              const dateStr = formatDate(day), isToday = dateStr === formatDate(new Date()), leavesToday = deptLeaves.filter(r => dateStr >= r.startDate && dateStr <= r.endDate);
               return (
-                <div key={dateStr} className={`min-h-[120px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors text-left ${isToday ? 'border-sky-400 bg-sky-50/50 dark:bg-sky-900/30 shadow-md ring-1 ring-sky-400' : isDayOff ? 'border-rose-100 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-900/10' : 'border-slate-100 dark:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'}`}>
-                  <div className={`text-xs font-black px-1.5 mb-1 text-left ${isToday ? 'text-sky-600 dark:text-sky-400' : isDayOff ? 'text-rose-500 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>{day.getDate()}</div>
+                <div key={dateStr} className={`min-h-[120px] rounded-2xl border p-2 flex flex-col gap-1.5 overflow-hidden transition-colors text-left ${isToday ? 'border-sky-300 bg-sky-50/30 dark:bg-sky-900/30 shadow-sm' : 'border-slate-100 dark:border-slate-700'}`}>
+                  <div className={`text-xs font-black px-1.5 mb-1 text-left ${isToday ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500'}`}>{day.getDate()}</div>
                   <div className="flex flex-col gap-1.5 overflow-y-auto flex-1 custom-scrollbar pr-1 text-left">
                     {leavesToday.map(r => {
                       const catLabel = LEAVE_CATEGORIES.find(c => c.id === r.category)?.label || r.category;
-                      const titleInfo = `申請人：${r.name}\n假別：${catLabel}\n時間：${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}`;
+                      const daysCount = (parseFloat(r.totalHours) || 0) / 8;
+                      const titleInfo = `申請人：${r.name}\n部門：${r.dept}\n假別：${catLabel}\n時間：${r.startDate} ${r.startHour}:${r.startMin} ~ ${r.endDate} ${r.endHour}:${r.endMin}\n時數：${r.totalHours} 小時 (${daysCount} 天)\n代理人：${r.substitute || '未設定'}\n事由：${r.reason || '無'}`;
                       return (
-                        <div key={r.id} className={`px-2 py-1.5 border rounded-md text-xs font-bold truncate shrink-0 cursor-default shadow-sm text-left ${getCategoryColor(r.category)}`} title={titleInfo}>
+                        <div key={r.id} className="px-2 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-md text-xs font-bold truncate shrink-0 cursor-help shadow-sm text-left" title={titleInfo}>
                           {r.name} - {catLabel}
                         </div>
                       );
@@ -1347,8 +1281,7 @@ const CalendarView = () => {
   );
 };
 
-const InquiryView = () => {
-  const { records, userSession, setNotification } = useAppContext();
+const InquiryView = ({ records, userSession, employees, setWorkflowTarget, setPrintRecord, setNotification }) => {
   const [filters, setFilters] = useState({ formType: '', serialId: '', status: '', startDate: '', endDate: '' });
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -1370,6 +1303,7 @@ const InquiryView = () => {
   };
   const handleReset = () => { setFilters({ formType: '', serialId: '', status: '', startDate: '', endDate: '' }); setSearchResults([]); setHasSearched(false); setVisibleCount(10); };
 
+  // --- 新增：單據匯出 Excel ---
   const handleExportRecords = () => {
     if (!window.XLSX) {
       setNotification({ type: 'error', text: 'Excel 模組尚未載入完成，請稍後' });
@@ -1420,7 +1354,7 @@ const InquiryView = () => {
         <div className="p-8 space-y-4 text-left">
           {!hasSearched ? <div className="py-24 text-center text-slate-400 font-bold flex flex-col items-center gap-3 text-left"><Search size={48} className="opacity-20 mb-2 text-left" /><p className="text-left">請設定上方查詢條件，並點擊「執行查詢」查看單據</p></div> : searchResults.length > 0 ? (
             <div className="space-y-3 text-left">
-              {searchResults.slice(0, visibleCount).map(r => <RecordCard key={r.id} r={r} showPrint />)}
+              {searchResults.slice(0, visibleCount).map(r => <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} onPrint={setPrintRecord} />)}
               <InfiniteScrollObserver onLoadMore={() => setVisibleCount(c => c + 10)} hasMore={visibleCount < searchResults.length} />
             </div>
           ) : <div className="py-24 text-center text-slate-400 italic font-bold text-left">查無符合條件的單據</div>}
@@ -1430,8 +1364,7 @@ const InquiryView = () => {
   );
 };
 
-const LeaveCancelView = () => {
-  const { records, onRefresh, setNotification, userSession, onLogAction } = useAppContext();
+const LeaveCancelView = ({ records, onRefresh, setNotification, userSession, onLogAction, setWorkflowTarget }) => {
   const [cancelTarget, setCancelTarget] = useState(null);
   const displayRecords = useMemo(() => records.filter(r => r.empId === userSession.empId && (r.status === 'approved' || r.status.startsWith('canceling_') || r.status === 'canceled')).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [records, userSession.empId]);
 
@@ -1444,7 +1377,7 @@ const LeaveCancelView = () => {
           {displayRecords.length > 0 ? (
             <div className="space-y-3 text-left text-slate-900">
               {displayRecords.map(r => (
-                <RecordCard key={r.id} r={r} actionSlot={(rec) => {
+                <RecordCard key={r.id} r={r} userSession={userSession} setWorkflowTarget={setWorkflowTarget} actionSlot={(rec) => {
                   const isCanceling = rec.status.startsWith('canceling_');
                   const isCanceled = rec.status === 'canceled';
                   if (isCanceled) {
@@ -1463,8 +1396,7 @@ const LeaveCancelView = () => {
   );
 };
 
-const ChangePasswordView = () => {
-  const { userSession, setNotification, handleLogout, onRefresh, onLogAction } = useAppContext();
+const ChangePasswordView = ({ userSession, setNotification, onLogout, onRefresh, onLogAction }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ current: '', new: '', confirm: '' });
   const [shows, setShows] = useState({ cur: false, new: false, con: false });
@@ -1476,7 +1408,7 @@ const ChangePasswordView = () => {
     setLoading(true);
     try {
       const res = await fetch(`${NGROK_URL}/api/employees/${userSession.id}`, { method: 'PATCH', headers: FETCH_OPTIONS.headers, body: JSON.stringify({ password: formData.new.trim() }) });
-      if (res.ok) { await onLogAction(userSession, '密碼變更', '自行變更登入密碼'); setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); onRefresh(); setTimeout(() => handleLogout(), 2000); }
+      if (res.ok) { await onLogAction(userSession, '密碼變更', '自行變更登入密碼'); setNotification({ type: 'success', text: '密碼更新成功，即將登出...' }); onRefresh(); setTimeout(() => onLogout(), 2000); }
       else throw new Error('API error');
     } catch (err) { setNotification({ type: 'error', text: '修改失敗' }); } finally { setLoading(false); }
   };
@@ -1497,8 +1429,7 @@ const ChangePasswordView = () => {
   );
 };
 
-const AnnouncementManagement = () => {
-  const { announcements, setAnnouncements, setNotification, userSession, onLogAction } = useAppContext();
+const AnnouncementManagement = ({ announcements, setAnnouncements, setNotification, userSession, onLogAction }) => {
   const [formData, setFormData] = useState({ title: '', type: 'policy', date: new Date().toISOString().split('T')[0], endDate: '', isNew: true, content: '' });
   const [editingId, setEditingId] = useState(null);
 
@@ -1570,8 +1501,7 @@ const AnnouncementManagement = () => {
   );
 };
 
-const PersonnelManagement = () => {
-  const { employees, onRefresh, setNotification, userSession, availableDepts, onLogAction } = useAppContext();
+const PersonnelManagement = ({ employees, onRefresh, setNotification, userSession, availableDepts, onLogAction }) => {
   const [formData, setFormData] = useState({ name: '', empId: '', jobTitle: '', dept: '', gender: '', birthDate: '', hireDate: '' });
   const [showDetails, setShowDetails] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -1782,8 +1712,7 @@ const PersonnelManagement = () => {
   );
 };
 
-const SystemLogView = () => {
-  const { sysLogs } = useAppContext();
+const SystemLogView = ({ sysLogs }) => {
   const [filters, setFilters] = useState({ actionType: '', keyword: '', startDate: '', endDate: '' });
   const [visibleCount, setVisibleCount] = useState(30); 
 
@@ -1900,7 +1829,6 @@ const App = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [workflowTarget, setWorkflowTarget] = useState(null);
   const [printRecord, setPrintRecord] = useState(null); 
-  const [sessionExpiredMessage, setSessionExpiredMessage] = useState('');
   
   // 加入 Light/Dark Mode 的 localStorage 狀態記憶
   const [theme, setTheme] = useState(() => localStorage.getItem('docflow_theme') || 'light'); 
@@ -1910,31 +1838,17 @@ const App = () => {
 
   // 記錄 Session 與 Theme 變更
   useEffect(() => { if (userSession) sessionStorage.setItem('docflow_user_session', JSON.stringify(userSession)); else sessionStorage.removeItem('docflow_user_session'); }, [userSession]);
-  
-  // 更新：將 dark class 實際寫入 <html> 根元素，確保正式環境 Tailwind 正常觸發
-  useEffect(() => { 
-    localStorage.setItem('docflow_theme', theme); 
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-  
+  useEffect(() => { localStorage.setItem('docflow_theme', theme); }, [theme]);
   useEffect(() => { if (notification) { const t = setTimeout(() => setNotification(null), 3000); return () => clearTimeout(t); } }, [notification]);
-
-  const handleLogout = (reason = '手動登出') => {
-    if (userSession) logAction(userSession, '登出', reason);
-    setUserSession(null);
-  };
 
   // --- 閒置超時自動登出 (30分鐘) ---
   useEffect(() => {
     if (!userSession) return;
     let timeoutId;
     const handleIdle = () => {
-      handleLogout('系統閒置超過 30 分鐘自動登出');
-      setSessionExpiredMessage('您已閒置超過 30 分鐘，為保護資訊安全，系統已自動登出。');
+      logAction(userSession, '登出', '系統閒置超過 30 分鐘自動登出');
+      alert('⚠️ 系統通知：您已閒置超過 30 分鐘，為保護資訊安全，系統已自動登出。');
+      setUserSession(null);
     };
     const resetTimeout = () => {
       clearTimeout(timeoutId);
@@ -1952,18 +1866,6 @@ const App = () => {
   }, [userSession]);
 
   const isAdmin = userSession?.empId === 'root' || userSession?.empId === '9002' || ADMIN_TITLES.includes(userSession?.jobTitle);
-  const availableDepts = [...new Set((employees || []).map(e => e.dept).filter(Boolean))];
-
-  // 打包全域狀態給 Context Provider
-  const contextValue = {
-    userSession, setUserSession,
-    records, employees, sysLogs, announcements, setAnnouncements,
-    readAnns, markAnnAsRead: (id) => setReadAnns(p => [...new Set([...p, id])]),
-    calendarData, availableDepts,
-    onRefresh: fetchData, onLogAction: logAction,
-    setNotification, setWorkflowTarget, setPrintRecord,
-    isAdmin, setActiveMenu, handleLogout
-  };
 
   // 選單數字與紅點計算
   const counts = useMemo(() => {
@@ -2012,22 +1914,9 @@ const App = () => {
   }, [records, userSession, isAdmin, employees, announcements, readAnns]);
 
   if (loading) return <div className={`h-screen flex items-center justify-center ${theme==='dark'?'dark bg-slate-900':'bg-slate-50'} text-sky-500`}><Loader2 className="animate-spin w-12 h-12" /></div>;
-  
-  if (!userSession) return (
-    <div className={theme==='dark'?'dark':''}>
-      {sessionExpiredMessage && (
-        <ConfirmModal 
-          title="系統已自動登出" 
-          desc={sessionExpiredMessage} 
-          onConfirm={() => setSessionExpiredMessage('')} 
-          confirmText="重新登入" 
-          confirmClass="bg-sky-600" 
-          icon={Lock} 
-        />
-      )}
-      <LoginView employees={employees} apiError={apiError} onLogAction={logAction} onLogin={u => { setUserSession(u); fetchData(); }} />
-    </div>
-  );
+  if (!userSession) return <div className={theme==='dark'?'dark':''}><LoginView employees={employees} apiError={apiError} onLogAction={logAction} onLogin={u => { setUserSession(u); fetchData(); }} /></div>;
+
+  const availableDepts = [...new Set((employees || []).map(e => e.dept).filter(Boolean))];
 
   const MItem = ({ id, I, label, badge, hasDot }) => (
     <button onClick={()=>{setActiveMenu(id);setSidebarOpen(false);}} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all border-l-4 ${activeMenu===id ? `bg-sky-50 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 border-sky-600` : 'text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border-transparent'} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
@@ -2046,112 +1935,111 @@ const App = () => {
   );
 
   const renderView = () => {
+    const cp = { records, employees, userSession, setNotification, onRefresh: fetchData, onLogAction: logAction, setWorkflowTarget, setPrintRecord };
     switch (activeMenu) {
-      case 'welcome': return <WelcomeView />;
-      case 'overtime': return <GenericApplyView type="加班" currentSerialId={Utils.getSerialId(records, '加班', 'OT')} />;
-      case 'leave-apply': return <GenericApplyView type="請假" currentSerialId={Utils.getSerialId(records, '請假', 'LV')} />;
-      case 'abnormality': return <GenericApplyView type="出勤異常" currentSerialId={Utils.getSerialId(records, '出勤異常', 'AB')} />;
-      case 'substitute': return <BatchProcessView title="代理確認中心" subtitle="確認同仁指定的職務代理申請" icon={UserCheck} processType="substitute" />;
-      case 'approval': return <BatchProcessView title={userSession.empId === '9002' ? '交辦審核中心' : '簽核中心'} subtitle={userSession.empId === '9002' ? '確認並結案由主管核准後之交辦事項 (支援批次簽核)' : '審核員工表單 (支援批次簽核)'} icon={ShieldCheck} processType="approval" />;
-      case 'integrated-query': return <InquiryView />;
-      case 'leave-cancel': return <LeaveCancelView />;
-      case 'change-password': return <ChangePasswordView />;
-      case 'announcement-list': return <AnnouncementListView />;
-      case 'calendar': return <CalendarView />;
-      case 'announcement': return <AnnouncementManagement />;
-      case 'personnel': return <PersonnelManagement />;
-      case 'reports': return <ReportsView />;
-      case 'system-logs': return <SystemLogView />;
-      case 'delegation': return <DelegationView />;
-      default: return <WelcomeView />;
+      case 'welcome': return <WelcomeView {...cp} isAdmin={isAdmin} setActiveMenu={setActiveMenu} announcements={announcements} readAnns={readAnns} markAnnAsRead={(id)=>setReadAnns(p=>[...new Set([...p, id])])} />;
+      case 'overtime': return <GenericApplyView type="加班" currentSerialId={Utils.getSerialId(records, '加班', 'OT')} availableDepts={availableDepts} calendarData={calendarData} {...cp} />;
+      case 'leave-apply': return <GenericApplyView type="請假" currentSerialId={Utils.getSerialId(records, '請假', 'LV')} availableDepts={availableDepts} calendarData={calendarData} {...cp} />;
+      case 'abnormality': return <GenericApplyView type="出勤異常" currentSerialId={Utils.getSerialId(records, '出勤異常', 'AB')} availableDepts={availableDepts} calendarData={calendarData} {...cp} />;
+      case 'substitute': return <BatchProcessView title="代理確認中心" subtitle="確認同仁指定的職務代理申請" icon={UserCheck} processType="substitute" {...cp} />;
+      case 'approval': return <BatchProcessView title={userSession.empId === '9002' ? '交辦審核中心' : '簽核中心'} subtitle={userSession.empId === '9002' ? '確認並結案由主管核准後之交辦事項 (支援批次簽核)' : '審核員工表單 (支援批次簽核)'} icon={ShieldCheck} processType="approval" {...cp} />;
+      case 'integrated-query': return <InquiryView {...cp} />;
+      case 'leave-cancel': return <LeaveCancelView {...cp} />;
+      case 'change-password': return <ChangePasswordView onLogout={()=>setUserSession(null)} {...cp} />;
+      case 'announcement-list': return <AnnouncementListView announcements={announcements} readAnns={readAnns} markAnnAsRead={(id)=>setReadAnns(p=>[...new Set([...p, id])])} />;
+      case 'calendar': return <CalendarView records={records} userSession={userSession} />;
+      case 'announcement': return <AnnouncementManagement announcements={announcements} setAnnouncements={setAnnouncements} {...cp} />;
+      case 'personnel': return <PersonnelManagement availableDepts={availableDepts} {...cp} />;
+      case 'reports': return <ReportsView records={records} employees={employees} />;
+      case 'system-logs': return <SystemLogView sysLogs={sysLogs} />;
+      case 'delegation': return <DelegationView {...cp} />;
+      default: return <WelcomeView {...cp} isAdmin={isAdmin} setActiveMenu={setActiveMenu} announcements={announcements} readAnns={readAnns} markAnnAsRead={(id)=>setReadAnns(p=>[...new Set([...p, id])])} />;
     }
   };
 
   return (
-    <AppContext.Provider value={contextValue}>
-      <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden font-sans ${theme === 'dark' ? 'dark' : ''}`}>
-        <div className="flex-1 flex flex-col md:flex-row bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 w-full h-full relative">
-          <PrintModal record={printRecord} onClose={() => setPrintRecord(null)} />
-          <WorkflowModal isOpen={!!workflowTarget} onClose={()=>setWorkflowTarget(null)} record={workflowTarget} />
-          {notification && (<div className={`fixed top-10 right-10 z-[200] p-4 rounded-2xl shadow-2xl flex items-center gap-3 border ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>{notification.type === 'success' ? <CheckCircle size={20}/> : <AlertTriangle size={20}/>}<span className="font-bold text-sm">{notification.text}</span></div>)}
-          
-          {/* 手機版頂部 */}
-          <div className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between z-30 shrink-0">
-            <div className="flex items-center gap-3 text-sky-600"><div className="p-2 bg-sky-600 rounded-xl text-white"><LayoutDashboard size={20}/></div><span className="font-black text-lg">員工服務</span></div>
-            <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-500"><Menu size={24} /></button>
-          </div>
-          
-          {/* 側邊導航 */}
-          <aside className={`fixed md:relative top-0 left-0 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col z-50 transform transition-transform w-80 shrink-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-24' : 'md:w-80'} shrink-0`}>
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4 text-sky-600 overflow-hidden">
-                <div className="p-3 bg-sky-600 rounded-2xl text-white shrink-0"><LayoutDashboard size={24} /></div>
-                {!isSidebarCollapsed && <h2 className="font-black text-xl whitespace-nowrap">服務平台</h2>}
-              </div>
-              <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'hidden md:flex flex-col absolute top-24 left-1/2 -translate-x-1/2' : ''}`}>
-                <button onClick={()=>setTheme(theme==='light'?'dark':'light')} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 shrink-0">{theme==='light'?<Moon size={20}/>:<Sun size={20}/>}</button>
-                {!isSidebarCollapsed && <button onClick={()=>setSidebarOpen(false)} className="md:hidden p-2 text-slate-400"><X size={20}/></button>}
-              </div>
-            </div>
-
-            <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
-              <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '主要服務'}</p>
-              <MItem id="welcome" I={Sparkles} label="首頁總覽" hasDot={counts.hasWelcomeDot} />
-              <MItem id="overtime" I={Clock} label="加班申請" />
-              <MItem id="leave-apply" I={CalendarPlus} label="請假申請" />
-              <MItem id="abnormality" I={Fingerprint} label="出勤異常單" />
-              <MItem id="substitute" I={UserCheck} label="代理確認" badge={counts.sub} />
-              <MItem id="leave-cancel" I={Undo2} label="銷假與撤銷" />
-              <MItem id="integrated-query" I={ClipboardList} label="單據查詢" />
-              <MItem id="calendar" I={Calendar} label="休假月曆" />
-              <MItem id="announcement-list" I={Bell} label="資訊公告" badge={counts.unreadAnn} />
-              {isAdmin && (
-                <>
-                  <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-8 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '管理功能'}</p>
-                  <MItem id="approval" I={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '單據簽核'} badge={counts.mgr} />
-                  <MItem id="delegation" I={GitMerge} label="簽核權限代理" />
-                  <MItem id="reports" I={PieChart} label="統計報表" />
-                  <MItem id="announcement" I={Megaphone} label="公告維護" />
-                  <MItem id="personnel" I={Users} label="人員管理" />
-                </>
-              )}
-              <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-8 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '系統設定'}</p>
-              <MItem id="change-password" I={KeyRound} label="密碼變更" />
-              {userSession.empId === 'root' && <MItem id="system-logs" I={Activity} label="系統日誌" />}
-            </nav>
-            
-            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-4">
-              <div className={`p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center p-2' : ''}`}>
-                <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/50 rounded-xl flex items-center justify-center font-black text-sky-600 dark:text-sky-400 text-xs shrink-0">{(userSession.dept||'部').substring(0,1)}</div>
-                {!isSidebarCollapsed && <div className="overflow-hidden"><p className="text-xs font-black truncate">{userSession.name}</p><p className="text-[10px] text-slate-400 font-mono font-bold truncate">{userSession.empId}</p></div>}
-              </div>
-              <button onClick={() => handleLogout()} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all ${isSidebarCollapsed ? 'justify-center p-2' : ''}`}>
-                <LogOut size={20} className="shrink-0" /> {!isSidebarCollapsed && <span>登出系統</span>}
-              </button>
-            </div>
-
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex absolute -right-3 top-16 w-6 h-6 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full items-center justify-center text-slate-500 hover:text-sky-500 z-50 shadow-md transition-transform active:scale-90">
-              {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-            </button>
-          </aside>
-
-          <main className="flex-grow h-full p-4 sm:p-10 overflow-y-auto custom-scrollbar relative">
-            <div className="max-w-6xl mx-auto">{renderView()}</div>
-          </main>
+    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden font-sans ${theme === 'dark' ? 'dark' : ''}`}>
+      <div className="flex-1 flex flex-col md:flex-row bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 w-full h-full relative">
+        <PrintModal record={printRecord} onClose={() => setPrintRecord(null)} employees={employees} />
+        <WorkflowModal isOpen={!!workflowTarget} onClose={()=>setWorkflowTarget(null)} record={workflowTarget} employees={employees} />
+        {notification && (<div className={`fixed top-10 right-10 z-[200] p-4 rounded-2xl shadow-2xl flex items-center gap-3 border ${notification.type==='success'?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-rose-50 border-rose-200 text-rose-700'}`}>{notification.type === 'success' ? <CheckCircle size={20}/> : <AlertTriangle size={20}/>}<span className="font-bold text-sm">{notification.text}</span></div>)}
+        
+        {/* 手機版頂部 */}
+        <div className="md:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between z-30 shrink-0">
+          <div className="flex items-center gap-3 text-sky-600"><div className="p-2 bg-sky-600 rounded-xl text-white"><LayoutDashboard size={20}/></div><span className="font-black text-lg">員工服務</span></div>
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="p-2 text-slate-500"><Menu size={24} /></button>
         </div>
-        <style>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; } 
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; } 
-          .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
-          @media print {
-            body * { visibility: hidden !important; }
-            #print-area, #print-area * { visibility: visible !important; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; min-height: 100vh; background: white; margin: 0; padding: 0; }
-            .no-print { display: none !important; }
-          }
-        `}</style>
+        
+        {/* 側邊導航 */}
+        <aside className={`fixed md:relative top-0 left-0 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-6 flex flex-col z-50 transform transition-transform w-80 shrink-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} ${isSidebarCollapsed ? 'md:w-24' : 'md:w-80'} shrink-0`}>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4 text-sky-600 overflow-hidden">
+              <div className="p-3 bg-sky-600 rounded-2xl text-white shrink-0"><LayoutDashboard size={24} /></div>
+              {!isSidebarCollapsed && <h2 className="font-black text-xl whitespace-nowrap">服務平台</h2>}
+            </div>
+            <div className={`flex items-center gap-2 ${isSidebarCollapsed ? 'hidden md:flex flex-col absolute top-24 left-1/2 -translate-x-1/2' : ''}`}>
+              <button onClick={()=>setTheme(theme==='light'?'dark':'light')} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 shrink-0">{theme==='light'?<Moon size={20}/>:<Sun size={20}/>}</button>
+              {!isSidebarCollapsed && <button onClick={()=>setSidebarOpen(false)} className="md:hidden p-2 text-slate-400"><X size={20}/></button>}
+            </div>
+          </div>
+
+          <nav className="space-y-1 overflow-y-auto flex-1 custom-scrollbar">
+            <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-4 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '主要服務'}</p>
+            <MItem id="welcome" I={Sparkles} label="首頁總覽" hasDot={counts.hasWelcomeDot} />
+            <MItem id="overtime" I={Clock} label="加班申請" />
+            <MItem id="leave-apply" I={CalendarPlus} label="請假申請" />
+            <MItem id="abnormality" I={Fingerprint} label="出勤異常單" />
+            <MItem id="substitute" I={UserCheck} label="代理確認" badge={counts.sub} />
+            <MItem id="leave-cancel" I={Undo2} label="銷假與撤銷" />
+            <MItem id="integrated-query" I={ClipboardList} label="單據查詢" />
+            <MItem id="calendar" I={Calendar} label="休假月曆" />
+            <MItem id="announcement-list" I={Bell} label="資訊公告" badge={counts.unreadAnn} />
+            {isAdmin && (
+              <>
+                <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-8 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '管理功能'}</p>
+                <MItem id="approval" I={ShieldCheck} label={userSession.empId === '9002' ? '交辦審核' : '單據簽核'} badge={counts.mgr} />
+                <MItem id="delegation" I={GitMerge} label="簽核權限代理" />
+                <MItem id="reports" I={PieChart} label="統計報表" />
+                <MItem id="announcement" I={Megaphone} label="公告維護" />
+                <MItem id="personnel" I={Users} label="人員管理" />
+              </>
+            )}
+            <p className={`text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-2 mt-8 ${isSidebarCollapsed ? 'text-center px-0' : ''}`}>{isSidebarCollapsed ? '...' : '系統設定'}</p>
+            <MItem id="change-password" I={KeyRound} label="密碼變更" />
+            {userSession.empId === 'root' && <MItem id="system-logs" I={Activity} label="系統日誌" />}
+          </nav>
+          
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-4">
+            <div className={`p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center p-2' : ''}`}>
+              <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/50 rounded-xl flex items-center justify-center font-black text-sky-600 dark:text-sky-400 text-xs shrink-0">{(userSession.dept||'部').substring(0,1)}</div>
+              {!isSidebarCollapsed && <div className="overflow-hidden"><p className="text-xs font-black truncate">{userSession.name}</p><p className="text-[10px] text-slate-400 font-mono font-bold truncate">{userSession.empId}</p></div>}
+            </div>
+            <button onClick={()=>{logAction(userSession, '登出', '手動登出'); setUserSession(null);}} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all ${isSidebarCollapsed ? 'justify-center p-2' : ''}`}>
+              <LogOut size={20} className="shrink-0" /> {!isSidebarCollapsed && <span>登出系統</span>}
+            </button>
+          </div>
+
+          <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden md:flex absolute -right-3 top-16 w-6 h-6 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-full items-center justify-center text-slate-500 hover:text-sky-500 z-50 shadow-md transition-transform active:scale-90">
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </aside>
+
+        <main className="flex-grow h-full p-4 sm:p-10 overflow-y-auto custom-scrollbar relative">
+          <div className="max-w-6xl mx-auto">{renderView()}</div>
+        </main>
       </div>
-    </AppContext.Provider>
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; } 
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; } 
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        @media print {
+          body * { visibility: hidden !important; }
+          #print-area, #print-area * { visibility: visible !important; }
+          #print-area { position: absolute; left: 0; top: 0; width: 100%; min-height: 100vh; background: white; margin: 0; padding: 0; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+    </div>
   );
 };
 
